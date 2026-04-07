@@ -195,7 +195,6 @@ h1, h2, h3, h4, h5, h6 {
 /* Botões Premium */
 .btn {
     font-weight: 600;
-    transition: all 0.3s ease;
     letter-spacing: 0.3px;
 }
 .btn-wrap { display: inline-block; position: relative; } /* Para efeito magnético */
@@ -209,7 +208,7 @@ h1, h2, h3, h4, h5, h6 {
     background-color: #fff; /* Inverte para branco no hover para "tapa na cara" */
     border-color: #fff;
     color: #0a0a12;
-    transform: translateY(-2px);
+    transform: none;
 }
 .btn-whatsapp {
     background-color: #fff; /* Hero button branco para destaque máximo */
@@ -219,6 +218,7 @@ h1, h2, h3, h4, h5, h6 {
 .btn-whatsapp:hover {
     background-color: var(--btn-whatsapp-bg);
     color: white;
+    transform: none;
 }
 .btn-outline-primary {
     color: var(--primary-color);
@@ -228,6 +228,7 @@ h1, h2, h3, h4, h5, h6 {
     background-color: var(--primary-color);
     border-color: var(--primary-color);
     color: #0a0a12;
+    transform: none;
 }
 
 /* WhatsApp Float */
@@ -248,9 +249,9 @@ h1, h2, h3, h4, h5, h6 {
     align-items: center;
     justify-content: center;
     text-decoration: none;
-    transition: all 0.3s ease;
 }
-.whatsapp-float:hover { transform: scale(1.1) rotate(10deg); color: white; }
+
+.whatsapp-float:hover { color: white; }
 
 /* Sections Styling */
 .bg-section { background-color: rgba(255,255,255,0.015); }

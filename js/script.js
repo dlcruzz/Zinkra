@@ -120,39 +120,42 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-
-    // ==========================================
-    // 4. Efeito Magnético nos Botões (Premium UX)
-    // ==========================================
-    if(window.innerWidth > 991) { // Apenas desktop
-        const magneticBtns = document.querySelectorAll('.magnetic-btn');
-        
-        magneticBtns.forEach(btn => {
-            btn.addEventListener('mousemove', function(e) {
-                const position = this.getBoundingClientRect();
-                const x = e.pageX - position.left - position.width / 2;
-                const y = e.pageY - position.top - position.height / 2;
-                
-                // Move o botão suavemente em direção ao mouse
-                gsap.to(this, {
-                    x: x * 0.3,
-                    y: y * 0.5,
-                    duration: 0.3,
-                    ease: "power2.out"
-                });
-            });
+// ==========================================
+// 4. Efeito Magnético Refinado (Correção de Tremor)
+// ==========================================
+if(window.innerWidth > 991) { 
+    const magneticBtns = document.querySelectorAll('.magnetic-btn');
+    
+    magneticBtns.forEach(btn => {
+        btn.addEventListener('mousemove', function(e) {
+            const pos = this.getBoundingClientRect();
+            // Calcula o centro do botão
+            const centerX = pos.left + pos.width / 2;
+            const centerY = pos.top + pos.height / 2;
             
-            btn.addEventListener('mouseout', function(e) {
-                // Volta o botão para a posição original
-                gsap.to(this, {
-                    x: 0,
-                    y: 0,
-                    duration: 0.5,
-                    ease: "elastic.out(1, 0.3)" // Efeito elástico ao soltar
-                });
+            // Distância do mouse para o centro
+            const moveX = (e.clientX - centerX) * 0.4;
+            const moveY = (e.clientY - centerY) * 0.4;
+            
+            gsap.to(this, {
+                x: moveX,
+                y: moveY,
+                duration: 0.4,
+                ease: "power2.out"
             });
         });
-    }
+        
+        btn.addEventListener('mouseleave', function() {
+            // Volta para a posição 0 com efeito elástico suave
+            gsap.to(this, {
+                x: 0,
+                y: 0,
+                duration: 0.8,
+                ease: "elastic.out(1, 0.3)"
+            });
+        });
+    });
+}
 
 
     // ==========================================
