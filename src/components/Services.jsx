@@ -6,6 +6,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger'
 const SITE_PLANS = [
   {
     name: 'Basic', priceNum: 497, suffix: null, popular: false,
+    maintenance: 97,
     waService: 'Criação de Sites',
     features: [
       'Página profissional para apresentar seu negócio',
@@ -18,6 +19,7 @@ const SITE_PLANS = [
   },
   {
     name: 'Plus', priceNum: 997, suffix: null, popular: true,
+    maintenance: 197,
     waService: 'Criação de Sites',
     features: [
       'Site completo com até 5 páginas',
@@ -31,6 +33,7 @@ const SITE_PLANS = [
   },
   {
     name: 'Premium', priceNum: 1997, suffix: null, popular: false,
+    maintenance: 397,
     waService: 'Criação de Sites',
     features: [
       'Site completo com estrutura estratégica de vendas',
@@ -143,6 +146,23 @@ function PlanCard({ plan, isActive, onClick }) {
           </div>
           {plan.suffix && (
             <span className="font-mono text-[12px]" style={{ color: '#9AA5A0' }}>{plan.suffix}</span>
+          )}
+          {/* Maintenance price */}
+          {plan.maintenance && (
+            <div
+              className="flex items-center gap-2 mt-3 px-3 py-2 rounded-lg"
+              style={{ backgroundColor: '#F5F7F5', border: '1px solid #E8EDEA' }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9AA5A0" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              </svg>
+              <span className="font-mono text-[11px]" style={{ color: '#6A8080' }}>
+                Manutenção mensal:{' '}
+                <span className="font-bold" style={{ color: '#0A0C0B' }}>
+                  R$ {plan.maintenance.toLocaleString('pt-BR')}/mês
+                </span>
+              </span>
+            </div>
           )}
         </div>
 
