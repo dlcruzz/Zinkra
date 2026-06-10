@@ -67,18 +67,18 @@ export default function FeaturedService() {
               className="font-black text-[#0A0C0B] leading-[1.1] tracking-tight mb-6"
               style={{ fontSize: 'clamp(28px, 4vw, 52px)' }}
             >
-              Criacao de Sistemas e{' '}
+              Criação de Sistemas e{' '}
               <span style={{ color: '#15C45A' }}>Plataformas Sob Medida</span>
             </h2>
             <p className="text-[16px] leading-[1.8] mb-5" style={{ color: '#4A5550' }}>
-              Desenvolvemos sistemas internos sob medida para o seu negocio, integrando design moderno, facilidade de navegacao e ferramentas para aumentar sua produtividade.
+              Desenvolvemos sistemas internos sob medida para o seu negócio, integrando design moderno, facilidade de navegação e ferramentas para aumentar sua produtividade.
             </p>
             <p className="text-[16px] leading-[1.8] mb-10" style={{ color: '#4A5550' }}>
-              Transforme sua ideia em uma plataforma de sucesso — com integracao de APIs, banco de dados, seguranca e responsividade para todos os dispositivos. Invista em tecnologia e comece a escalar ja.
+              Transforme sua ideia em uma plataforma de sucesso — com integração de APIs, banco de dados, segurança e responsividade para todos os dispositivos. Invista em tecnologia e comece a escalar já.
             </p>
 
             <div className="flex flex-wrap gap-3 mb-10">
-              {['ERP e CRM', 'SaaS', 'Dashboards', 'Automacoes', 'Integracao de APIs'].map(tag => (
+              {['ERP e CRM', 'SaaS', 'Dashboards', 'Automações', 'Integração de APIs'].map(tag => (
                 <span
                   key={tag}
                   className="font-mono text-[12px] px-3 py-1.5 rounded-full"

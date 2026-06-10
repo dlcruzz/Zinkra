@@ -6,7 +6,7 @@ const SERVICES = [
   {
     color: '#15C45A',
     title: 'Sites Personalizados',
-    desc: 'Criamos um site unico e personalizado para sua empresa com layout totalmente moldado para vendas e conversao.',
+    desc: 'Criamos um site único e personalizado para sua empresa com layout totalmente moldado para vendas e conversão.',
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
         <circle cx="12" cy="12" r="10" />
@@ -17,7 +17,7 @@ const SERVICES = [
   {
     color: '#3B82F6',
     title: 'Sites Responsivos',
-    desc: 'Site responsivo, podendo se adaptar em todos os dispositivos alem de uma estrutura clara e intuitiva.',
+    desc: 'Site responsivo, podendo se adaptar em todos os dispositivos, além de uma estrutura clara e intuitiva.',
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
         <rect x="5" y="2" width="14" height="20" rx="2" />
@@ -27,8 +27,8 @@ const SERVICES = [
   },
   {
     color: '#F59E0B',
-    title: 'Paginas Rapidas',
-    desc: 'Site com carregamento ultra rapido, oferecendo uma navegacao eficiente e uma melhor experiencia ao usuario.',
+    title: 'Páginas Rápidas',
+    desc: 'Site com carregamento ultra-rápido, oferecendo uma navegação eficiente e uma melhor experiência ao usuário.',
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
         <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
@@ -38,7 +38,7 @@ const SERVICES = [
   {
     color: '#8B5CF6',
     title: 'Suporte Especializado',
-    desc: 'Conte com um time de especialistas para dar suporte as suas necessidades sob demanda, sempre que precisar.',
+    desc: 'Conte com um time de especialistas para dar suporte às suas necessidades sob demanda, sempre que precisar.',
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
         <path d="M3 18v-6a9 9 0 0118 0v6" />
@@ -60,7 +60,7 @@ const SERVICES = [
   {
     color: '#10B981',
     title: 'SEO e Google',
-    desc: 'Seguimos todos os criterios do Google, garantindo que sua empresa apareca na maior rede de pesquisa do mundo.',
+    desc: 'Seguimos todos os critérios do Google, garantindo que sua empresa apareça na maior rede de pesquisa do mundo.',
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
         <circle cx="11" cy="11" r="8" />
@@ -71,7 +71,7 @@ const SERVICES = [
   {
     color: '#6366F1',
     title: 'Redes Sociais',
-    desc: 'Gestao completa de redes sociais com criacao de conteudo estrategico e design profissional para sua marca.',
+    desc: 'Gestão completa de redes sociais com criação de conteúdo estratégico e design profissional para sua marca.',
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
         <path d="M4 9h16M4 15h16M10 3l-2 18M16 3l-2 18" />
@@ -80,8 +80,8 @@ const SERVICES = [
   },
   {
     color: '#F97316',
-    title: 'IA e Automacao',
-    desc: 'Estrategias de inteligencia artificial focadas em otimizar a experiencia do usuario, automatizar processos e escalar resultados.',
+    title: 'IA e Automação',
+    desc: 'Estratégias de inteligência artificial focadas em otimizar a experiência do usuário, automatizar processos e escalar resultados.',
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
         <rect x="4" y="4" width="16" height="16" rx="2" />
@@ -124,7 +124,7 @@ export default function ServicesGrid() {
             className="font-black text-[#0A0C0B] leading-[1.08] tracking-tight"
             style={{ fontSize: 'clamp(28px, 4vw, 52px)' }}
           >
-            Solucoes completas para o seu negocio.
+            Soluções completas para o seu negócio.
           </h2>
         </div>
 

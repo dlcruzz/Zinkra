@@ -64,7 +64,7 @@ export default function Hero() {
                 className="font-mono text-[11px] uppercase tracking-[3px] px-3 py-1.5 rounded-full"
                 style={{ backgroundColor: 'rgba(21,196,90,0.1)', color: '#15C45A', border: '1px solid rgba(21,196,90,0.2)' }}
               >
-                Software House · Sao Paulo, SP
+                Software House · São Paulo, SP
               </span>
             </div>
 
@@ -72,16 +72,16 @@ export default function Hero() {
               className="font-black leading-[1.08] tracking-tight mb-6"
               style={{ fontSize: 'clamp(36px, 5vw, 64px)' }}
             >
-              <span className="text-[#0A0C0B]">Transforme seu Negocio com</span>
+              <span className="text-[#0A0C0B]">Transforme seu Negócio com</span>
               <br />
-              <span style={{ color: '#15C45A' }}>uma Presenca Digital Profissional.</span>
+              <span style={{ color: '#15C45A' }}>uma Presença Digital Profissional.</span>
             </h1>
 
             <p
               className="text-[17px] leading-[1.8] mb-8"
               style={{ color: '#4A5550', maxWidth: '520px' }}
             >
-              Alavance sua presenca online com tecnologia sob medida — sites profissionais, sistemas internos e estrategia digital. Aumente suas vendas com um parceiro que foca em resultado mensuravel.
+              Alavance sua presença online com tecnologia sob medida — sites profissionais, sistemas internos e estratégia digital. Aumente suas vendas com um parceiro que foca em resultado mensurável.
             </p>
 
             <a
@@ -124,7 +124,7 @@ export default function Hero() {
             />
             <img
               src="/images/imagem-hero.png"
-              alt="Solucoes digitais Zinkra"
+              alt="Soluções digitais Zinkra"
               className="w-full h-full object-cover rounded-2xl relative z-10"
             />
           </div>

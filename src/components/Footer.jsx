@@ -1,20 +1,20 @@
 import React from 'react'
 
 const SERVICE_LINKS = [
-  { label: 'Criacao de Sites',    href: '#servicos' },
+  { label: 'Criação de Sites',    href: '#servicos' },
   { label: 'Redes Sociais',       href: '#servicos' },
   { label: 'Sistemas Sob Medida', href: '#servicos' },
-  { label: 'IA e Automacao',      href: '#servicos' },
+  { label: 'IA e Automação',      href: '#servicos' },
   { label: 'SEO e Google',        href: '#servicos' },
   { label: 'Identidade Visual',   href: '#servicos' },
 ]
 
 const NAV_LINKS = [
-  { label: 'Inicio',   href: '#home'     },
-  { label: 'Servicos', href: '#servicos' },
-  { label: 'Projetos', href: '#projetos' },
-  { label: 'Planos',   href: '#planos'   },
-  { label: 'Contato',  href: '#contato'  },
+  { label: 'Início',    href: '#home'     },
+  { label: 'Serviços',  href: '#servicos' },
+  { label: 'Projetos',  href: '#projetos' },
+  { label: 'Planos',    href: '#planos'   },
+  { label: 'Contato',   href: '#contato'  },
 ]
 
 function InstagramIcon() {
@@ -67,7 +67,7 @@ export default function Footer() {
               </span>
             </div>
             <p className="text-[14px] leading-[1.7] mb-7" style={{ color: '#5A7A65' }}>
-              Solucoes personalizadas para transformar e maximizar a presenca digital da sua empresa.
+              Soluções personalizadas para transformar e maximizar a presença digital da sua empresa.
             </p>
             <div className="flex items-center gap-4">
               {[
@@ -92,9 +92,9 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* Col 2 — Links uteis */}
+          {/* Col 2 — Links Úteis */}
           <div>
-            <ColHeading>Links Uteis</ColHeading>
+            <ColHeading>Links Úteis</ColHeading>
             <ul className="space-y-3">
               {NAV_LINKS.map(l => (
                 <li key={l.href}>
@@ -165,9 +165,9 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Col 4 — Servicos */}
+          {/* Col 4 — Serviços */}
           <div>
-            <ColHeading>Servicos</ColHeading>
+            <ColHeading>Serviços</ColHeading>
             <ul className="space-y-3">
               {SERVICE_LINKS.map(l => (
                 <li key={l.label}>

@@ -5,8 +5,8 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger'
 const STEPS = [
   {
     num: '01',
-    label: 'Briefing e Contratacao',
-    desc: 'Coleta de informacoes sobre seu negocio, objetivos e formalizacao do contrato.',
+    label: 'Briefing e Contratação',
+    desc: 'Coleta de informações sobre seu negócio, objetivos e formalização do contrato.',
     icon: (
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
         <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
@@ -19,8 +19,8 @@ const STEPS = [
   },
   {
     num: '02',
-    label: 'Design e Estrategia',
-    desc: 'Alinhamento de ideias, identidade visual e planejamento estrategico da solucao.',
+    label: 'Design e Estratégia',
+    desc: 'Alinhamento de ideias, identidade visual e planejamento estratégico da solução.',
     icon: (
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
         <circle cx="12" cy="12" r="10" />
@@ -31,7 +31,7 @@ const STEPS = [
   {
     num: '03',
     label: 'Desenvolvimento',
-    desc: 'Construcao tecnica 100% personalizada das plataformas e sistemas digitais.',
+    desc: 'Construção técnica 100% personalizada das plataformas e sistemas digitais.',
     icon: (
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
         <polyline points="16 18 22 12 16 6" />
@@ -42,7 +42,7 @@ const STEPS = [
   {
     num: '04',
     label: 'Pesquisa e Testes',
-    desc: 'Analise do cenario competitivo, testes de qualidade e validacao tecnica do projeto.',
+    desc: 'Análise do cenário competitivo, testes de qualidade e validação técnica do projeto.',
     icon: (
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
         <circle cx="11" cy="11" r="8" />
@@ -52,8 +52,8 @@ const STEPS = [
   },
   {
     num: '05',
-    label: 'Publicacao e Suporte',
-    desc: 'Capacitacao da equipe, lancamento do projeto e suporte inicial garantido.',
+    label: 'Publicação e Suporte',
+    desc: 'Capacitação da equipe, lançamento do projeto e suporte inicial garantido.',
     icon: (
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
         <path d="M12 2L2 7l10 5 10-5-10-5z" />

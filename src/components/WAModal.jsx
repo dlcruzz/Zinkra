@@ -128,7 +128,7 @@ export default function WAModal() {
                 </div>
                 <div>
                   <p className="font-bold text-[15px] text-[#0A0C0B] leading-tight">Fale com a Zinkra</p>
-                  <p className="font-mono text-[11px]" style={{ color: '#9AA5A0' }}>Resposta em ate 2h</p>
+                  <p className="font-mono text-[11px]" style={{ color: '#9AA5A0' }}>Resposta em até 2h</p>
                 </div>
               </div>
               <button
@@ -176,7 +176,7 @@ export default function WAModal() {
               {/* Service */}
               <div>
                 <label className="block font-medium text-[13px] text-[#0A0C0B] mb-2" htmlFor="wa-service">
-                  Qual serviço voce precisa? <span style={{ color: '#15C45A' }}>*</span>
+                  Qual serviço você precisa? <span style={{ color: '#15C45A' }}>*</span>
                 </label>
                 <div className="relative">
                   <select
@@ -192,7 +192,7 @@ export default function WAModal() {
                     onFocus={e => { if (!errors.service) e.target.style.borderColor = '#15C45A' }}
                     onBlur={e  => { if (!errors.service) e.target.style.borderColor = '#E8EDEA' }}
                   >
-                    <option value="" disabled>Selecione um servico...</option>
+                    <option value="" disabled>Selecione um serviço...</option>
                     {SERVICES.map(s => (
                       <option key={s} value={s} style={{ color: '#0A0C0B' }}>{s}</option>
                     ))}
@@ -240,7 +240,7 @@ export default function WAModal() {
               </button>
 
               <p className="text-center font-mono text-[10px]" style={{ color: '#C8DDD2' }}>
-                Voce sera redirecionado para o WhatsApp com a mensagem pronta.
+                Você será redirecionado para o WhatsApp com a mensagem pronta.
               </p>
             </form>
           </motion.div>

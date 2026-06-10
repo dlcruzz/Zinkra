@@ -3,12 +3,12 @@ import { gsap } from 'gsap'
 import { AnimatePresence, motion } from 'framer-motion'
 
 const NAV_LINKS = [
-  { label: 'Inicio',    href: '#home'     },
-  { label: 'Servicos',  href: '#servicos', dropdown: [
-    { label: 'Criacao de Sites',    href: '#servicos' },
+  { label: 'Início',    href: '#home'     },
+  { label: 'Serviços',  href: '#servicos', dropdown: [
+    { label: 'Criação de Sites',    href: '#servicos' },
     { label: 'Redes Sociais',       href: '#servicos' },
     { label: 'Sistemas Sob Medida', href: '#servicos' },
-    { label: 'IA e Automacao',      href: '#servicos' },
+    { label: 'IA e Automação',      href: '#servicos' },
   ]},
   { label: 'Projetos',  href: '#projetos' },
   { label: 'Planos',    href: '#planos'   },

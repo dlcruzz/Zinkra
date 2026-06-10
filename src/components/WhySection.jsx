@@ -69,7 +69,7 @@ export default function WhySection() {
             style={{ fontSize: 'clamp(26px, 4vw, 50px)' }}
           >
             Por que ter uma{' '}
-            <span style={{ color: '#15C45A' }}>Presenca Digital Profissional?</span>
+            <span style={{ color: '#15C45A' }}>Presença Digital Profissional?</span>
           </h2>
         </div>
 
@@ -109,17 +109,17 @@ export default function WhySection() {
           {/* Right: text */}
           <div ref={textRef} className="opacity-0">
             <p className="text-[17px] leading-[1.8] mb-8" style={{ color: '#4A5550' }}>
-              Ter uma presenca digital profissional e essencial para qualquer empresa que deseja crescer e se destacar no mercado. Ela aumenta sua credibilidade, mostrando aos clientes que voce e confiavel e leva o negocio a serio.
+              Ter uma presença digital profissional é essencial para qualquer empresa que deseja crescer e se destacar no mercado. Ela aumenta sua credibilidade, mostrando aos clientes que você é confiável e leva o negócio a sério.
             </p>
             <p className="text-[17px] leading-[1.8] mb-10" style={{ color: '#4A5550' }}>
-              Com a Zinkra, seu negocio estara disponivel 24 horas por dia, 7 dias por semana, alcancando clientes a qualquer hora e em qualquer lugar — com tecnologia que trabalha por voce.
+              Com a Zinkra, seu negócio estará disponível 24 horas por dia, 7 dias por semana, alcançando clientes a qualquer hora e em qualquer lugar — com tecnologia que trabalha por você.
             </p>
 
             <div className="space-y-4 mb-10">
-              <CheckItem text="100% personalizado — nenhum template, nenhuma terceirizacao" />
-              <CheckItem text="Foco em resultado mensuravel, nao apenas entrega de codigo" />
-              <CheckItem text="Voce fala direto com quem constroi — sem intermediarios" />
-              <CheckItem text="Suporte prioritario apos a entrega do projeto" />
+              <CheckItem text="100% personalizado — nenhum template, nenhuma terceirização" />
+              <CheckItem text="Foco em resultado mensurável, não apenas entrega de código" />
+              <CheckItem text="Você fala direto com quem constrói — sem intermediários" />
+              <CheckItem text="Suporte prioritário após a entrega do projeto" />
             </div>
 
             <a
