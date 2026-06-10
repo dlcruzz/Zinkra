@@ -1,0 +1,107 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 80px;
+  }
+
+  body {
+    background-color: #ffffff;
+    color: #0A0C0B;
+    overflow-x: hidden;
+  }
+}
+
+/* Custom cursor — desktop only */
+@media (hover: hover) and (pointer: fine) {
+  * { cursor: none !important; }
+}
+
+.cursor-dot {
+  width: 8px;
+  height: 8px;
+  background: #15C45A;
+  border-radius: 50%;
+  position: fixed;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0;
+  will-change: transform;
+}
+
+.cursor-ring {
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid #15C45A;
+  border-radius: 50%;
+  position: fixed;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 9998;
+  opacity: 0;
+  transition: width 0.25s ease, height 0.25s ease, background 0.25s ease;
+  will-change: transform;
+}
+
+.cursor-ring.hovered {
+  width: 36px;
+  height: 36px;
+  background: rgba(21, 196, 90, 0.15);
+}
+
+/* Global background grid texture — dark sections */
+.bg-grid {
+  background-image:
+    linear-gradient(rgba(26, 31, 28, 0.4) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(26, 31, 28, 0.4) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+/* Light background grid texture */
+.bg-grid-light {
+  background-image:
+    linear-gradient(rgba(0, 0, 0, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+/* Scroll progress bar */
+#scroll-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 2px;
+  width: 100%;
+  background: #15C45A;
+  transform-origin: left center;
+  transform: scaleX(0);
+  z-index: 9999;
+  pointer-events: none;
+}
+
+/* WhatsApp float */
+.wa-float {
+  animation: fadeInUp 0.4s ease 2s both;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Prevent FOUC on reveal targets */
+.reveal-target {
+  opacity: 0;
+}
+
+/* TechStack marquee */
+@keyframes tech-marquee {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
