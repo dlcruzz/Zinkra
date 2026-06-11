@@ -104,8 +104,9 @@ export default function Performance() {
           <div ref={imgRef} className="relative h-[420px] lg:h-[500px] opacity-0">
             <img
               src="/images/imagem-performance.png"
-              alt="Performance e velocidade Zinkra"
+              alt="Sites rápidos e otimizados com nota 90+ no PageSpeed — Zinkra software house SP"
               className="w-full h-full object-cover rounded-2xl"
+              loading="lazy"
             />
             {/* Score badge overlay */}
             <div

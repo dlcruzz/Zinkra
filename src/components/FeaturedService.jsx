@@ -53,8 +53,9 @@ export default function FeaturedService() {
             />
             <img
               src="/images/imagem-sistemas.png"
-              alt="Sistemas sob medida Zinkra"
+              alt="Desenvolvimento de sistemas e ERPs sob medida — Zinkra software house São Paulo"
               className="w-full h-full object-cover rounded-2xl"
+              loading="lazy"
             />
           </div>
 

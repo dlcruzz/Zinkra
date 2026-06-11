@@ -118,13 +118,13 @@ export default function ServicesGrid() {
 
         <div ref={headRef} className="text-center mb-14 opacity-0">
           <p className="font-mono text-[11px] uppercase tracking-[3px] mb-4" style={{ color: '#15C45A' }}>
-            O que fazemos
+            Software House · São Paulo, SP
           </p>
           <h2
             className="font-black text-[#0A0C0B] leading-[1.08] tracking-tight"
             style={{ fontSize: 'clamp(28px, 4vw, 52px)' }}
           >
-            Soluções completas para o seu negócio.
+            Desenvolvimento de Software e Soluções Digitais para Empresas.
           </h2>
         </div>
 

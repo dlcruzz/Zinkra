@@ -1,0 +1,13 @@
+# Zinkra — robots.txt
+# https://www.zinkra.com.br
+
+User-agent: *
+Allow: /
+
+# Bloquear arquivos desnecessários
+Disallow: /src/
+Disallow: /*.json$
+Disallow: /*.mjs$
+
+# Sitemap
+Sitemap: https://www.zinkra.com.br/sitemap.xml

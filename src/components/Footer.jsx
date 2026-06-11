@@ -187,10 +187,46 @@ export default function Footer() {
 
         </div>
 
-        {/* Divider + copyright */}
+        {/* Divider + NAP + copyright */}
         <div className="h-px mt-14 mb-8" style={{ backgroundColor: '#1A2E20' }} />
+
+        {/* NAP estruturado (SEO local) */}
+        <address
+          className="not-italic text-center mb-6"
+          itemScope
+          itemType="https://schema.org/LocalBusiness"
+        >
+          <span itemProp="name" className="sr-only">Zinkra — Software House</span>
+          <p className="font-mono text-[11px]" style={{ color: '#3A5545' }}>
+            <span itemProp="addressLocality">São Paulo</span>,{' '}
+            <span itemProp="addressRegion">SP</span> · Brasil
+            {' · '}
+            <a
+              href="tel:+5511959773552"
+              itemProp="telephone"
+              className="transition-colors duration-200"
+              style={{ color: '#3A5545' }}
+              onMouseEnter={e => e.currentTarget.style.color = '#15C45A'}
+              onMouseLeave={e => e.currentTarget.style.color = '#3A5545'}
+            >
+              (11) 95977-3552
+            </a>
+            {' · '}
+            <a
+              href="mailto:contato@zinkra.com.br"
+              itemProp="email"
+              className="transition-colors duration-200"
+              style={{ color: '#3A5545' }}
+              onMouseEnter={e => e.currentTarget.style.color = '#15C45A'}
+              onMouseLeave={e => e.currentTarget.style.color = '#3A5545'}
+            >
+              contato@zinkra.com.br
+            </a>
+          </p>
+        </address>
+
         <p className="text-center font-mono text-[12px]" style={{ color: '#3A5545' }}>
-          Copyright 2026 Zinkra - Todos os direitos reservados
+          © 2026 Zinkra Software House · São Paulo, SP · Todos os direitos reservados
         </p>
 
       </div>

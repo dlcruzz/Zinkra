@@ -62,14 +62,14 @@ export default function WhySection() {
 
         <div className="text-center mb-16">
           <p className="font-mono text-[11px] uppercase tracking-[3px] mb-4" style={{ color: '#15C45A' }}>
-            Nossa abordagem
+            Software house · São Paulo
           </p>
           <h2
             className="font-black text-[#0A0C0B] leading-[1.08] tracking-tight"
             style={{ fontSize: 'clamp(26px, 4vw, 50px)' }}
           >
-            Por que ter uma{' '}
-            <span style={{ color: '#15C45A' }}>Presença Digital Profissional?</span>
+            Por que Contratar uma{' '}
+            <span style={{ color: '#15C45A' }}>Software House em São Paulo?</span>
           </h2>
         </div>
 
@@ -92,8 +92,9 @@ export default function WhySection() {
               >
                 <img
                   src="/images/imagem-sobre.png"
-                  alt="Equipe Zinkra"
+                  alt="Equipe Zinkra — software house em São Paulo especializada em desenvolvimento de sistemas"
                   className="w-full h-full object-cover"
+                  loading="lazy"
                 />
               </div>
               {/* Badge */}
@@ -109,16 +110,17 @@ export default function WhySection() {
           {/* Right: text */}
           <div ref={textRef} className="opacity-0">
             <p className="text-[17px] leading-[1.8] mb-8" style={{ color: '#4A5550' }}>
-              Ter uma presença digital profissional é essencial para qualquer empresa que deseja crescer e se destacar no mercado. Ela aumenta sua credibilidade, mostrando aos clientes que você é confiável e leva o negócio a sério.
+              Ter uma presença digital profissional e sistemas bem construídos é essencial para qualquer empresa que deseja crescer no mercado atual. Ela aumenta sua credibilidade, torna seu negócio visível no Google e automatiza processos que hoje consomem tempo e dinheiro.
             </p>
             <p className="text-[17px] leading-[1.8] mb-10" style={{ color: '#4A5550' }}>
-              Com a Zinkra, seu negócio estará disponível 24 horas por dia, 7 dias por semana, alcançando clientes a qualquer hora e em qualquer lugar — com tecnologia que trabalha por você.
+              Com a Zinkra — software house em São Paulo —, você conta com desenvolvimento de sistemas internos, ERPs, SaaS e sites que funcionam 24 horas por dia, 7 dias por semana. Tecnologia escalável, desenvolvida 100% in-house, sem terceirização, entregando resultado mensurável para o seu negócio.
             </p>
 
             <div className="space-y-4 mb-10">
-              <CheckItem text="100% personalizado — nenhum template, nenhuma terceirização" />
+              <CheckItem text="Desenvolvimento 100% próprio — sem template, sem terceirização" />
               <CheckItem text="Foco em resultado mensurável, não apenas entrega de código" />
               <CheckItem text="Você fala direto com quem constrói — sem intermediários" />
+              <CheckItem text="Mais de 50 projetos entregues em São Paulo e região" />
               <CheckItem text="Suporte prioritário após a entrega do projeto" />
             </div>
 

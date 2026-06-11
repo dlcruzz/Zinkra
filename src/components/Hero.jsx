@@ -72,16 +72,16 @@ export default function Hero() {
               className="font-black leading-[1.08] tracking-tight mb-6"
               style={{ fontSize: 'clamp(36px, 5vw, 64px)' }}
             >
-              <span className="text-[#0A0C0B]">Transforme seu Negócio com</span>
+              <span className="text-[#0A0C0B]">Sistemas, Sites e ERPs</span>
               <br />
-              <span style={{ color: '#15C45A' }}>uma Presença Digital Profissional.</span>
+              <span style={{ color: '#15C45A' }}>Sob Medida em São Paulo.</span>
             </h1>
 
             <p
               className="text-[17px] leading-[1.8] mb-8"
               style={{ color: '#4A5550', maxWidth: '520px' }}
             >
-              Alavance sua presença online com tecnologia sob medida — sites profissionais, sistemas internos e estratégia digital. Aumente suas vendas com um parceiro que foca em resultado mensurável.
+              Software house especializada em desenvolvimento de sistemas internos, ERPs personalizados, SaaS e criação de sites profissionais. 100% desenvolvido em São Paulo, sem terceirização, sem templates — com foco total em resultado para o seu negócio.
             </p>
 
             <a
@@ -124,8 +124,9 @@ export default function Hero() {
             />
             <img
               src="/images/imagem-hero.png"
-              alt="Soluções digitais Zinkra"
+              alt="Software house Zinkra — desenvolvimento de sistemas, sites e ERPs sob medida em São Paulo"
               className="w-full h-full object-cover rounded-2xl relative z-10"
+              fetchpriority="high"
             />
           </div>
 
