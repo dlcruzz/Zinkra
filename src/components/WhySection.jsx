@@ -62,14 +62,14 @@ export default function WhySection() {
 
         <div className="text-center mb-16">
           <p className="font-mono text-[11px] uppercase tracking-[3px] mb-4" style={{ color: '#15C45A' }}>
-            Software house · São Paulo
+            Software House · Brasil
           </p>
           <h2
             className="font-black text-[#0A0C0B] leading-[1.08] tracking-tight"
             style={{ fontSize: 'clamp(26px, 4vw, 50px)' }}
           >
             Por que Contratar uma{' '}
-            <span style={{ color: '#15C45A' }}>Software House em São Paulo?</span>
+            <span style={{ color: '#15C45A' }}>Software House Profissional?</span>
           </h2>
         </div>
 
@@ -113,7 +113,7 @@ export default function WhySection() {
               Ter uma presença digital profissional e sistemas bem construídos é essencial para qualquer empresa que deseja crescer no mercado atual. Ela aumenta sua credibilidade, torna seu negócio visível no Google e automatiza processos que hoje consomem tempo e dinheiro.
             </p>
             <p className="text-[17px] leading-[1.8] mb-10" style={{ color: '#4A5550' }}>
-              Com a Zinkra — software house em São Paulo —, você conta com desenvolvimento de sistemas internos, ERPs, SaaS e sites que funcionam 24 horas por dia, 7 dias por semana. Tecnologia escalável, desenvolvida 100% in-house, sem terceirização, entregando resultado mensurável para o seu negócio.
+              Com a Zinkra, você conta com desenvolvimento de sistemas internos, ERPs, SaaS e sites que funcionam 24 horas por dia, 7 dias por semana — atendendo empresas em todo o Brasil. Tecnologia escalável, desenvolvida 100% in-house, sem terceirização, com foco total em resultado mensurável para o seu negócio.
             </p>
 
             <div className="space-y-4 mb-10">

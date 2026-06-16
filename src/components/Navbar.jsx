@@ -42,11 +42,14 @@ export default function Navbar() {
   return (
     <nav
       ref={navRef}
-      className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${scrolled ? 'py-3 shadow-sm' : 'py-4'}`}
+      className={`fixed z-50 transition-all duration-500 ${scrolled ? 'top-3 inset-x-4 lg:inset-x-8 rounded-2xl py-3' : 'top-0 inset-x-0 rounded-none py-4'}`}
       style={{
-        backgroundColor: 'rgba(255,255,255,0.97)',
-        backdropFilter: 'blur(16px)',
-        borderBottom: '1px solid #E8EDEA',
+        backgroundColor: scrolled ? 'rgba(255,255,255,0.72)' : 'rgba(255,255,255,0.92)',
+        backdropFilter: 'blur(24px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+        border: scrolled ? '1px solid rgba(232,237,234,0.6)' : '1px solid transparent',
+        borderBottom: scrolled ? 'none' : '1px solid rgba(232,237,234,0.8)',
+        boxShadow: scrolled ? '0 8px 32px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04)' : 'none',
       }}
     >
       <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">

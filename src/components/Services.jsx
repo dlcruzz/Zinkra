@@ -5,8 +5,8 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger'
 /* ─── Plan data ─────────────────────────────────────────────────────── */
 const SITE_PLANS = [
   {
-    name: 'Basic', priceNum: 497, suffix: null, popular: false,
-    maintenance: 97,
+    name: 'Basic', priceNum: 570, suffix: null, popular: false,
+    maintenance: 110,
     waService: 'Criação de Sites',
     features: [
       'Página profissional para apresentar seu negócio',
@@ -18,8 +18,8 @@ const SITE_PLANS = [
     ],
   },
   {
-    name: 'Plus', priceNum: 997, suffix: null, popular: true,
-    maintenance: 197,
+    name: 'Plus', priceNum: 1150, suffix: null, popular: true,
+    maintenance: 230,
     waService: 'Criação de Sites',
     features: [
       'Site completo com até 5 páginas',
@@ -32,8 +32,8 @@ const SITE_PLANS = [
     ],
   },
   {
-    name: 'Premium', priceNum: 1997, suffix: null, popular: false,
-    maintenance: 397,
+    name: 'Premium', priceNum: 2300, suffix: null, popular: false,
+    maintenance: 460,
     waService: 'Criação de Sites',
     features: [
       'Site completo com estrutura estratégica de vendas',
@@ -50,7 +50,7 @@ const SITE_PLANS = [
 
 const SOCIAL_PLANS = [
   {
-    name: 'Basic', priceNum: 197, suffix: '/mês', popular: false,
+    name: 'Basic', priceNum: 227, suffix: '/mês', popular: false,
     waService: 'Gestão de Redes Sociais',
     features: [
       '8 posts por mês (feed)',
@@ -61,7 +61,7 @@ const SOCIAL_PLANS = [
     ],
   },
   {
-    name: 'Plus', priceNum: 397, suffix: '/mês', popular: true,
+    name: 'Plus', priceNum: 457, suffix: '/mês', popular: true,
     waService: 'Gestão de Redes Sociais',
     features: [
       '12 posts por mês (feed + reels)',
@@ -74,7 +74,7 @@ const SOCIAL_PLANS = [
     ],
   },
   {
-    name: 'Premium', priceNum: 697, suffix: '/mês', popular: false,
+    name: 'Premium', priceNum: 797, suffix: '/mês', popular: false,
     waService: 'Gestão de Redes Sociais',
     features: [
       '20+ conteúdos por mês (feed, reels e stories)',

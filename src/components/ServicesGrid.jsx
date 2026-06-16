@@ -118,7 +118,7 @@ export default function ServicesGrid() {
 
         <div ref={headRef} className="text-center mb-14 opacity-0">
           <p className="font-mono text-[11px] uppercase tracking-[3px] mb-4" style={{ color: '#15C45A' }}>
-            Software House · São Paulo, SP
+            Software House · Brasil
           </p>
           <h2
             className="font-black text-[#0A0C0B] leading-[1.08] tracking-tight"

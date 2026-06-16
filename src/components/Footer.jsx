@@ -198,9 +198,6 @@ export default function Footer() {
         >
           <span itemProp="name" className="sr-only">Zinkra — Software House</span>
           <p className="font-mono text-[11px]" style={{ color: '#3A5545' }}>
-            <span itemProp="addressLocality">São Paulo</span>,{' '}
-            <span itemProp="addressRegion">SP</span> · Brasil
-            {' · '}
             <a
               href="tel:+5511959773552"
               itemProp="telephone"
@@ -229,7 +226,7 @@ export default function Footer() {
         </address>
 
         <p className="text-center font-mono text-[12px]" style={{ color: '#3A5545' }}>
-          © 2026 Zinkra Software House · São Paulo, SP · Todos os direitos reservados
+          © 2026 Zinkra Software House · Todos os direitos reservados
         </p>
 
       </div>

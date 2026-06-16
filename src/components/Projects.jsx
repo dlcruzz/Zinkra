@@ -72,12 +72,16 @@ export default function Projects() {
               onMouseEnter={e => { e.currentTarget.style.borderColor = '#15C45A'; e.currentTarget.style.transform = 'translateY(-4px)' }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = '#E8EDEA'; e.currentTarget.style.transform = 'translateY(0)' }}
             >
-              <div className="aspect-square overflow-hidden" style={{ background: p.bg }}>
+              <div
+                className="h-52 flex items-center justify-center overflow-hidden p-4"
+                style={{ background: p.bg }}
+              >
                 <img
                   src={p.img}
                   alt={p.name}
                   loading="lazy"
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+                  className="max-h-full w-auto object-contain transition-transform duration-500 group-hover:scale-[1.04]"
+                  style={{ filter: 'drop-shadow(0 8px 24px rgba(0,0,0,0.35))' }}
                   onError={e => { e.currentTarget.style.display = 'none' }}
                 />
               </div>

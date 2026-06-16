@@ -64,7 +64,7 @@ export default function Hero() {
                 className="font-mono text-[11px] uppercase tracking-[3px] px-3 py-1.5 rounded-full"
                 style={{ backgroundColor: 'rgba(21,196,90,0.1)', color: '#15C45A', border: '1px solid rgba(21,196,90,0.2)' }}
               >
-                Software House · São Paulo, SP
+                Software House · Brasil
               </span>
             </div>
 
@@ -74,14 +74,14 @@ export default function Hero() {
             >
               <span className="text-[#0A0C0B]">Sistemas, Sites e ERPs</span>
               <br />
-              <span style={{ color: '#15C45A' }}>Sob Medida em São Paulo.</span>
+              <span style={{ color: '#15C45A' }}>Sob Medida para o seu Negócio.</span>
             </h1>
 
             <p
               className="text-[17px] leading-[1.8] mb-8"
               style={{ color: '#4A5550', maxWidth: '520px' }}
             >
-              Software house especializada em desenvolvimento de sistemas internos, ERPs personalizados, SaaS e criação de sites profissionais. 100% desenvolvido em São Paulo, sem terceirização, sem templates — com foco total em resultado para o seu negócio.
+              Software house especializada em desenvolvimento de sistemas internos, ERPs personalizados, SaaS e criação de sites profissionais. 100% desenvolvido in-house, sem terceirização, sem templates — com foco total em resultado para o seu negócio.
             </p>
 
             <a
