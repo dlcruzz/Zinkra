@@ -223,6 +223,9 @@ export default function Footer() {
               contato@zinkra.com.br
             </a>
           </p>
+          <p className="font-mono text-[11px] mt-1" style={{ color: '#3A5545' }}>
+            CNPJ: 64.132.169/0001-60
+          </p>
         </address>
 
         <p className="text-center font-mono text-[12px]" style={{ color: '#3A5545' }}>
