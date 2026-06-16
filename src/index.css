@@ -105,3 +105,9 @@
   0%   { transform: translateX(0); }
   100% { transform: translateX(-50%); }
 }
+
+/* Lock button pulse — projetos privados */
+@keyframes pulse-lock {
+  0%, 100% { opacity: 0.6; box-shadow: 0 0 0 0 rgba(90,122,101,0); }
+  50%       { opacity: 1;   box-shadow: 0 0 0 6px rgba(90,122,101,0.12); }
+}

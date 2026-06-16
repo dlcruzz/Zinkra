@@ -18,6 +18,14 @@ const PROJECTS = [
     desc: 'Site para corretora de imóveis brasileira atuando nos EUA. Apresenta a empresa e conta com um sistema de filtros que se conecta em tempo real à API do CRM e controle de estoque da cliente — exibindo os imóveis disponíveis automaticamente.',
   },
   {
+    name: 'VIPSYS',
+    tag:  'Sistema Interno · CRM · Náutica',
+    img:  '/images/MockupVIpSys .png',
+    url:  null,
+    locked: true,
+    desc: 'CRM comercial sob medida para a VIP Náutica. Gerencia leads com funil de vendas (Entrando → Vendido), disparo em massa via WhatsApp com variáveis personalizadas, importação de clientes por planilha, controle de acesso por perfil e dashboard de performance por consultor.',
+  },
+  {
     name: 'FUTDraft',
     tag:  'SaaS · Esportes',
     img:  '/images/Mockup futdraft.png',
@@ -158,20 +166,44 @@ export default function Projects() {
 
               {/* CTA + Arrows */}
               <div className="flex items-center gap-4 flex-wrap">
-                <a
-                  href={proj.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 font-bold text-[13px] text-white px-6 py-3 rounded-xl uppercase tracking-wide transition-all duration-200"
-                  style={{ backgroundColor: '#15C45A' }}
-                  onMouseEnter={e => e.currentTarget.style.backgroundColor = '#0EA84B'}
-                  onMouseLeave={e => e.currentTarget.style.backgroundColor = '#15C45A'}
-                >
-                  Ver projeto
-                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
-                    <path d="M3 8h10M9 4l4 4-4 4" />
-                  </svg>
-                </a>
+
+                {proj.locked ? (
+                  <div className="flex flex-col gap-2">
+                    <div
+                      className="inline-flex items-center gap-2.5 font-bold text-[13px] px-6 py-3 rounded-xl uppercase tracking-wide cursor-default"
+                      style={{
+                        backgroundColor: 'rgba(255,255,255,0.05)',
+                        border: '1.5px solid rgba(255,255,255,0.1)',
+                        color: '#5A7A65',
+                        animation: 'pulse-lock 2.5s ease-in-out infinite',
+                      }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                        <rect x="3" y="11" width="18" height="11" rx="2" />
+                        <path d="M7 11V7a5 5 0 0110 0v4" />
+                      </svg>
+                      Sistema privado
+                    </div>
+                    <p className="font-mono text-[10px] max-w-[260px] leading-relaxed" style={{ color: '#3A5545' }}>
+                      Sistema interno — acesso restrito por segurança da empresa.
+                    </p>
+                  </div>
+                ) : (
+                  <a
+                    href={proj.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 font-bold text-[13px] text-white px-6 py-3 rounded-xl uppercase tracking-wide transition-all duration-200"
+                    style={{ backgroundColor: '#15C45A' }}
+                    onMouseEnter={e => e.currentTarget.style.backgroundColor = '#0EA84B'}
+                    onMouseLeave={e => e.currentTarget.style.backgroundColor = '#15C45A'}
+                  >
+                    Ver projeto
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+                      <path d="M3 8h10M9 4l4 4-4 4" />
+                    </svg>
+                  </a>
+                )}
 
                 <div className="flex items-center gap-2">
                   <Arrow dir="prev" onClick={() => go(-1)} disabled={active === 0} />
