@@ -4,12 +4,6 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger'
 
 const PROJECTS = [
   {
-    name: 'FinFlow',
-    tag:  'SaaS · Finanças',
-    img:  '/images/fin.png',
-    bg:   'linear-gradient(135deg, #111116 0%, #18211D 100%)',
-  },
-  {
     name: 'VIP Náutica',
     tag:  'Site Institucional · Náutica',
     img:  '/images/vip.png',
