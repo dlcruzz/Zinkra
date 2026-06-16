@@ -8,79 +8,21 @@ const PROJECTS = [
     tag:  'Site Institucional · Náutica',
     img:  '/images/vip.png',
     url:  'https://www.vipnautica.com.br',
-    bg:   'linear-gradient(135deg, #0a1628 0%, #0d2137 100%)',
   },
   {
     name: 'FUTDraft',
     tag:  'Web App · Esportes',
     img:  '/images/Sys.png',
     url:  'https://futdraftt.vercel.app/',
-    bg:   'linear-gradient(135deg, #071209 0%, #0d1a11 100%)',
   },
   {
     name: 'Realty Bealty',
     tag:  'Site · Imobiliário',
     img:  '/images/j.png',
     url:  'https://www.goibrokerusa.com/',
-    bg:   'linear-gradient(135deg, #111116 0%, #1a1210 100%)',
   },
 ]
 
-/* ─── Phone frame ─────────────────────────────────────────────────── */
-function PhoneFrame({ project }) {
-  return (
-    <div className="relative mx-auto select-none" style={{ width: '220px' }}>
-      {/* Outer shell */}
-      <div
-        className="relative rounded-[40px] overflow-hidden"
-        style={{
-          background: '#1A1A1A',
-          padding: '10px',
-          boxShadow:
-            '0 0 0 1px rgba(255,255,255,0.12), 0 24px 64px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.08)',
-        }}
-      >
-        {/* Screen */}
-        <div
-          className="relative rounded-[32px] overflow-hidden"
-          style={{ background: project.bg, height: '420px' }}
-        >
-          {/* Dynamic island */}
-          <div
-            className="absolute top-3 left-1/2 -translate-x-1/2 z-20 rounded-full"
-            style={{ width: '80px', height: '24px', backgroundColor: '#000' }}
-          />
-
-          {/* Screenshot */}
-          <img
-            src={project.img}
-            alt={project.name}
-            loading="lazy"
-            className="absolute inset-0 w-full h-full object-cover object-top"
-            style={{ opacity: 0.95 }}
-          />
-
-          {/* Bottom gradient overlay so frame blends */}
-          <div
-            className="absolute bottom-0 inset-x-0 h-16 pointer-events-none"
-            style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.4) 0%, transparent 100%)' }}
-          />
-        </div>
-
-        {/* Side buttons (decoration) */}
-      </div>
-
-      {/* Left buttons */}
-      <div className="absolute -left-[3px] top-20 w-[3px] h-8 rounded-l-sm" style={{ backgroundColor: '#2A2A2A' }} />
-      <div className="absolute -left-[3px] top-32 w-[3px] h-12 rounded-l-sm" style={{ backgroundColor: '#2A2A2A' }} />
-      <div className="absolute -left-[3px] top-48 w-[3px] h-12 rounded-l-sm" style={{ backgroundColor: '#2A2A2A' }} />
-      {/* Right button */}
-      <div className="absolute -right-[3px] top-28 w-[3px] h-16 rounded-r-sm" style={{ backgroundColor: '#2A2A2A' }} />
-    </div>
-  )
-}
-
-/* ─── Arrow button ────────────────────────────────────────────────── */
 function Arrow({ dir, onClick, disabled }) {
   return (
     <button
@@ -99,21 +41,17 @@ function Arrow({ dir, onClick, disabled }) {
       onMouseLeave={e => { if (!disabled) e.currentTarget.style.backgroundColor = 'rgba(21,196,90,0.12)' }}
     >
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        {dir === 'prev'
-          ? <path d="M10 3L5 8l5 5" />
-          : <path d="M6 3l5 5-5 5" />
-        }
+        {dir === 'prev' ? <path d="M10 3L5 8l5 5" /> : <path d="M6 3l5 5-5 5" />}
       </svg>
     </button>
   )
 }
 
-/* ─── Projects carousel ───────────────────────────────────────────── */
 export default function Projects() {
-  const [active, setActive]   = useState(0)
-  const [anim,   setAnim]     = useState(false)
-  const headRef               = useRef(null)
-  const sectionRef            = useRef(null)
+  const [active, setActive] = useState(0)
+  const [fading, setFading] = useState(false)
+  const headRef             = useRef(null)
+  const sectionRef          = useRef(null)
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -132,12 +70,12 @@ export default function Projects() {
   }, [])
 
   const go = useCallback((dir) => {
-    if (anim) return
+    if (fading) return
     const next = active + dir
     if (next < 0 || next >= PROJECTS.length) return
-    setAnim(true)
-    setTimeout(() => { setActive(next); setAnim(false) }, 320)
-  }, [active, anim])
+    setFading(true)
+    setTimeout(() => { setActive(next); setFading(false) }, 280)
+  }, [active, fading])
 
   const proj = PROJECTS[active]
 
@@ -162,49 +100,47 @@ export default function Projects() {
         <div className="carousel-body opacity-0">
           <div className="flex flex-col lg:flex-row items-center gap-16 lg:gap-24">
 
-            {/* Phone mockup */}
-            <div className="shrink-0">
-              <div
+            {/* Mockup image — já inclui o frame do celular */}
+            <div
+              className="shrink-0 flex items-center justify-center"
+              style={{ transition: 'opacity 0.28s ease', opacity: fading ? 0 : 1 }}
+            >
+              <img
                 key={active}
-                style={{
-                  animation: anim ? 'fadeSlide 0.32s ease' : 'none',
-                  opacity: anim ? 0 : 1,
-                  transition: 'opacity 0.32s ease',
-                }}
-              >
-                <PhoneFrame project={proj} />
-              </div>
+                src={proj.img}
+                alt={`Mockup ${proj.name}`}
+                loading="lazy"
+                className="w-auto"
+                style={{ maxHeight: '520px', maxWidth: '280px', objectFit: 'contain' }}
+              />
             </div>
 
             {/* Info + navigation */}
             <div className="flex-1 min-w-0">
 
-              {/* Counter */}
               <p className="font-mono text-[11px] uppercase tracking-[3px] mb-6" style={{ color: '#3A5545' }}>
                 {String(active + 1).padStart(2, '0')} / {String(PROJECTS.length).padStart(2, '0')}
               </p>
 
-              {/* Project name */}
               <h3
                 className="font-black text-white leading-tight mb-2"
-                style={{ fontSize: 'clamp(28px, 4vw, 52px)', transition: 'opacity 0.3s ease', opacity: anim ? 0 : 1 }}
+                style={{ fontSize: 'clamp(28px, 4vw, 52px)', transition: 'opacity 0.28s ease', opacity: fading ? 0 : 1 }}
               >
                 {proj.name}
               </h3>
 
-              {/* Tag */}
-              <p className="font-mono text-[13px] mb-8" style={{ color: '#5A7A65', transition: 'opacity 0.3s ease', opacity: anim ? 0 : 1 }}>
+              <p className="font-mono text-[13px] mb-8" style={{ color: '#5A7A65', transition: 'opacity 0.28s ease', opacity: fading ? 0 : 1 }}>
                 {proj.tag}
               </p>
 
-              {/* Dot indicators */}
+              {/* Dots */}
               <div className="flex items-center gap-2 mb-10">
                 {PROJECTS.map((_, i) => (
                   <button
                     key={i}
-                    onClick={() => !anim && setActive(i)}
+                    onClick={() => !fading && setActive(i)}
                     aria-label={`Ver projeto ${PROJECTS[i].name}`}
-                    className="rounded-full transition-all duration-400"
+                    className="rounded-full transition-all duration-300"
                     style={i === active
                       ? { width: '32px', height: '4px', backgroundColor: '#15C45A' }
                       : { width: '4px',  height: '4px', backgroundColor: '#1A3A22', cursor: 'pointer' }
@@ -213,7 +149,7 @@ export default function Projects() {
                 ))}
               </div>
 
-              {/* Actions */}
+              {/* CTA + Arrows */}
               <div className="flex items-center gap-4 flex-wrap">
                 <a
                   href={proj.url}
