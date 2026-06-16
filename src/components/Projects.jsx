@@ -20,7 +20,7 @@ const PROJECTS = [
   {
     name: 'VIPSYS',
     tag:  'Sistema Interno · CRM · Náutica',
-    img:  '/images/MockupVIpSys .png',
+    img:  '/images/MockupVIpSys.png',
     url:  null,
     locked: true,
     desc: 'CRM comercial sob medida para a VIP Náutica. Gerencia leads com funil de vendas (Entrando → Vendido), disparo em massa via WhatsApp com variáveis personalizadas, importação de clientes por planilha, controle de acesso por perfil e dashboard de performance por consultor.',
