@@ -11,18 +11,18 @@ const PROJECTS = [
     desc: 'Site com catálogo de mais de 200 embarcações, filtros inteligentes de busca e captação de leads integrada diretamente ao sistema interno da empresa — levando cada contato automaticamente para a equipe de vendas.',
   },
   {
-    name: 'FUTDraft',
-    tag:  'SaaS · Esportes',
-    img:  '/images/Mockup futdraft.png',
-    url:  'https://futdraftt.vercel.app/',
-    desc: 'Plataforma SaaS para gerenciamento de partidas de futebol amador. Controla times de forma equilibrada, sorteia confrontos, armazena resultados em tempo real e exibe um resumo completo ao final de cada partida.',
-  },
-  {
     name: 'Go Ibroker',
     tag:  'Site · Imobiliário · EUA',
     img:  '/images/mockupibroker.png',
     url:  'https://www.goibrokerusa.com/',
     desc: 'Site para corretora de imóveis brasileira atuando nos EUA. Apresenta a empresa e conta com um sistema de filtros que se conecta em tempo real à API do CRM e controle de estoque da cliente — exibindo os imóveis disponíveis automaticamente.',
+  },
+  {
+    name: 'FUTDraft',
+    tag:  'SaaS · Esportes',
+    img:  '/images/Mockup futdraft.png',
+    url:  'https://futdraftt.vercel.app/',
+    desc: 'Plataforma SaaS para gerenciamento de partidas de futebol amador. Controla times de forma equilibrada, sorteia confrontos, armazena resultados em tempo real e exibe um resumo completo ao final de cada partida.',
   },
 ]
 
