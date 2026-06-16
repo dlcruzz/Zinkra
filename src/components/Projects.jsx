@@ -6,19 +6,19 @@ const PROJECTS = [
   {
     name: 'VIP Náutica',
     tag:  'Site Institucional · Náutica',
-    img:  '/images/vip.png',
+    img:  '/images/mockupvipnautica.png',
     url:  'https://www.vipnautica.com.br',
   },
   {
     name: 'FUTDraft',
     tag:  'Web App · Esportes',
-    img:  '/images/Sys.png',
+    img:  '/images/Mockup futdraft.png',
     url:  'https://futdraftt.vercel.app/',
   },
   {
     name: 'Realty Bealty',
     tag:  'Site · Imobiliário',
-    img:  '/images/j.png',
+    img:  '/images/mockupibroker.png',
     url:  'https://www.goibrokerusa.com/',
   },
 ]
