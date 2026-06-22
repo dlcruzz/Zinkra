@@ -1,0 +1,25 @@
+{
+  "name": "Zinkra — Software House",
+  "short_name": "Zinkra",
+  "description": "Software house especializada em sistemas sob medida, ERPs, SaaS e sites profissionais.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0A0C0B",
+  "theme_color": "#15C45A",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ],
+  "categories": ["business", "productivity"],
+  "lang": "pt-BR"
+}

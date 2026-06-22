@@ -1,12 +1,15 @@
 import React, { useEffect, useRef } from 'react'
+import { Helmet } from 'react-helmet-async'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import Hero              from '../components/Hero'
 import TechStack         from '../components/TechStack'
 import ServicesGrid      from '../components/ServicesGrid'
+import ClientLogos       from '../components/ClientLogos'
 import HorizontalProcess from '../components/HorizontalProcess'
 import Performance       from '../components/Performance'
 import Vision            from '../components/Vision'
+import Newsletter        from '../components/Newsletter'
 
 function FinalCTA() {
   const ref = useRef(null)
@@ -75,12 +78,18 @@ function FinalCTA() {
 export default function Home() {
   return (
     <>
+      <Helmet>
+        <title>Software House no Brasil | Sistemas, Sites e ERPs Sob Medida | Zinkra</title>
+        <meta name="description" content="Software house especializada em sistemas internos, ERPs, SaaS e sites sob medida para empresas em todo o Brasil. 100% personalizado, sem templates. Orçamento gratuito." />
+      </Helmet>
       <Hero />
       <TechStack />
       <ServicesGrid limit={4} />
+      <ClientLogos />
       <HorizontalProcess />
       <Performance />
       <Vision />
+      <Newsletter />
       <FinalCTA />
     </>
   )

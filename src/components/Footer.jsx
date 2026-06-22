@@ -7,16 +7,19 @@ const SERVICE_LINKS = [
   { label: 'Sistemas Sob Medida', href: '/servicos#sistemas' },
   { label: 'IA e Automação',      href: '/servicos'          },
   { label: 'SEO e Google',        href: '/servicos'          },
+  { label: 'Identidade Visual',   href: '/identidade-visual' },
   { label: 'SaaS',                href: '/saas'              },
 ]
 
 const NAV_LINKS = [
-  { label: 'Início',    to: '/'         },
-  { label: 'Serviços',  to: '/servicos' },
-  { label: 'Projetos',  to: '/projetos' },
-  { label: 'SaaS',      to: '/saas'     },
-  { label: 'Sobre',     to: '/sobre'    },
-  { label: 'Contato',   to: '/contato'  },
+  { label: 'Início',            to: '/'                  },
+  { label: 'Serviços',          to: '/servicos'          },
+  { label: 'Projetos',          to: '/projetos'          },
+  { label: 'SaaS',              to: '/saas'              },
+  { label: 'Blog',              to: '/blog'              },
+  { label: 'Sobre',             to: '/sobre'             },
+  { label: 'Contato',           to: '/contato'           },
+  { label: 'Identidade Visual', to: '/identidade-visual' },
 ]
 
 function InstagramIcon() {

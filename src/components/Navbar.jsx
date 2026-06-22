@@ -6,13 +6,15 @@ import { AnimatePresence, motion } from 'framer-motion'
 const NAV_LINKS = [
   { label: 'Início',   to: '/' },
   { label: 'Serviços', to: '/servicos', dropdown: [
-    { label: 'Criação de Sites',    to: '/servicos#sites'    },
-    { label: 'Redes Sociais',       to: '/servicos#social'   },
-    { label: 'Sistemas Sob Medida', to: '/servicos#sistemas' },
-    { label: 'IA e Automação',      to: '/servicos'          },
+    { label: 'Criação de Sites',    to: '/servicos#sites'        },
+    { label: 'Redes Sociais',       to: '/servicos#social'       },
+    { label: 'Sistemas Sob Medida', to: '/servicos#sistemas'     },
+    { label: 'Identidade Visual',   to: '/identidade-visual'     },
+    { label: 'IA e Automação',      to: '/servicos'              },
   ]},
   { label: 'Projetos', to: '/projetos' },
   { label: 'SaaS',     to: '/saas'     },
+  { label: 'Blog',     to: '/blog'     },
   { label: 'Sobre',    to: '/sobre'    },
   { label: 'Contato',  to: '/contato'  },
 ]

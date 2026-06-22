@@ -1,10 +1,12 @@
 import React, { useEffect, useRef } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
+import { Helmet } from 'react-helmet-async'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
-import WAModal from './components/WAModal'
-import Navbar  from './components/Navbar'
-import Footer  from './components/Footer'
+import WAModal      from './components/WAModal'
+import Navbar       from './components/Navbar'
+import Footer       from './components/Footer'
+import CookieBanner from './components/CookieBanner'
 
 gsap.registerPlugin(ScrollTrigger)
 
@@ -102,6 +104,10 @@ function ScrollToTop() {
 export default function Layout() {
   return (
     <div className="bg-white text-[#0A0C0B] font-sans overflow-x-hidden">
+      <Helmet>
+        <title>Software House no Brasil | Sistemas, Sites e ERPs Sob Medida | Zinkra</title>
+        <meta name="description" content="Software house especializada em sistemas internos, ERPs, SaaS e sites sob medida para empresas em todo o Brasil. 100% personalizado, sem templates. Orçamento gratuito." />
+      </Helmet>
       <WAModal />
       <ScrollProgressBar />
       <CustomCursor />
@@ -112,6 +118,7 @@ export default function Layout() {
       </main>
       <Footer />
       <WhatsAppFloat />
+      <CookieBanner />
     </div>
   )
 }
