@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react'
+import { Link } from 'react-router-dom'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 
@@ -92,7 +93,8 @@ const SERVICES = [
   },
 ]
 
-export default function ServicesGrid() {
+export default function ServicesGrid({ limit }) {
+  const services = limit ? SERVICES.slice(0, limit) : SERVICES
   const headRef  = useRef(null)
   const cardsRef = useRef([])
 
@@ -103,17 +105,20 @@ export default function ServicesGrid() {
         { opacity: 1, y: 0, duration: 0.8, ease: 'power4.out',
           scrollTrigger: { trigger: headRef.current, start: 'top 85%', once: true } }
       )
-      gsap.fromTo(cardsRef.current,
-        { opacity: 0, y: 40 },
-        { opacity: 1, y: 0, duration: 0.65, stagger: 0.07, ease: 'power4.out',
-          scrollTrigger: { trigger: cardsRef.current[0], start: 'top 85%', once: true } }
-      )
+      const cards = cardsRef.current.filter(Boolean)
+      if (cards.length) {
+        gsap.fromTo(cards,
+          { opacity: 0, y: 40 },
+          { opacity: 1, y: 0, duration: 0.65, stagger: 0.07, ease: 'power4.out',
+            scrollTrigger: { trigger: cards[0], start: 'top 85%', once: true } }
+        )
+      }
     })
     return () => ctx.revert()
   }, [])
 
   return (
-    <section id="servicos" style={{ backgroundColor: '#F5F7F5', paddingTop: '64px', paddingBottom: '80px' }}>
+    <section style={{ backgroundColor: '#F5F7F5', paddingTop: '64px', paddingBottom: '80px' }}>
       <div className="max-w-7xl mx-auto px-6">
 
         <div ref={headRef} className="text-center mb-14 opacity-0">
@@ -128,8 +133,8 @@ export default function ServicesGrid() {
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {SERVICES.map((svc, i) => (
+        <div className={`grid grid-cols-1 sm:grid-cols-2 ${limit ? 'lg:grid-cols-4' : 'lg:grid-cols-4'} gap-5`}>
+          {services.map((svc, i) => (
             <div
               key={svc.title}
               ref={el => cardsRef.current[i] = el}
@@ -144,17 +149,13 @@ export default function ServicesGrid() {
                 e.currentTarget.style.transform = 'translateY(0)'
               }}
             >
-              {/* Icon */}
               <div
                 className="w-11 h-11 rounded-xl flex items-center justify-center mb-5"
                 style={{ backgroundColor: `${svc.color}18`, color: svc.color }}
               >
                 {svc.icon}
               </div>
-              <h3
-                className="font-bold text-[15px] mb-3 leading-snug"
-                style={{ color: svc.color }}
-              >
+              <h3 className="font-bold text-[15px] mb-3 leading-snug" style={{ color: svc.color }}>
                 {svc.title}
               </h3>
               <p className="text-[13px] leading-[1.7]" style={{ color: '#6A7870' }}>
@@ -163,6 +164,24 @@ export default function ServicesGrid() {
             </div>
           ))}
         </div>
+
+        {limit && (
+          <div className="text-center mt-12">
+            <Link
+              to="/servicos"
+              className="inline-flex items-center gap-2 font-bold text-[14px] px-8 py-4 rounded-lg uppercase tracking-wide transition-all duration-200"
+              style={{ backgroundColor: '#15C45A', color: '#fff' }}
+              onMouseEnter={e => e.currentTarget.style.backgroundColor = '#0EA84B'}
+              onMouseLeave={e => e.currentTarget.style.backgroundColor = '#15C45A'}
+            >
+              Ver todos os serviços
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+                <path d="M3 8h10M9 4l4 4-4 4" />
+              </svg>
+            </Link>
+          </div>
+        )}
+
       </div>
     </section>
   )

@@ -1,18 +1,20 @@
 import React, { useEffect, useRef, useState } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { gsap } from 'gsap'
 import { AnimatePresence, motion } from 'framer-motion'
 
 const NAV_LINKS = [
-  { label: 'Início',    href: '#home'     },
-  { label: 'Serviços',  href: '#servicos', dropdown: [
-    { label: 'Criação de Sites',    href: '#servicos' },
-    { label: 'Redes Sociais',       href: '#servicos' },
-    { label: 'Sistemas Sob Medida', href: '#servicos' },
-    { label: 'IA e Automação',      href: '#servicos' },
+  { label: 'Início',   to: '/' },
+  { label: 'Serviços', to: '/servicos', dropdown: [
+    { label: 'Criação de Sites',    to: '/servicos#sites'    },
+    { label: 'Redes Sociais',       to: '/servicos#social'   },
+    { label: 'Sistemas Sob Medida', to: '/servicos#sistemas' },
+    { label: 'IA e Automação',      to: '/servicos'          },
   ]},
-  { label: 'Projetos',  href: '#projetos' },
-  { label: 'Planos',    href: '#planos'   },
-  { label: 'Contato',   href: '#contato'  },
+  { label: 'Projetos', to: '/projetos' },
+  { label: 'SaaS',     to: '/saas'     },
+  { label: 'Sobre',    to: '/sobre'    },
+  { label: 'Contato',  to: '/contato'  },
 ]
 
 function WAIcon() {
@@ -24,10 +26,14 @@ function WAIcon() {
 }
 
 export default function Navbar() {
-  const navRef      = useRef(null)
-  const [open, setOpen]     = useState(false)
-  const [dropOpen, setDropOpen] = useState(false)
-  const [scrolled, setScrolled] = useState(false)
+  const navRef                      = useRef(null)
+  const [open, setOpen]             = useState(false)
+  const [dropOpen, setDropOpen]     = useState(false)
+  const [scrolled, setScrolled]     = useState(false)
+  const { pathname }                = useLocation()
+
+  /* close mobile menu on route change */
+  useEffect(() => { setOpen(false) }, [pathname])
 
   useEffect(() => {
     gsap.fromTo(navRef.current,
@@ -55,25 +61,28 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
 
         {/* Logo */}
-        <a href="#home" className="font-logo font-bold tracking-wide select-none" style={{ fontSize: '20px' }}>
-          <span style={{ color: '#15C45A' }}>Z</span>
-          <span className="text-[#0A0C0B]">inkra</span>
-          <span style={{ color: '#15C45A' }}>.</span>
-        </a>
+        <Link to="/" className="flex items-center select-none" aria-label="Zinkra — início">
+          <img
+            src="/images/logo-preto.png"
+            alt="Zinkra"
+            className="h-8 w-auto"
+          />
+        </Link>
 
         {/* Desktop links */}
         <div className="hidden lg:flex items-center gap-7">
-          {NAV_LINKS.map(({ label, href, dropdown }) =>
+          {NAV_LINKS.map(({ label, to, dropdown }) =>
             dropdown ? (
               <div key={label} className="relative" onMouseEnter={() => setDropOpen(true)} onMouseLeave={() => setDropOpen(false)}>
-                <button
+                <Link
+                  to={to}
                   className="flex items-center gap-1 text-[#4A5550] font-medium text-sm hover:text-[#0A0C0B] transition-colors duration-200 py-1"
                 >
                   {label}
                   <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
                     <path d="M3 4.5l3 3 3-3" />
                   </svg>
-                </button>
+                </Link>
                 <AnimatePresence>
                   {dropOpen && (
                     <motion.div
@@ -85,30 +94,31 @@ export default function Navbar() {
                       style={{ backgroundColor: '#FFFFFF', border: '1px solid #E8EDEA', boxShadow: '0 8px 32px rgba(0,0,0,0.10)' }}
                     >
                       {dropdown.map(item => (
-                        <a
+                        <Link
                           key={item.label}
-                          href={item.href}
+                          to={item.to}
                           className="block px-4 py-3 text-[13px] font-medium transition-colors duration-150"
                           style={{ color: '#4A5550' }}
+                          onClick={() => setDropOpen(false)}
                           onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#F5F7F5'; e.currentTarget.style.color = '#15C45A' }}
                           onMouseLeave={e => { e.currentTarget.style.backgroundColor = ''; e.currentTarget.style.color = '#4A5550' }}
                         >
                           {item.label}
-                        </a>
+                        </Link>
                       ))}
                     </motion.div>
                   )}
                 </AnimatePresence>
               </div>
             ) : (
-              <a
-                key={href}
-                href={href}
+              <Link
+                key={to}
+                to={to}
                 className="relative text-[#4A5550] font-medium text-sm hover:text-[#0A0C0B] transition-colors duration-200 group py-1"
               >
                 {label}
                 <span className="absolute bottom-0 left-0 h-[2px] w-0 bg-[#15C45A] transition-[width] duration-300 group-hover:w-full rounded-full" />
-              </a>
+              </Link>
             )
           )}
         </div>
@@ -152,21 +162,21 @@ export default function Navbar() {
             className="lg:hidden border-t px-6 py-5 flex flex-col gap-4"
             style={{ backgroundColor: 'rgba(255,255,255,0.98)', borderColor: '#E8EDEA' }}
           >
-            {NAV_LINKS.map(({ label, href, dropdown }) => (
+            {NAV_LINKS.map(({ label, to, dropdown }) => (
               <div key={label}>
-                <a
-                  href={href}
+                <Link
+                  to={to}
                   className="block text-[#4A5550] font-medium text-sm hover:text-[#0A0C0B] transition-colors"
                   onClick={() => setOpen(false)}
                 >
                   {label}
-                </a>
+                </Link>
                 {dropdown && (
                   <div className="mt-2 ml-4 space-y-2">
                     {dropdown.map(item => (
-                      <a
+                      <Link
                         key={item.label}
-                        href={item.href}
+                        to={item.to}
                         className="block text-[13px] transition-colors"
                         style={{ color: '#8A9990' }}
                         onClick={() => setOpen(false)}
@@ -174,7 +184,7 @@ export default function Navbar() {
                         onMouseLeave={e => e.currentTarget.style.color = '#8A9990'}
                       >
                         {item.label}
-                      </a>
+                      </Link>
                     ))}
                   </div>
                 )}

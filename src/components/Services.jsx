@@ -435,7 +435,7 @@ function HashIcon() {
 function PricingOnly() {
   return (
     <>
-      <div className="mb-12">
+      <div id="sites" className="mb-12">
         <h3 className="font-bold text-[16px] text-[#0A0C0B] mb-1 flex items-center gap-2.5">
           <GlobeIcon /> Criação de Sites
         </h3>
@@ -443,7 +443,7 @@ function PricingOnly() {
         <PricingPeek plans={SITE_PLANS} />
       </div>
 
-      <div className="mb-4">
+      <div id="social" className="mb-4">
         <h3 className="font-bold text-[16px] text-[#0A0C0B] mb-1 flex items-center gap-2.5">
           <HashIcon /> Redes Sociais
         </h3>
@@ -451,7 +451,9 @@ function PricingOnly() {
         <PricingPeek plans={SOCIAL_PLANS} />
       </div>
 
-      <SystemsCard />
+      <div id="sistemas">
+        <SystemsCard />
+      </div>
     </>
   )
 }

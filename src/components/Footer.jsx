@@ -1,20 +1,22 @@
 import React from 'react'
+import { Link } from 'react-router-dom'
 
 const SERVICE_LINKS = [
-  { label: 'Criação de Sites',    href: '#servicos' },
-  { label: 'Redes Sociais',       href: '#servicos' },
-  { label: 'Sistemas Sob Medida', href: '#servicos' },
-  { label: 'IA e Automação',      href: '#servicos' },
-  { label: 'SEO e Google',        href: '#servicos' },
-  { label: 'Identidade Visual',   href: '#servicos' },
+  { label: 'Criação de Sites',    href: '/servicos#sites'    },
+  { label: 'Redes Sociais',       href: '/servicos#social'   },
+  { label: 'Sistemas Sob Medida', href: '/servicos#sistemas' },
+  { label: 'IA e Automação',      href: '/servicos'          },
+  { label: 'SEO e Google',        href: '/servicos'          },
+  { label: 'SaaS',                href: '/saas'              },
 ]
 
 const NAV_LINKS = [
-  { label: 'Início',    href: '#home'     },
-  { label: 'Serviços',  href: '#servicos' },
-  { label: 'Projetos',  href: '#projetos' },
-  { label: 'Planos',    href: '#planos'   },
-  { label: 'Contato',   href: '#contato'  },
+  { label: 'Início',    to: '/'         },
+  { label: 'Serviços',  to: '/servicos' },
+  { label: 'Projetos',  to: '/projetos' },
+  { label: 'SaaS',      to: '/saas'     },
+  { label: 'Sobre',     to: '/sobre'    },
+  { label: 'Contato',   to: '/contato'  },
 ]
 
 function InstagramIcon() {
@@ -46,9 +48,7 @@ function WhatsAppIcon() {
 }
 
 function ColHeading({ children }) {
-  return (
-    <p className="font-bold text-white text-[15px] mb-5">{children}</p>
-  )
+  return <p className="font-bold text-white text-[15px] mb-5">{children}</p>
 }
 
 export default function Footer() {
@@ -60,11 +60,13 @@ export default function Footer() {
           {/* Col 1 — Brand */}
           <div>
             <div className="mb-4">
-              <span className="font-logo font-bold tracking-wide select-none" style={{ fontSize: '22px' }}>
-                <span style={{ color: '#15C45A' }}>Z</span>
-                <span className="text-white">inkra</span>
-                <span style={{ color: '#15C45A' }}>.</span>
-              </span>
+              <Link to="/" aria-label="Zinkra — início">
+                <img
+                  src="/images/logo-branco.png"
+                  alt="Zinkra"
+                  className="h-9 w-auto"
+                />
+              </Link>
             </div>
             <p className="text-[14px] leading-[1.7] mb-7" style={{ color: '#5A7A65' }}>
               Soluções personalizadas para transformar e maximizar a presença digital da sua empresa.
@@ -72,8 +74,8 @@ export default function Footer() {
             <div className="flex items-center gap-4">
               {[
                 { href: 'https://instagram.com/zinkra.dev', Icon: InstagramIcon, label: 'Instagram' },
-                { href: '#', Icon: LinkedInIcon, label: 'LinkedIn' },
-                { href: 'https://wa.me/5511941164044', Icon: WhatsAppIcon, label: 'WhatsApp' },
+                { href: '#',                                 Icon: LinkedInIcon,  label: 'LinkedIn'  },
+                { href: 'https://wa.me/5511941164044',       Icon: WhatsAppIcon,  label: 'WhatsApp'  },
               ].map(({ href, Icon, label }) => (
                 <a
                   key={label}
@@ -97,16 +99,16 @@ export default function Footer() {
             <ColHeading>Links Úteis</ColHeading>
             <ul className="space-y-3">
               {NAV_LINKS.map(l => (
-                <li key={l.href}>
-                  <a
-                    href={l.href}
+                <li key={l.to}>
+                  <Link
+                    to={l.to}
                     className="text-[14px] transition-colors duration-200"
                     style={{ color: '#5A7A65' }}
                     onMouseEnter={e => e.currentTarget.style.color = '#15C45A'}
                     onMouseLeave={e => e.currentTarget.style.color = '#5A7A65'}
                   >
                     {l.label}
-                  </a>
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -117,9 +119,7 @@ export default function Footer() {
             <ColHeading>Contato</ColHeading>
             <ul className="space-y-4">
               <li>
-                <p className="font-mono text-[11px] uppercase tracking-[2px] mb-1" style={{ color: '#3A5545' }}>
-                  Email
-                </p>
+                <p className="font-mono text-[11px] uppercase tracking-[2px] mb-1" style={{ color: '#3A5545' }}>Email</p>
                 <a
                   href="mailto:contato@zinkra.com.br"
                   className="text-[14px] transition-colors duration-200"
@@ -131,9 +131,7 @@ export default function Footer() {
                 </a>
               </li>
               <li>
-                <p className="font-mono text-[11px] uppercase tracking-[2px] mb-1" style={{ color: '#3A5545' }}>
-                  WhatsApp
-                </p>
+                <p className="font-mono text-[11px] uppercase tracking-[2px] mb-1" style={{ color: '#3A5545' }}>WhatsApp</p>
                 <a
                   href="https://wa.me/5511941164044"
                   target="_blank"
@@ -143,13 +141,11 @@ export default function Footer() {
                   onMouseEnter={e => e.currentTarget.style.color = '#15C45A'}
                   onMouseLeave={e => e.currentTarget.style.color = '#5A7A65'}
                 >
-                  (11) 95977-3552
+                  (11) 94116-4044
                 </a>
               </li>
               <li>
-                <p className="font-mono text-[11px] uppercase tracking-[2px] mb-1" style={{ color: '#3A5545' }}>
-                  Instagram
-                </p>
+                <p className="font-mono text-[11px] uppercase tracking-[2px] mb-1" style={{ color: '#3A5545' }}>Instagram</p>
                 <a
                   href="https://instagram.com/zinkra.dev"
                   target="_blank"
@@ -171,15 +167,15 @@ export default function Footer() {
             <ul className="space-y-3">
               {SERVICE_LINKS.map(l => (
                 <li key={l.label}>
-                  <a
-                    href={l.href}
+                  <Link
+                    to={l.href}
                     className="text-[14px] transition-colors duration-200"
                     style={{ color: '#5A7A65' }}
                     onMouseEnter={e => e.currentTarget.style.color = '#15C45A'}
                     onMouseLeave={e => e.currentTarget.style.color = '#5A7A65'}
                   >
                     {l.label}
-                  </a>
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -190,7 +186,6 @@ export default function Footer() {
         {/* Divider + NAP + copyright */}
         <div className="h-px mt-14 mb-8" style={{ backgroundColor: '#1A2E20' }} />
 
-        {/* NAP estruturado (SEO local) */}
         <address
           className="not-italic text-center mb-6"
           itemScope
@@ -206,7 +201,7 @@ export default function Footer() {
               onMouseEnter={e => e.currentTarget.style.color = '#15C45A'}
               onMouseLeave={e => e.currentTarget.style.color = '#3A5545'}
             >
-              (11) 95977-3552
+              (11) 94116-4044
             </a>
             {' · '}
             <a
