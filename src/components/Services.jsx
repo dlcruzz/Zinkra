@@ -185,7 +185,7 @@ function PlanCard({ plan, isActive, onClick }) {
 
         {/* CTA */}
         <a
-          href="https://wa.me/5511959773552"
+          href="https://wa.me/5511941164044"
           target="_blank"
           rel="noopener noreferrer"
           data-wa-service={plan.waService}
@@ -305,7 +305,7 @@ function SystemsCard() {
       </div>
       <div className="shrink-0 relative">
         <a
-          href="https://wa.me/5511959773552"
+          href="https://wa.me/5511941164044"
           target="_blank"
           rel="noopener noreferrer"
           data-wa-service="Sistemas Sob Medida"
@@ -374,7 +374,7 @@ function ServiceCards() {
       {SERVICE_CARDS.map((card) => (
         <a
           key={card.title}
-          href="https://wa.me/5511959773552"
+          href="https://wa.me/5511941164044"
           target="_blank"
           rel="noopener noreferrer"
           data-wa-service={card.title.split(' & ')[0].trim()}

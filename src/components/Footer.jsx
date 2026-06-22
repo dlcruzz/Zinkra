@@ -73,7 +73,7 @@ export default function Footer() {
               {[
                 { href: 'https://instagram.com/zinkra.dev', Icon: InstagramIcon, label: 'Instagram' },
                 { href: '#', Icon: LinkedInIcon, label: 'LinkedIn' },
-                { href: 'https://wa.me/5511959773552', Icon: WhatsAppIcon, label: 'WhatsApp' },
+                { href: 'https://wa.me/5511941164044', Icon: WhatsAppIcon, label: 'WhatsApp' },
               ].map(({ href, Icon, label }) => (
                 <a
                   key={label}
@@ -135,7 +135,7 @@ export default function Footer() {
                   WhatsApp
                 </p>
                 <a
-                  href="https://wa.me/5511959773552"
+                  href="https://wa.me/5511941164044"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-[14px] transition-colors duration-200"
@@ -199,7 +199,7 @@ export default function Footer() {
           <span itemProp="name" className="sr-only">Zinkra — Software House</span>
           <p className="font-mono text-[11px]" style={{ color: '#3A5545' }}>
             <a
-              href="tel:+5511959773552"
+              href="tel:+5511941164044"
               itemProp="telephone"
               className="transition-colors duration-200"
               style={{ color: '#3A5545' }}

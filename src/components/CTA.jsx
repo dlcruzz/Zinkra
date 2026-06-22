@@ -75,7 +75,7 @@ export default function CTA() {
         {/* CTA — green, action verb, WhatsApp */}
         <div ref={btnRef} className="inline-block mb-8 opacity-0">
           <a
-            href="https://wa.me/5511959773552?text=Ol%C3%A1%2C%20quero%20marcar%20uma%20conversa%20sobre%20meu%20projeto"
+            href="https://wa.me/5511941164044?text=Ol%C3%A1%2C%20quero%20marcar%20uma%20conversa%20sobre%20meu%20projeto"
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Falar com a Zinkra no WhatsApp"

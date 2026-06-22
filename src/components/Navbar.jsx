@@ -115,7 +115,7 @@ export default function Navbar() {
 
         {/* CTA */}
         <a
-          href="https://wa.me/5511959773552"
+          href="https://wa.me/5511941164044"
           target="_blank"
           rel="noopener noreferrer"
           className="hidden lg:inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-bold text-sm text-white transition-all duration-200 uppercase tracking-wide"
@@ -181,7 +181,7 @@ export default function Navbar() {
               </div>
             ))}
             <a
-              href="https://wa.me/5511959773552"
+              href="https://wa.me/5511941164044"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex justify-center items-center gap-2 px-5 py-3 rounded-lg font-bold text-sm text-white mt-2 uppercase tracking-wide"

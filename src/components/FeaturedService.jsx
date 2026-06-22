@@ -91,7 +91,7 @@ export default function FeaturedService() {
             </div>
 
             <a
-              href="https://wa.me/5511959773552?text=Ol%C3%A1%2C%20tenho%20interesse%20em%20desenvolvimento%20de%20sistemas%20pela%20Zinkra"
+              href="https://wa.me/5511941164044?text=Ol%C3%A1%2C%20tenho%20interesse%20em%20desenvolvimento%20de%20sistemas%20pela%20Zinkra"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-3 font-bold text-white px-8 py-4 rounded-lg text-[15px] uppercase tracking-wide transition-all duration-200"

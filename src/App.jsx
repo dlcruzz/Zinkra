@@ -80,7 +80,7 @@ function CustomCursor() {
 function WhatsAppFloat() {
   return (
     <a
-      href="https://wa.me/5511959773552"
+      href="https://wa.me/5511941164044"
       target="_blank"
       rel="noopener noreferrer"
       aria-label="Falar no WhatsApp"
@@ -159,7 +159,7 @@ function FinalCTA() {
           Marque uma conversa gratuita. A gente entende seu negócio, apresenta as soluções certas e te dá um orçamento sem compromisso.
         </p>
         <a
-          href="https://wa.me/5511959773552?text=Ol%C3%A1%2C%20quero%20uma%20an%C3%A1lise%20gratuita%20do%20meu%20projeto"
+          href="https://wa.me/5511941164044?text=Ol%C3%A1%2C%20quero%20uma%20an%C3%A1lise%20gratuita%20do%20meu%20projeto"
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-3 font-bold text-white px-10 py-4 rounded-lg text-[15px] uppercase tracking-wide transition-all duration-200 mb-8"

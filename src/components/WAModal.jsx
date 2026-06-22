@@ -76,7 +76,7 @@ export default function WAModal() {
 
     const msg = buildMessage(name, service)
     window.open(
-      `https://wa.me/5511959773552?text=${encodeURIComponent(msg)}`,
+      `https://wa.me/5511941164044?text=${encodeURIComponent(msg)}`,
       '_blank',
       'noopener,noreferrer'
     )

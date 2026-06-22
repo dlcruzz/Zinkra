@@ -89,7 +89,7 @@ export default function Vision() {
         {/* CTA */}
         <div ref={ctaRef} className="opacity-0">
           <a
-            href="https://wa.me/5511959773552?text=Ol%C3%A1%2C%20quero%20transformar%20meu%20neg%C3%B3cio%20com%20a%20Zinkra"
+            href="https://wa.me/5511941164044?text=Ol%C3%A1%2C%20quero%20transformar%20meu%20neg%C3%B3cio%20com%20a%20Zinkra"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-3 font-bold text-[#0A0C0B] rounded-lg transition-all duration-200"

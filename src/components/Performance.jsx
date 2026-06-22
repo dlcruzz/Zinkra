@@ -85,7 +85,7 @@ export default function Performance() {
             </div>
 
             <a
-              href="https://wa.me/5511959773552?text=Ol%C3%A1%2C%20quero%20um%20site%20rapido%20e%20otimizado"
+              href="https://wa.me/5511941164044?text=Ol%C3%A1%2C%20quero%20um%20site%20rapido%20e%20otimizado"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-3 font-bold text-white px-8 py-4 rounded-lg text-[15px] uppercase tracking-wide transition-all duration-200"
