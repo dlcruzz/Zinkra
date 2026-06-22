@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import Services        from '../components/Services'
+import Calculadora     from '../components/Calculadora'
 import FeaturedService from '../components/FeaturedService'
 
 export default function Servicos() {
@@ -16,6 +17,7 @@ export default function Servicos() {
   return (
     <div style={{ paddingTop: '76px' }}>
       <Services />
+      <Calculadora />
       <FeaturedService />
     </div>
   )

@@ -1,38 +1,18 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { Link } from 'react-router-dom'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
+import { PROJECTS as PROJECT_DATA } from '../data/projects'
 
-const PROJECTS = [
-  {
-    name: 'VIP Náutica',
-    tag:  'Site Institucional · Náutica',
-    img:  '/images/mockupvipnautica.png',
-    url:  'https://www.vipnautica.com.br',
-    desc: 'Site com catálogo de mais de 200 embarcações, filtros inteligentes de busca e captação de leads integrada diretamente ao sistema interno da empresa — levando cada contato automaticamente para a equipe de vendas.',
-  },
-  {
-    name: 'Go Ibroker',
-    tag:  'Site · Imobiliário · EUA',
-    img:  '/images/mockupibroker.png',
-    url:  'https://www.goibrokerusa.com/',
-    desc: 'Site para corretora de imóveis brasileira atuando nos EUA. Apresenta a empresa e conta com um sistema de filtros que se conecta em tempo real à API do CRM e controle de estoque da cliente — exibindo os imóveis disponíveis automaticamente.',
-  },
-  {
-    name: 'VIPSYS',
-    tag:  'Sistema Interno · CRM · Náutica',
-    img:  '/images/MockupVIpSys.png',
-    url:  null,
-    locked: true,
-    desc: 'CRM comercial sob medida para a VIP Náutica. Gerencia leads com funil de vendas (Entrando → Vendido), disparo em massa via WhatsApp com variáveis personalizadas, importação de clientes por planilha, controle de acesso por perfil e dashboard de performance por consultor.',
-  },
-  {
-    name: 'FUTDraft',
-    tag:  'SaaS · Esportes',
-    img:  '/images/Mockup futdraft.png',
-    url:  'https://futdraftt.vercel.app/',
-    desc: 'Plataforma SaaS para gerenciamento de partidas de futebol amador. Controla times de forma equilibrada, sorteia confrontos, armazena resultados em tempo real e exibe um resumo completo ao final de cada partida.',
-  },
-]
+const PROJECTS = PROJECT_DATA.map(p => ({
+  name:   p.name,
+  tag:    p.tag,
+  img:    p.img,
+  url:    p.url,
+  locked: p.locked || false,
+  slug:   p.slug,
+  desc:   p.desc,
+}))
 
 function Arrow({ dir, onClick, disabled }) {
   return (
@@ -111,7 +91,7 @@ export default function Projects() {
         <div className="carousel-body opacity-0">
           <div className="flex flex-col lg:flex-row items-center gap-16 lg:gap-24">
 
-            {/* Mockup image — já inclui o frame do celular */}
+            {/* Mockup */}
             <div
               className="shrink-0 flex items-center justify-center"
               style={{ transition: 'opacity 0.28s ease', opacity: fading ? 0 : 1 }}
@@ -126,7 +106,7 @@ export default function Projects() {
               />
             </div>
 
-            {/* Info + navigation */}
+            {/* Info */}
             <div className="flex-1 min-w-0">
 
               <p className="font-mono text-[11px] uppercase tracking-[3px] mb-6" style={{ color: '#3A5545' }}>
@@ -184,25 +164,42 @@ export default function Projects() {
                       </svg>
                       Sistema privado
                     </div>
-                    <p className="font-mono text-[10px] max-w-[260px] leading-relaxed" style={{ color: '#3A5545' }}>
-                      Sistema interno — acesso restrito por segurança da empresa.
-                    </p>
+                    <Link
+                      to={`/projetos/${proj.slug}`}
+                      className="font-mono text-[11px] uppercase tracking-[1px] transition-colors"
+                      style={{ color: '#3A5545' }}
+                      onMouseEnter={e => e.currentTarget.style.color = '#15C45A'}
+                      onMouseLeave={e => e.currentTarget.style.color = '#3A5545'}
+                    >
+                      Ver case study →
+                    </Link>
                   </div>
                 ) : (
-                  <a
-                    href={proj.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 font-bold text-[13px] text-white px-6 py-3 rounded-xl uppercase tracking-wide transition-all duration-200"
-                    style={{ backgroundColor: '#15C45A' }}
-                    onMouseEnter={e => e.currentTarget.style.backgroundColor = '#0EA84B'}
-                    onMouseLeave={e => e.currentTarget.style.backgroundColor = '#15C45A'}
-                  >
-                    Ver projeto
-                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
-                      <path d="M3 8h10M9 4l4 4-4 4" />
-                    </svg>
-                  </a>
+                  <div className="flex flex-wrap gap-3">
+                    <a
+                      href={proj.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 font-bold text-[13px] text-white px-6 py-3 rounded-xl uppercase tracking-wide transition-all duration-200"
+                      style={{ backgroundColor: '#15C45A' }}
+                      onMouseEnter={e => e.currentTarget.style.backgroundColor = '#0EA84B'}
+                      onMouseLeave={e => e.currentTarget.style.backgroundColor = '#15C45A'}
+                    >
+                      Ver projeto
+                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+                        <path d="M3 8h10M9 4l4 4-4 4" />
+                      </svg>
+                    </a>
+                    <Link
+                      to={`/projetos/${proj.slug}`}
+                      className="inline-flex items-center gap-2 font-bold text-[13px] px-6 py-3 rounded-xl uppercase tracking-wide transition-all duration-200"
+                      style={{ border: '1.5px solid rgba(21,196,90,0.35)', color: '#15C45A', backgroundColor: 'transparent' }}
+                      onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'rgba(21,196,90,0.08)'; e.currentTarget.style.borderColor = '#15C45A' }}
+                      onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.borderColor = 'rgba(21,196,90,0.35)' }}
+                    >
+                      Case study
+                    </Link>
+                  </div>
                 )}
 
                 <div className="flex items-center gap-2">

@@ -1,11 +1,12 @@
 import React, { useEffect, useRef } from 'react'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
-import Hero             from '../components/Hero'
-import ServicesGrid     from '../components/ServicesGrid'
+import Hero              from '../components/Hero'
+import TechStack         from '../components/TechStack'
+import ServicesGrid      from '../components/ServicesGrid'
 import HorizontalProcess from '../components/HorizontalProcess'
-import Performance      from '../components/Performance'
-import Vision           from '../components/Vision'
+import Performance       from '../components/Performance'
+import Vision            from '../components/Vision'
 
 function FinalCTA() {
   const ref = useRef(null)
@@ -75,6 +76,7 @@ export default function Home() {
   return (
     <>
       <Hero />
+      <TechStack />
       <ServicesGrid limit={4} />
       <HorizontalProcess />
       <Performance />
