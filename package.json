@@ -12,6 +12,7 @@
     "@react-three/fiber": "^8.15.12",
     "framer-motion": "^10.18.0",
     "gsap": "^3.12.5",
+    "html2pdf.js": "^0.14.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-helmet-async": "^3.0.0",
