@@ -4,13 +4,6 @@ import { Helmet } from 'react-helmet-async'
 import { gsap } from 'gsap'
 import { POSTS } from '../data/blog'
 
-const CATEGORY_COLORS = {
-  Sistemas: '#15C45A',
-  Sites:    '#3B82F6',
-  SaaS:     '#8B5CF6',
-  Design:   '#EC4899',
-}
-
 function renderSection(s, i) {
   switch (s.type) {
     case 'h2':
@@ -72,7 +65,7 @@ export default function BlogPost() {
     )
   }
 
-  const color   = CATEGORY_COLORS[post.category] || '#15C45A'
+  const color   = '#15C45A'
   const related = POSTS.filter(p => p.slug !== slug).slice(0, 2)
 
   return (
@@ -176,7 +169,7 @@ export default function BlogPost() {
                   >
                     <span
                       className="font-mono text-[10px] uppercase tracking-[2px] px-2 py-0.5 rounded-full mb-3 inline-block"
-                      style={{ backgroundColor: `${CATEGORY_COLORS[p.category] || '#15C45A'}15`, color: CATEGORY_COLORS[p.category] || '#15C45A' }}
+                      style={{ backgroundColor: 'rgba(21,196,90,0.08)', color: '#15C45A' }}
                     >
                       {p.category}
                     </span>

@@ -17,18 +17,6 @@ export default function NotFound() {
       className="min-h-screen flex flex-col items-center justify-center text-center px-6 relative overflow-hidden"
       style={{ backgroundColor: '#060807', paddingTop: '76px' }}
     >
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{ background: 'radial-gradient(ellipse 60% 60% at 50% 50%, rgba(21,196,90,0.04) 0%, transparent 70%)' }}
-      />
-      <div
-        className="absolute inset-0 pointer-events-none opacity-20"
-        style={{
-          backgroundImage: 'linear-gradient(rgba(21,196,90,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(21,196,90,0.04) 1px, transparent 1px)',
-          backgroundSize: '64px 64px',
-        }}
-      />
-
       <div ref={ref} className="relative opacity-0 max-w-lg">
         <p
           className="font-black leading-none mb-6"

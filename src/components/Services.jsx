@@ -328,9 +328,8 @@ function SystemsCard() {
 const SERVICE_CARDS = [
   {
     title: 'Sites & Lojas Virtuais', sub: 'Desenvolvimento Web',
-    glow: 'rgba(56,189,248,0.18)', gradFrom: 'rgba(14,165,233,0.12)',
     icon: (
-      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(56,189,248,0.9)" strokeWidth="1.4" strokeLinecap="round" aria-hidden="true">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(21,196,90,0.9)" strokeWidth="1.4" strokeLinecap="round" aria-hidden="true">
         <circle cx="12" cy="12" r="10" />
         <path d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20" />
       </svg>
@@ -338,7 +337,6 @@ const SERVICE_CARDS = [
   },
   {
     title: 'Sistemas Sob Medida', sub: 'Software & SaaS',
-    glow: 'rgba(21,196,90,0.18)', gradFrom: 'rgba(21,196,90,0.12)',
     icon: (
       <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(21,196,90,0.9)" strokeWidth="1.4" strokeLinecap="round" aria-hidden="true">
         <polyline points="16 18 22 12 16 6" />
@@ -348,18 +346,16 @@ const SERVICE_CARDS = [
   },
   {
     title: 'Redes Sociais & Conteúdo', sub: 'Social Media',
-    glow: 'rgba(168,85,247,0.18)', gradFrom: 'rgba(168,85,247,0.12)',
     icon: (
-      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(168,85,247,0.9)" strokeWidth="1.4" strokeLinecap="round" aria-hidden="true">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(21,196,90,0.9)" strokeWidth="1.4" strokeLinecap="round" aria-hidden="true">
         <path d="M4 9h16M4 15h16M10 3l-2 18M16 3l-2 18" />
       </svg>
     ),
   },
   {
     title: 'IA & Automação', sub: 'Inteligência Artificial',
-    glow: 'rgba(6,182,212,0.18)', gradFrom: 'rgba(6,182,212,0.12)',
     icon: (
-      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(6,182,212,0.9)" strokeWidth="1.4" strokeLinecap="round" aria-hidden="true">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(21,196,90,0.9)" strokeWidth="1.4" strokeLinecap="round" aria-hidden="true">
         <rect x="4" y="4" width="16" height="16" rx="2" />
         <rect x="9" y="9" width="6" height="6" />
         <path d="M9 1v3M15 1v3M9 20v3M15 20v3M1 9h3M1 15h3M20 9h3M20 15h3" />
@@ -391,9 +387,8 @@ function ServiceCards() {
             e.currentTarget.style.boxShadow = 'none'
           }}
         >
-          <div className="absolute inset-0 pointer-events-none" style={{ background: `radial-gradient(ellipse 80% 60% at 50% 20%, ${card.gradFrom} 0%, transparent 70%)` }} />
           <div className="flex-1 flex items-center justify-center pt-8 pb-4 relative">
-            <div className="w-20 h-20 rounded-2xl flex items-center justify-center" style={{ backgroundColor: 'rgba(255,255,255,0.04)', border: `1px solid ${card.glow}`, boxShadow: `0 0 24px ${card.glow}` }}>
+            <div className="w-20 h-20 rounded-2xl flex items-center justify-center" style={{ backgroundColor: 'rgba(21,196,90,0.06)', border: '1px solid rgba(21,196,90,0.18)' }}>
               {card.icon}
             </div>
           </div>

@@ -70,8 +70,8 @@ export default function Saas() {
       {/* Header */}
       <section className="py-24 relative overflow-hidden" style={{ backgroundColor: '#FFFFFF' }}>
         <div
-          className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full pointer-events-none -translate-y-1/3 translate-x-1/3"
-          style={{ background: 'radial-gradient(circle, rgba(21,196,90,0.07) 0%, transparent 70%)' }}
+          className="absolute inset-0 pointer-events-none"
+          style={{ background: 'linear-gradient(115deg, transparent 55%, rgba(21,196,90,0.06) 78%, rgba(21,196,90,0.1) 100%)' }}
         />
         <div className="max-w-7xl mx-auto px-6 relative">
           <div ref={headRef} className="max-w-2xl opacity-0">

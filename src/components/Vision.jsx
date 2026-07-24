@@ -26,19 +26,14 @@ export default function Vision() {
       className="py-32 text-center relative overflow-hidden"
       style={{ backgroundColor: '#060807' }}
     >
-      {/* Background glow */}
+      {/* Vertical light beam — spotlight on the headline, not an ambient wash */}
       <div
-        className="absolute inset-0 pointer-events-none"
+        className="absolute top-0 left-1/2 pointer-events-none"
         style={{
-          background: 'radial-gradient(ellipse 70% 60% at 50% 50%, rgba(21,196,90,0.04) 0%, transparent 70%)',
-        }}
-      />
-      {/* Subtle grid pattern */}
-      <div
-        className="absolute inset-0 pointer-events-none opacity-30"
-        style={{
-          backgroundImage: 'linear-gradient(rgba(21,196,90,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(21,196,90,0.04) 1px, transparent 1px)',
-          backgroundSize: '64px 64px',
+          width: '2px',
+          height: '260px',
+          transform: 'translateX(-50%)',
+          background: 'linear-gradient(180deg, rgba(21,196,90,0.5) 0%, transparent 100%)',
         }}
       />
 

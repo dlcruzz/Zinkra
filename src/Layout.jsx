@@ -46,7 +46,10 @@ function CustomCursor() {
     if (!dot || !ring) return
 
     gsap.set(dot,  { xPercent: -50, yPercent: -50 })
-    gsap.set(ring, { xPercent: -50, yPercent: -50 })
+    // Ring is rendered at its max (36px) size in CSS; resting state is scaled
+    // down to the visual 8px dot size. Hover grows it to scale:1 via transform,
+    // never width/height, so it never triggers layout.
+    gsap.set(ring, { xPercent: -50, yPercent: -50, scale: 8 / 36 })
 
     const onMove = (e) => {
       dot.style.opacity  = '1'
@@ -54,8 +57,16 @@ function CustomCursor() {
       gsap.to(dot,  { x: e.clientX, y: e.clientY, duration: 0.08, overwrite: true })
       gsap.to(ring, { x: e.clientX, y: e.clientY, duration: 0.18, overwrite: true })
     }
-    const onOver = (e) => { if (e.target.closest('a, button')) ring.classList.add('hovered') }
-    const onOut  = (e) => { if (e.target.closest('a, button')) ring.classList.remove('hovered') }
+    const onOver = (e) => {
+      if (!e.target.closest('a, button')) return
+      ring.classList.add('hovered')
+      gsap.to(ring, { scale: 1, duration: 0.25, ease: 'power2.out', overwrite: 'auto' })
+    }
+    const onOut = (e) => {
+      if (!e.target.closest('a, button')) return
+      ring.classList.remove('hovered')
+      gsap.to(ring, { scale: 8 / 36, duration: 0.25, ease: 'power2.out', overwrite: 'auto' })
+    }
 
     document.addEventListener('mousemove', onMove, { passive: true })
     document.addEventListener('mouseover',  onOver)

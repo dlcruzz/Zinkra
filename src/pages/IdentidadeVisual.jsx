@@ -10,27 +10,27 @@ const ENTREGAVEIS = [
     desc: 'Criado do zero, alinhado à personalidade da marca, em versões principal, reduzida e monocromática.',
   },
   {
-    icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>,
+    icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#15C45A" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>,
     title: 'Paleta de cores',
     desc: 'Cores primárias, secundárias e neutras com códigos HEX, RGB e CMYK para uso digital e impresso.',
   },
   {
-    icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg>,
+    icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#15C45A" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg>,
     title: 'Tipografia',
     desc: 'Fontes selecionadas para headline, corpo e labels — com hierarquia e regras de aplicação.',
   },
   {
-    icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="5"/><path d="M7 12h10M12 7v10"/></svg>,
+    icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#15C45A" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="5"/><path d="M7 12h10M12 7v10"/></svg>,
     title: 'Templates para redes sociais',
     desc: 'Posts, stories e capas padronizados no Canva ou Figma para uso imediato pela equipe.',
   },
   {
-    icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#EC4899" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>,
+    icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#15C45A" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>,
     title: 'Manual de marca',
     desc: 'Documento completo com regras de uso, exemplos corretos e incorretos e diretrizes de aplicação.',
   },
   {
-    icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>,
+    icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#15C45A" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>,
     title: 'Papelaria digital',
     desc: 'Assinatura de e-mail, apresentação padrão, papel timbrado e cartão de visita digital.',
   },
@@ -72,10 +72,12 @@ export default function IdentidadeVisual() {
 
         {/* Hero */}
         <section className="py-24 relative overflow-hidden" style={{ backgroundColor: '#FFFFFF' }}>
-          <div
-            className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full pointer-events-none -translate-y-1/3 translate-x-1/3"
-            style={{ background: 'radial-gradient(circle, rgba(21,196,90,0.07) 0%, transparent 70%)' }}
-          />
+          {/* Swatch cluster — stands in for the palette this page is about */}
+          <div className="absolute top-16 right-10 hidden lg:flex gap-3 pointer-events-none" aria-hidden="true">
+            <div className="w-16 h-16 rounded-2xl mt-8" style={{ backgroundColor: '#0A0C0B' }} />
+            <div className="w-16 h-16 rounded-2xl" style={{ backgroundColor: '#15C45A' }} />
+            <div className="w-16 h-16 rounded-2xl mt-12" style={{ backgroundColor: '#F5F7F5', border: '1px solid #E8EDEA' }} />
+          </div>
           <div className="max-w-7xl mx-auto px-6 relative">
             <div ref={headRef} className="max-w-2xl opacity-0">
               <div className="inline-flex mb-7">

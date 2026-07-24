@@ -2,24 +2,6 @@ import React, { useEffect, useRef } from 'react'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 
-function ImgPlaceholder({ name }) {
-  return (
-    <div
-      className="w-full h-full flex flex-col items-center justify-center rounded-2xl"
-      style={{ background: '#EEF5F1', border: '2px dashed #C8DDD2' }}
-    >
-      <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#B0C8BA" strokeWidth="1.4" aria-hidden="true">
-        <rect x="3" y="3" width="18" height="18" rx="2" />
-        <circle cx="8.5" cy="8.5" r="1.5" />
-        <polyline points="21 15 16 10 5 21" />
-      </svg>
-      <p className="font-mono text-[12px] mt-3 text-center px-4" style={{ color: '#9AB8A8' }}>
-        [{name}]
-      </p>
-    </div>
-  )
-}
-
 export default function FeaturedService() {
   const imgRef  = useRef(null)
   const textRef = useRef(null)
@@ -27,13 +9,13 @@ export default function FeaturedService() {
   useEffect(() => {
     const ctx = gsap.context(() => {
       gsap.fromTo(imgRef.current,
-        { opacity: 0, x: -52 },
-        { opacity: 1, x: 0, duration: 0.9, ease: 'power4.out',
+        { opacity: 0, scale: 0.94 },
+        { opacity: 1, scale: 1, duration: 0.85, ease: 'power2.out',
           scrollTrigger: { trigger: imgRef.current, start: 'top 82%', once: true } }
       )
       gsap.fromTo(textRef.current,
-        { opacity: 0, x: 52 },
-        { opacity: 1, x: 0, duration: 0.9, ease: 'power4.out',
+        { opacity: 0, y: 36 },
+        { opacity: 1, y: 0, duration: 0.75, ease: 'power3.out',
           scrollTrigger: { trigger: textRef.current, start: 'top 82%', once: true } }
       )
     })
@@ -45,18 +27,30 @@ export default function FeaturedService() {
       <div className="max-w-7xl mx-auto px-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
 
-          {/* Left: image */}
-          <div ref={imgRef} className="h-[420px] lg:h-[500px] opacity-0 relative">
-            <div
-              className="absolute -top-5 -left-5 w-32 h-32 rounded-full pointer-events-none"
-              style={{ background: 'rgba(21,196,90,0.10)' }}
-            />
+          {/* Left: real client system, not a stock mockup */}
+          <div ref={imgRef} className="h-[420px] lg:h-[500px] opacity-0 flex items-center justify-center relative">
             <img
-              src="/images/imagem-sistemas.png"
-              alt="Desenvolvimento de sistemas e ERPs sob medida — Zinkra software house São Paulo"
-              className="w-full h-full object-cover rounded-2xl"
+              src="/images/MockupVIpSys.png"
+              alt="VIPSYS — CRM comercial sob medida desenvolvido pela Zinkra para a VIP Náutica"
+              className="max-h-full w-auto"
+              style={{ filter: 'drop-shadow(0 24px 48px rgba(10,12,11,0.16))' }}
               loading="lazy"
             />
+            <div
+              className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 px-5 py-3 rounded-2xl"
+              style={{ backgroundColor: '#FFFFFF', boxShadow: '0 8px 32px rgba(0,0,0,0.14)' }}
+            >
+              <div
+                className="w-11 h-11 rounded-xl flex items-center justify-center font-black text-[13px]"
+                style={{ backgroundColor: 'rgba(21,196,90,0.12)', color: '#15C45A' }}
+              >
+                CRM
+              </div>
+              <div>
+                <div className="font-bold text-[13px] text-[#0A0C0B] leading-tight">Funil de vendas automatizado</div>
+                <div className="font-mono text-[10px] mt-0.5" style={{ color: '#9AA5A0' }}>VIPSYS · Sistema privado</div>
+              </div>
+            </div>
           </div>
 
           {/* Right: text */}
@@ -72,10 +66,10 @@ export default function FeaturedService() {
               <span style={{ color: '#15C45A' }}>Plataformas Sob Medida</span>
             </h2>
             <p className="text-[16px] leading-[1.8] mb-5" style={{ color: '#4A5550' }}>
-              Desenvolvemos sistemas internos sob medida para o seu negócio, integrando design moderno, facilidade de navegação e ferramentas para aumentar sua produtividade.
+              Para a VIP Náutica, construímos o VIPSYS: um CRM que tirou o time comercial das planilhas. Funil de leads, disparo em massa via WhatsApp com variáveis personalizadas e dashboard de performance por consultor, tudo em tempo real.
             </p>
             <p className="text-[16px] leading-[1.8] mb-10" style={{ color: '#4A5550' }}>
-              Transforme sua ideia em uma plataforma de sucesso — com integração de APIs, banco de dados, segurança e responsividade para todos os dispositivos. Invista em tecnologia e comece a escalar já.
+              É esse nível de sistema que desenvolvemos sob medida: banco de dados, integrações de API, controle de acesso por perfil e responsividade completa, pensado pro processo real da sua empresa.
             </p>
 
             <div className="flex flex-wrap gap-3 mb-10">

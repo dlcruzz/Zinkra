@@ -9,36 +9,18 @@ function WAIcon() {
   )
 }
 
-function ImgPlaceholder({ name, className = '', style = {} }) {
-  return (
-    <div
-      className={`flex flex-col items-center justify-center rounded-2xl ${className}`}
-      style={{ background: '#EEF5F1', border: '2px dashed #C8DDD2', ...style }}
-    >
-      <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#B0C8BA" strokeWidth="1.4" aria-hidden="true">
-        <rect x="3" y="3" width="18" height="18" rx="2" />
-        <circle cx="8.5" cy="8.5" r="1.5" />
-        <polyline points="21 15 16 10 5 21" />
-      </svg>
-      <p className="font-mono text-[12px] mt-3 text-center px-4" style={{ color: '#9AB8A8' }}>
-        [{name}]
-      </p>
-    </div>
-  )
-}
-
 export default function Hero() {
   const leftRef  = useRef(null)
   const rightRef = useRef(null)
 
   useEffect(() => {
     gsap.fromTo(leftRef.current,
-      { opacity: 0, x: -48 },
-      { opacity: 1, x: 0, duration: 0.95, ease: 'power4.out', delay: 0.15 }
+      { opacity: 0, y: 28 },
+      { opacity: 1, y: 0, duration: 0.85, ease: 'power3.out', delay: 0.1 }
     )
     gsap.fromTo(rightRef.current,
-      { opacity: 0, x: 48 },
-      { opacity: 1, x: 0, duration: 0.95, ease: 'power4.out', delay: 0.35 }
+      { opacity: 0, scale: 0.97 },
+      { opacity: 1, scale: 1, duration: 1.1, ease: 'power2.out', delay: 0.25 }
     )
   }, [])
 
@@ -48,23 +30,18 @@ export default function Hero() {
       className="relative overflow-hidden"
       style={{ backgroundColor: '#FFFFFF', paddingTop: '80px' }}
     >
-      {/* Decorative green blob top-right */}
-      <div
-        className="absolute top-0 right-0 w-[700px] h-[700px] rounded-full pointer-events-none -translate-y-1/3 translate-x-1/3"
-        style={{ background: 'radial-gradient(circle, rgba(21,196,90,0.09) 0%, transparent 70%)' }}
-      />
-
-      <div className="max-w-7xl mx-auto px-6 py-16 lg:py-28 relative">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+      <div className="max-w-7xl mx-auto px-6 py-16 lg:py-24 relative">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
 
           {/* Left: copy */}
           <div ref={leftRef}>
-            <div className="inline-flex mb-7">
+            <div className="inline-flex items-center gap-2 mb-7">
+              <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#15C45A' }} />
               <span
-                className="font-mono text-[11px] uppercase tracking-[3px] px-3 py-1.5 rounded-full"
-                style={{ backgroundColor: 'rgba(21,196,90,0.1)', color: '#15C45A', border: '1px solid rgba(21,196,90,0.2)' }}
+                className="font-mono text-[11px] uppercase tracking-[3px]"
+                style={{ color: '#4A5550' }}
               >
-                Software House · Brasil
+                Equipe própria em São Paulo
               </span>
             </div>
 
@@ -72,37 +49,49 @@ export default function Hero() {
               className="font-black leading-[1.08] tracking-tight mb-6"
               style={{ fontSize: 'clamp(36px, 5vw, 64px)' }}
             >
-              <span className="text-[#0A0C0B]">Sistemas, Sites e ERPs</span>
+              <span className="text-[#0A0C0B]">Sistemas, sites e ERPs</span>
               <br />
-              <span style={{ color: '#15C45A' }}>Sob Medida para o seu Negócio.</span>
+              <span style={{ color: '#15C45A' }}>sob medida, sem atalho.</span>
             </h1>
 
             <p
-              className="text-[17px] leading-[1.8] mb-8"
+              className="text-[17px] leading-[1.8] mb-9"
               style={{ color: '#4A5550', maxWidth: '520px' }}
             >
-              Software house especializada em desenvolvimento de sistemas internos, ERPs personalizados, SaaS e criação de sites profissionais. 100% desenvolvido in-house, sem terceirização, sem templates — com foco total em resultado para o seu negócio.
+              Construímos por dentro, do primeiro wireframe ao deploy. Nada de terceirizar parte do projeto pra outra agência: você fala direto com quem escreve o código.
             </p>
 
-            <a
-              href="https://wa.me/5511941164044?text=Ol%C3%A1%2C%20quero%20um%20or%C3%A7amento%20para%20meu%20projeto"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-3 font-bold text-white px-8 py-4 rounded-lg text-[15px] uppercase tracking-wide transition-all duration-200 mb-10"
-              style={{ backgroundColor: '#15C45A' }}
-              onMouseEnter={e => e.currentTarget.style.backgroundColor = '#0EA84B'}
-              onMouseLeave={e => e.currentTarget.style.backgroundColor = '#15C45A'}
-            >
-              <WAIcon />
-              Quero meu projeto
-            </a>
+            <div className="flex flex-wrap items-center gap-4 mb-10">
+              <a
+                href="https://wa.me/5511941164044?text=Ol%C3%A1%2C%20quero%20um%20or%C3%A7amento%20para%20meu%20projeto"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-3 font-bold text-white px-8 py-4 rounded-lg text-[15px] uppercase tracking-wide transition-all duration-200"
+                style={{ backgroundColor: '#15C45A' }}
+                onMouseEnter={e => e.currentTarget.style.backgroundColor = '#0EA84B'}
+                onMouseLeave={e => e.currentTarget.style.backgroundColor = '#15C45A'}
+              >
+                <WAIcon />
+                Quero meu projeto
+              </a>
+              <a
+                href="#servicos-home"
+                className="inline-flex items-center gap-2 font-bold text-[15px] px-2 py-4 transition-colors duration-200"
+                style={{ color: '#0A0C0B' }}
+              >
+                Ver o que fazemos
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+                  <path d="M3 8h10M9 4l4 4-4 4" />
+                </svg>
+              </a>
+            </div>
 
-            {/* Stats row */}
+            {/* Proof strip */}
             <div className="flex flex-wrap gap-8 pt-6" style={{ borderTop: '1px solid #E8EDEA' }}>
               {[
                 { v: '50+',  l: 'Projetos entregues' },
                 { v: '35+',  l: 'Clientes satisfeitos' },
-                { v: '100%', l: 'Personalizado' },
+                { v: '0',    l: 'Times terceirizados' },
               ].map(s => (
                 <div key={s.l}>
                   <div className="font-black text-[28px] leading-none" style={{ color: '#15C45A' }}>{s.v}</div>
@@ -112,32 +101,51 @@ export default function Hero() {
             </div>
           </div>
 
-          {/* Right: hero image */}
-          <div ref={rightRef} className="relative h-[420px] lg:h-[520px]">
-            <div
-              className="absolute -top-6 -right-6 w-40 h-40 rounded-full"
-              style={{ background: 'rgba(21,196,90,0.12)' }}
-            />
-            <div
-              className="absolute bottom-8 -left-6 w-24 h-24 rounded-full"
-              style={{ background: 'rgba(21,196,90,0.07)' }}
-            />
+          {/* Right: real client work, not a stock mockup */}
+          <div ref={rightRef} className="relative h-[440px] lg:h-[560px] flex items-center justify-center">
+            <svg
+              className="absolute pointer-events-none select-none"
+              style={{ top: '-6%', right: '4%', width: '58%', height: '112%', zIndex: 0 }}
+              viewBox="0 0 100 160"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path
+                d="M8 8 H92 L8 152 H92"
+                stroke="#15C45A"
+                strokeOpacity="0.14"
+                strokeWidth="9"
+                strokeLinecap="square"
+              />
+            </svg>
+
             <img
-              src="/images/imagem-hero.png"
-              alt="Software house Zinkra — desenvolvimento de sistemas, sites e ERPs sob medida em São Paulo"
-              className="w-full h-full object-cover rounded-2xl relative z-10"
+              src="/images/mockupvipnautica.png"
+              alt="VIP Náutica — site institucional desenvolvido pela Zinkra, com catálogo de mais de 200 embarcações"
+              className="h-full w-auto relative z-10 select-none"
+              style={{ filter: 'drop-shadow(0 24px 48px rgba(10,12,11,0.22))' }}
               fetchpriority="high"
             />
+
+            {/* Real result callout, not a fabricated stat card */}
+            <div
+              className="absolute bottom-6 -left-2 lg:left-2 flex items-center gap-3 px-5 py-3.5 rounded-2xl z-20"
+              style={{ backgroundColor: '#FFFFFF', boxShadow: '0 8px 32px rgba(0,0,0,0.14)' }}
+            >
+              <div
+                className="w-11 h-11 rounded-xl flex items-center justify-center font-black text-[15px] shrink-0"
+                style={{ backgroundColor: 'rgba(21,196,90,0.12)', color: '#15C45A' }}
+              >
+                3x
+              </div>
+              <div>
+                <div className="font-bold text-[13px] text-[#0A0C0B] leading-tight">Mais leads gerados</div>
+                <div className="font-mono text-[10px] mt-0.5" style={{ color: '#9AA5A0' }}>Case real · VIP Náutica</div>
+              </div>
+            </div>
           </div>
 
         </div>
-      </div>
-
-      {/* Wave divider */}
-      <div style={{ lineHeight: 0, marginTop: '-2px' }}>
-        <svg viewBox="0 0 1440 54" preserveAspectRatio="none" className="w-full block" style={{ height: '54px' }}>
-          <path d="M0,27 C360,54 1080,0 1440,27 L1440,54 L0,54 Z" fill="#F5F7F5" />
-        </svg>
       </div>
     </section>
   )

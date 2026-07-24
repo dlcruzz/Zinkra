@@ -66,14 +66,14 @@ export default function Performance() {
 
             <div className="flex gap-8 mb-10">
               {[
-                { score: '90+', label: 'PageSpeed Score', color: '#15C45A' },
-                { score: '100%', label: 'Mobile First', color: '#3B82F6' },
-                { score: '2s',   label: 'Tempo de carga', color: '#F59E0B' },
+                { score: '90+', label: 'PageSpeed Score' },
+                { score: '100%', label: 'Mobile First' },
+                { score: '2s',   label: 'Tempo de carga' },
               ].map(m => (
                 <div key={m.label} className="text-center">
                   <div
                     className="font-black text-[32px] leading-none mb-1"
-                    style={{ color: m.color }}
+                    style={{ color: '#15C45A' }}
                   >
                     {m.score}
                   </div>
@@ -100,18 +100,18 @@ export default function Performance() {
             </a>
           </div>
 
-          {/* Right: image with score overlay */}
-          <div ref={imgRef} className="relative h-[420px] lg:h-[500px] opacity-0">
+          {/* Right: real product, not a stock mockup */}
+          <div ref={imgRef} className="relative h-[440px] lg:h-[520px] opacity-0 flex items-center justify-center">
             <img
-              src="/images/imagem-performance.png"
-              alt="Sites rápidos e otimizados com nota 90+ no PageSpeed — Zinkra software house SP"
-              className="w-full h-full object-cover rounded-2xl"
+              src="/images/Mockup futdraft.png"
+              alt="FUTDraft — SaaS de organização de partidas de futebol amador desenvolvido pela Zinkra"
+              className="h-full w-auto"
+              style={{ filter: 'drop-shadow(0 24px 48px rgba(10,12,11,0.18))' }}
               loading="lazy"
             />
-            {/* Score badge overlay */}
             <div
-              className="absolute bottom-6 right-6 flex items-center gap-3 px-5 py-3 rounded-2xl"
-              style={{ backgroundColor: '#FFFFFF', boxShadow: '0 8px 32px rgba(0,0,0,0.12)' }}
+              className="absolute bottom-6 -right-2 lg:right-2 flex items-center gap-3 px-5 py-3 rounded-2xl"
+              style={{ backgroundColor: '#FFFFFF', boxShadow: '0 8px 32px rgba(0,0,0,0.14)' }}
             >
               <div
                 className="w-12 h-12 rounded-xl flex items-center justify-center font-black text-[18px]"
@@ -121,7 +121,7 @@ export default function Performance() {
               </div>
               <div>
                 <div className="font-bold text-[13px] text-[#0A0C0B]">PageSpeed</div>
-                <div className="font-mono text-[11px]" style={{ color: '#9AA5A0' }}>Google Score</div>
+                <div className="font-mono text-[11px]" style={{ color: '#9AA5A0' }}>FUTDraft · Case real</div>
               </div>
             </div>
           </div>

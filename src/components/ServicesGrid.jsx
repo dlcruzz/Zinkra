@@ -5,9 +5,8 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger'
 
 const SERVICES = [
   {
-    color: '#15C45A',
     title: 'Sites Personalizados',
-    desc: 'Criamos um site único e personalizado para sua empresa com layout totalmente moldado para vendas e conversão.',
+    desc: 'Layout construído em torno da sua oferta, não de um template comprado pronto.',
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
         <circle cx="12" cy="12" r="10" />
@@ -16,9 +15,8 @@ const SERVICES = [
     ),
   },
   {
-    color: '#3B82F6',
     title: 'Sites Responsivos',
-    desc: 'Site responsivo, podendo se adaptar em todos os dispositivos, além de uma estrutura clara e intuitiva.',
+    desc: 'Funciona igual em qualquer tela, sem versão "mobile" capenga escondida atrás.',
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
         <rect x="5" y="2" width="14" height="20" rx="2" />
@@ -27,9 +25,8 @@ const SERVICES = [
     ),
   },
   {
-    color: '#F59E0B',
     title: 'Páginas Rápidas',
-    desc: 'Site com carregamento ultra-rápido, oferecendo uma navegação eficiente e uma melhor experiência ao usuário.',
+    desc: 'Carregamento sob 2 segundos. O Google recompensa isso, e o cliente também.',
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
         <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
@@ -37,9 +34,8 @@ const SERVICES = [
     ),
   },
   {
-    color: '#8B5CF6',
     title: 'Suporte Especializado',
-    desc: 'Conte com um time de especialistas para dar suporte às suas necessidades sob demanda, sempre que precisar.',
+    desc: 'Você fala com quem programou o sistema, não com um chat de triagem.',
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
         <path d="M3 18v-6a9 9 0 0118 0v6" />
@@ -48,9 +44,8 @@ const SERVICES = [
     ),
   },
   {
-    color: '#EC4899',
     title: 'Sistemas Sob Medida',
-    desc: 'Integramos e desenvolvemos sistemas internos, ERPs, SaaS e plataformas digitais totalmente personalizados.',
+    desc: 'ERP, painel interno ou plataforma: construído pro seu processo, não o contrário.',
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
         <polyline points="16 18 22 12 16 6" />
@@ -59,9 +54,8 @@ const SERVICES = [
     ),
   },
   {
-    color: '#10B981',
     title: 'SEO e Google',
-    desc: 'Seguimos todos os critérios do Google, garantindo que sua empresa apareça na maior rede de pesquisa do mundo.',
+    desc: 'Estrutura técnica correta desde o primeiro commit, não um plugin de última hora.',
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
         <circle cx="11" cy="11" r="8" />
@@ -70,9 +64,8 @@ const SERVICES = [
     ),
   },
   {
-    color: '#6366F1',
     title: 'Redes Sociais',
-    desc: 'Gestão completa de redes sociais com criação de conteúdo estratégico e design profissional para sua marca.',
+    desc: 'Conteúdo com estratégia por trás, não postagem aleatória pra preencher grade.',
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
         <path d="M4 9h16M4 15h16M10 3l-2 18M16 3l-2 18" />
@@ -80,9 +73,8 @@ const SERVICES = [
     ),
   },
   {
-    color: '#F97316',
     title: 'IA e Automação',
-    desc: 'Estratégias de inteligência artificial focadas em otimizar a experiência do usuário, automatizar processos e escalar resultados.',
+    desc: 'Automação no que trava seu time hoje. Não IA por modismo, sem função clara.',
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
         <rect x="4" y="4" width="16" height="16" rx="2" />
@@ -118,18 +110,18 @@ export default function ServicesGrid({ limit }) {
   }, [])
 
   return (
-    <section style={{ backgroundColor: '#F5F7F5', paddingTop: '64px', paddingBottom: '80px' }}>
+    <section id="servicos-home" style={{ backgroundColor: '#F5F7F5', paddingTop: '64px', paddingBottom: '80px', scrollMarginTop: '80px' }}>
       <div className="max-w-7xl mx-auto px-6">
 
         <div ref={headRef} className="text-center mb-14 opacity-0">
           <p className="font-mono text-[11px] uppercase tracking-[3px] mb-4" style={{ color: '#15C45A' }}>
-            Software House · Brasil
+            O que fazemos
           </p>
           <h2
             className="font-black text-[#0A0C0B] leading-[1.08] tracking-tight"
             style={{ fontSize: 'clamp(28px, 4vw, 52px)' }}
           >
-            Desenvolvimento de Software e Soluções Digitais para Empresas.
+            Um serviço por vez, feito até o fim.
           </h2>
         </div>
 
@@ -141,21 +133,23 @@ export default function ServicesGrid({ limit }) {
               className="bg-white p-7 rounded-2xl opacity-0 transition-all duration-300 group"
               style={{ border: '1px solid #E8EDEA', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}
               onMouseEnter={e => {
+                e.currentTarget.style.borderColor = 'rgba(21,196,90,0.35)'
                 e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,0.10)'
                 e.currentTarget.style.transform = 'translateY(-4px)'
               }}
               onMouseLeave={e => {
+                e.currentTarget.style.borderColor = '#E8EDEA'
                 e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.04)'
                 e.currentTarget.style.transform = 'translateY(0)'
               }}
             >
               <div
                 className="w-11 h-11 rounded-xl flex items-center justify-center mb-5"
-                style={{ backgroundColor: `${svc.color}18`, color: svc.color }}
+                style={{ backgroundColor: 'rgba(21,196,90,0.1)', color: '#15C45A' }}
               >
                 {svc.icon}
               </div>
-              <h3 className="font-bold text-[15px] mb-3 leading-snug" style={{ color: svc.color }}>
+              <h3 className="font-bold text-[15px] mb-3 leading-snug" style={{ color: '#0A0C0B' }}>
                 {svc.title}
               </h3>
               <p className="text-[13px] leading-[1.7]" style={{ color: '#6A7870' }}>

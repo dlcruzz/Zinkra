@@ -2,23 +2,11 @@ import React, { useEffect, useRef } from 'react'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 
-function ImgPlaceholder({ name }) {
-  return (
-    <div
-      className="w-full h-full flex flex-col items-center justify-center rounded-full"
-      style={{ background: '#EEF5F1', border: '2px dashed #C8DDD2' }}
-    >
-      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#B0C8BA" strokeWidth="1.4" aria-hidden="true">
-        <rect x="3" y="3" width="18" height="18" rx="2" />
-        <circle cx="8.5" cy="8.5" r="1.5" />
-        <polyline points="21 15 16 10 5 21" />
-      </svg>
-      <p className="font-mono text-[11px] mt-3 text-center px-4" style={{ color: '#9AB8A8' }}>
-        [{name}]
-      </p>
-    </div>
-  )
-}
+const RESULTS = [
+  { value: '3x',    label: 'Mais leads', client: 'VIP Náutica' },
+  { value: '+40%',  label: 'Vendas no período', client: 'Loja Maré' },
+  { value: '−3h/dia', label: 'Trabalho manual eliminado', client: 'Mecânica do Carlos' },
+]
 
 function CheckItem({ text }) {
   return (
@@ -75,34 +63,31 @@ export default function WhySection() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
 
-          {/* Left: circular image */}
-          <div ref={imgRef} className="flex justify-center opacity-0">
-            <div className="relative">
-              {/* Decorative ring */}
-              <div
-                className="absolute inset-0 rounded-full"
-                style={{
-                  transform: 'scale(1.08)',
-                  background: 'linear-gradient(135deg, rgba(21,196,90,0.2) 0%, rgba(21,196,90,0.05) 100%)',
-                }}
-              />
-              <div
-                className="relative w-[340px] h-[340px] lg:w-[400px] lg:h-[400px] rounded-full overflow-hidden"
-                style={{ border: '4px solid rgba(21,196,90,0.25)' }}
-              >
-                <img
-                  src="/images/imagem-sobre.png"
-                  alt="Equipe Zinkra — software house em São Paulo especializada em desenvolvimento de sistemas"
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                />
-              </div>
-              {/* Badge */}
-              <div
-                className="absolute bottom-6 -right-4 px-4 py-2 rounded-xl font-bold text-[13px] text-white"
-                style={{ backgroundColor: '#15C45A', boxShadow: '0 8px 24px rgba(21,196,90,0.3)' }}
-              >
-                +50 projetos entregues
+          {/* Left: real results, not a stock team photo */}
+          <div ref={imgRef} className="opacity-0">
+            <div
+              className="rounded-2xl p-8 lg:p-10"
+              style={{ backgroundColor: '#0A0C0B', border: '1px solid #1E2620' }}
+            >
+              <p className="font-mono text-[11px] uppercase tracking-[3px] mb-8" style={{ color: '#5A7A65' }}>
+                Resultado, não promessa
+              </p>
+              <div className="space-y-6">
+                {RESULTS.map((r, i) => (
+                  <div
+                    key={r.client}
+                    className="flex items-center gap-5"
+                    style={{ paddingBottom: i < RESULTS.length - 1 ? '24px' : 0, borderBottom: i < RESULTS.length - 1 ? '1px solid #1E2620' : 'none' }}
+                  >
+                    <div className="font-black shrink-0" style={{ fontSize: 'clamp(30px, 3.5vw, 42px)', color: '#15C45A', minWidth: '120px' }}>
+                      {r.value}
+                    </div>
+                    <div>
+                      <p className="font-bold text-[14px] text-white leading-snug">{r.label}</p>
+                      <p className="font-mono text-[11px] mt-1" style={{ color: '#5A7A65' }}>{r.client} · Case real</p>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>

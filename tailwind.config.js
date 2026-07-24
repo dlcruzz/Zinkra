@@ -18,9 +18,9 @@ export default {
         'red-alert': '#FF4D4D',
       },
       fontFamily: {
-        sans: ['Inter', 'sans-serif'],
+        sans: ['Outfit', 'sans-serif'],
         mono: ['JetBrains Mono', 'monospace'],
-        logo: ['Orbitron', 'sans-serif'],
+        display: ['Big Shoulders', 'sans-serif'],
       },
     },
   },

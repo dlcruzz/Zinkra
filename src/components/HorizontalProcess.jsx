@@ -84,13 +84,7 @@ export default function HorizontalProcess() {
   }, [])
 
   return (
-    <section className="py-24 relative overflow-hidden" style={{ backgroundColor: '#071209' }}>
-
-      {/* Ambient glow */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{ background: 'radial-gradient(ellipse 80% 60% at 50% 50%, rgba(21,196,90,0.05) 0%, transparent 70%)' }}
-      />
+    <section className="py-24 relative overflow-hidden bg-grid" style={{ backgroundColor: '#071209' }}>
 
       <div className="max-w-7xl mx-auto px-6 relative">
 

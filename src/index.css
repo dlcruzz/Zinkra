@@ -13,6 +13,11 @@
     color: #0A0C0B;
     overflow-x: hidden;
   }
+
+  h1, h2, h3 {
+    font-family: 'Big Shoulders', sans-serif;
+    letter-spacing: -0.01em;
+  }
 }
 
 /* Custom cursor — desktop only */
@@ -35,8 +40,8 @@
 }
 
 .cursor-ring {
-  width: 8px;
-  height: 8px;
+  width: 36px;
+  height: 36px;
   border: 1.5px solid #15C45A;
   border-radius: 50%;
   position: fixed;
@@ -45,13 +50,12 @@
   pointer-events: none;
   z-index: 9998;
   opacity: 0;
-  transition: width 0.25s ease, height 0.25s ease, background 0.25s ease;
+  transition: background 0.25s ease;
   will-change: transform;
 }
 
+/* Size handled by GSAP scale (transform), not width/height, to avoid layout thrash — see CustomCursor in Layout.jsx */
 .cursor-ring.hovered {
-  width: 36px;
-  height: 36px;
   background: rgba(21, 196, 90, 0.15);
 }
 

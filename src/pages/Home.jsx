@@ -28,12 +28,8 @@ function FinalCTA() {
   return (
     <section
       className="py-28 text-center relative overflow-hidden"
-      style={{ backgroundColor: '#071209' }}
+      style={{ backgroundColor: '#0A0C0B', borderTop: '1px solid #1A2E20' }}
     >
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{ background: 'radial-gradient(ellipse 60% 50% at 50% 50%, rgba(21,196,90,0.06) 0%, transparent 70%)' }}
-      />
       <div ref={ref} className="max-w-2xl mx-auto px-6 relative opacity-0">
         <p className="font-mono text-[11px] uppercase tracking-[3px] mb-5" style={{ color: '#5A7A65' }}>
           Próximo passo

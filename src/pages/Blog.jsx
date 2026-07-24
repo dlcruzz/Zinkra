@@ -5,15 +5,8 @@ import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { POSTS } from '../data/blog'
 
-const CATEGORY_COLORS = {
-  Sistemas: '#15C45A',
-  Sites:    '#3B82F6',
-  SaaS:     '#8B5CF6',
-  Design:   '#EC4899',
-}
-
 function PostCard({ post, index, cardRef }) {
-  const color = CATEGORY_COLORS[post.category] || '#15C45A'
+  const color = '#15C45A'
   return (
     <Link
       ref={cardRef}
@@ -108,12 +101,8 @@ export default function Blog() {
 
       <div style={{ paddingTop: '76px' }}>
 
-        <section className="py-20 relative overflow-hidden" style={{ backgroundColor: '#FFFFFF' }}>
-          <div
-            className="absolute top-0 right-0 w-[500px] h-[500px] rounded-full pointer-events-none -translate-y-1/3 translate-x-1/3"
-            style={{ background: 'radial-gradient(circle, rgba(21,196,90,0.07) 0%, transparent 70%)' }}
-          />
-          <div className="max-w-7xl mx-auto px-6 relative">
+        <section className="py-20" style={{ backgroundColor: '#FFFFFF', borderBottom: '1px solid #E8EDEA' }}>
+          <div className="max-w-7xl mx-auto px-6">
             <div ref={headRef} className="opacity-0">
               <div className="inline-flex mb-6">
                 <span
