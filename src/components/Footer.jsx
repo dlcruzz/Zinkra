@@ -219,7 +219,7 @@ export default function Footer() {
             </a>
           </p>
           <p className="font-mono text-[11px] mt-1" style={{ color: '#3A5545' }}>
-            CNPJ: 64.132.169/0001-60
+            CNPJ: 64.312.169/0001-60
           </p>
         </address>
 
