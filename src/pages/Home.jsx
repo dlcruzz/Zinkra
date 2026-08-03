@@ -3,6 +3,7 @@ import { Helmet } from 'react-helmet-async'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import Hero              from '../components/Hero'
+import Founder           from '../components/Founder'
 import TechStack         from '../components/TechStack'
 import ServicesGrid      from '../components/ServicesGrid'
 import ClientLogos       from '../components/ClientLogos'
@@ -79,6 +80,7 @@ export default function Home() {
         <meta name="description" content="Software house especializada em sistemas internos, ERPs, SaaS e sites sob medida para empresas em todo o Brasil. 100% personalizado, sem templates. Orçamento gratuito." />
       </Helmet>
       <Hero />
+      <Founder />
       <TechStack />
       <ServicesGrid limit={4} />
       <ClientLogos />
