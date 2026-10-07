@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { supabase } from './supabase'
-import { emitChange } from './data'
+import { emitChange, clearDataCache } from './data'
 
 const AuthCtx = createContext(null)
 export const useAuth = () => useContext(AuthCtx)
@@ -97,6 +97,7 @@ export function AuthProvider({ children }) {
         setAal({ current: data?.currentLevel, next: data?.nextLevel })
       },
       async signOut() {
+        clearDataCache()
         await supabase.auth.signOut()
       },
       async reloadProfile() {

@@ -1,6 +1,6 @@
 // Automações: o que o sistema faz sozinho para você não repetir trabalho.
 import { supabase } from './supabase'
-import { insert, update, fetchRows, notify, emitChange, rpc } from './data'
+import { insert, update, fetchRows, notify, emitChange, rpc, onChange } from './data'
 import { addDays, addMonths, today, toCents } from './format'
 
 // ------------------------------------------------------------------
@@ -27,6 +27,7 @@ export async function getPipelines(force) {
   return stagesCache
 }
 export const resetPipelineCache = () => { stagesCache = null }
+onChange(['pipelines', 'pipeline_stages'], () => { stagesCache = null })
 
 export async function defaultLeadStage() {
   const P = await getPipelines()

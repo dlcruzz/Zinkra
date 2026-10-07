@@ -36,6 +36,37 @@ const Relatorios = lazy(() => import('./pages/Relatorios'))
 const Config = lazy(() => import('./pages/Config'))
 const Conta = lazy(() => import('./pages/Conta'))
 
+
+// pré-carrega o código de todas as telas em segundo plano, para a troca de tela ser imediata
+export const PAGE_LOADERS = [
+  () => import('./pages/Dashboard'),
+  () => import('./pages/Hoje'),
+  () => import('./pages/Inteligencia'),
+  () => import('./pages/PainelProspector'),
+  () => import('./pages/Leads'),
+  () => import('./pages/LeadDetalhe'),
+  () => import('./pages/Pipelines'),
+  () => import('./pages/Prospeccao'),
+  () => import('./pages/Captacao'),
+  () => import('./pages/Metas'),
+  () => import('./pages/Propostas'),
+  () => import('./pages/PropostaEditor'),
+  () => import('./pages/Clientes'),
+  () => import('./pages/Projetos'),
+  () => import('./pages/ProjetoDetalhe'),
+  () => import('./pages/Tarefas'),
+  () => import('./pages/Reunioes'),
+  () => import('./pages/Pagar'),
+  () => import('./pages/Receber'),
+  () => import('./pages/Fluxo'),
+  () => import('./pages/Ideias'),
+  () => import('./pages/Playbooks'),
+  () => import('./pages/Parceiros'),
+  () => import('./pages/Relatorios'),
+  () => import('./pages/Config'),
+  () => import('./pages/Conta'),
+]
+
 function Brand({ size = 26 }) {
   return <span style={{ fontSize: size, fontWeight: 700, letterSpacing: '-0.04em' }}><span style={{ color: 'var(--green)' }}>Z</span>inkra<span style={{ color: 'var(--green)' }}>.</span></span>
 }

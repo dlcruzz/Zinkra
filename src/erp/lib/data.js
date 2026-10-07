@@ -25,6 +25,7 @@ export function emitChange(...tables) {
     })
   })
 }
+export function onChange(tables, fn) { return subscribe(tables, fn) }
 function subscribe(tables, fn) {
   tables.forEach((t) => {
     if (!tableListeners.has(t)) tableListeners.set(t, new Set())
@@ -52,17 +53,36 @@ export function friendlyError(error) {
 // Leitura
 // ------------------------------------------------------------------
 // useData(async () => {...}, ['tabela1','tabela2'], [deps])
+// Cache em memória: ao voltar para uma tela, os dados aparecem na hora e são
+// atualizados em segundo plano (stale-while-revalidate).
+const dataCache = new Map() // chave -> { data, at }
+const CACHE_MAX = 60
+function cacheKey(fn, deps) {
+  try { return fn.toString() + '|' + JSON.stringify(deps) } catch { return null }
+}
+export function clearDataCache() { dataCache.clear() }
+
 export function useData(fn, tables = [], deps = []) {
-  const [state, setState] = useState({ data: undefined, loading: true, error: null })
+  const key = cacheKey(fn, deps)
+  const cached = key ? dataCache.get(key) : null
+  const [state, setState] = useState(() => (cached ? { data: cached.data, loading: false, error: null } : { data: undefined, loading: true, error: null }))
   const fnRef = useRef(fn)
   fnRef.current = fn
+  const keyRef = useRef(key)
+  keyRef.current = key
   const seq = useRef(0)
 
   const load = useCallback(async (silent) => {
     const my = ++seq.current
-    if (!silent) setState((s) => ({ ...s, loading: s.data === undefined }))
+    const k = keyRef.current
+    const hit = k ? dataCache.get(k) : null
+    if (!silent) setState((s) => (hit && s.data === undefined ? { data: hit.data, loading: false, error: null } : { ...s, loading: s.data === undefined && !hit }))
     try {
       const data = await fnRef.current()
+      if (k) {
+        dataCache.delete(k); dataCache.set(k, { data, at: Date.now() })
+        if (dataCache.size > CACHE_MAX) dataCache.delete(dataCache.keys().next().value)
+      }
       if (my === seq.current) setState({ data, loading: false, error: null })
     } catch (error) {
       if (my === seq.current) setState((s) => ({ ...s, loading: false, error }))
@@ -70,7 +90,8 @@ export function useData(fn, tables = [], deps = []) {
     }
   }, [])
 
-  useEffect(() => { load() }, deps) // eslint-disable-line react-hooks/exhaustive-deps
+  // ao trocar de filtro/período, mostra o que já estiver no cache para aquela combinação
+  useEffect(() => { const hit = key ? dataCache.get(key) : null; if (hit) setState({ data: hit.data, loading: false, error: null }); load(Boolean(hit)) }, deps) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => subscribe(tables, () => load(true)), [tables.join(',')]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return { ...state, reload: () => load(true) }
@@ -83,21 +104,25 @@ const PAGE_SIZE = 1000
 const NO_ID = new Set(['settings', 'role_permissions', 'insight_dismissals'])
 export async function fetchRows(table, { select = '*', where, order, ascending = false, limit, archived = false } = {}) {
   const max = limit || Infinity
-  const out = []
-  for (let from = 0; from < max; from += PAGE_SIZE) {
-    const to = Math.min(from + PAGE_SIZE, max) - 1
-    let q = supabase.from(table).select(select)
+  const build = (from, to, count) => {
+    let q = supabase.from(table).select(select, count ? { count: 'exact' } : undefined)
     if (!archived && ARCHIVABLE.has(table)) q = q.is('archived_at', null)
     if (where) q = where(q)
     if (order !== null) q = q.order(order || 'created_at', { ascending })
     // desempate estável para a paginação não repetir nem pular linhas
     if (!NO_ID.has(table) && /(^|,\s*)id(\s*,|$)|^\*$/.test(select)) q = q.order('id', { ascending: true })
-    q = q.range(from, to)
-    const { data, error } = await q
-    if (error) throw error
-    out.push(...(data || []))
-    if (!data || data.length < to - from + 1) break
+    return q.range(from, to)
   }
+  // 1ª página já traz o total; as demais são buscadas todas ao mesmo tempo
+  const first = await build(0, Math.min(PAGE_SIZE, max) - 1, true)
+  if (first.error) throw first.error
+  const out = [...(first.data || [])]
+  const total = Math.min(first.count ?? out.length, max)
+  if (out.length >= total || out.length < Math.min(PAGE_SIZE, max)) return out
+  const pages = []
+  for (let from = PAGE_SIZE; from < total; from += PAGE_SIZE) pages.push(build(from, Math.min(from + PAGE_SIZE, total) - 1))
+  const results = await Promise.all(pages)
+  for (const r of results) { if (r.error) throw r.error; out.push(...(r.data || [])) }
   return out
 }
 

@@ -1,21 +1,31 @@
 // Carrega o "mundo" da empresa para dashboards, metas e inteligência.
 // O volume é pequeno (centenas de linhas), então ler e calcular no navegador
 // é mais simples e barato do que manter dezenas de views no banco.
-import { useData, fetchRows } from './data'
+import { useData, fetchRows, onChange } from './data'
 import { getPipelines } from './automations'
 import { addDays, today, inRange, startOfMonth, endOfMonth, startOfWeek } from './format'
 
 const TABLES = ['leads', 'activities', 'tasks', 'projects', 'receivables', 'payables', 'proposals', 'proposal_items',
-  'contracts', 'clients', 'goals', 'meetings', 'time_entries', 'commissions', 'pipeline_stages', 'search_terms', 'ideas',
+  'contracts', 'clients', 'goals', 'meetings', 'time_entries', 'commissions', 'pipeline_stages', 'ideas',
   'insight_dismissals', 'settings', 'playbooks', 'partners', 'milestones']
 
 const safe = (p) => p.catch(() => [])
 
-export async function loadWorld() {
+// o "mundo" é usado por várias telas: uma carga em andamento ou recente é reaproveitada
+let worldPromise = null
+let worldAt = 0
+onChange(TABLES, () => { worldPromise = null })
+export function loadWorld() {
+  if (!worldPromise || Date.now() - worldAt > 60000) { worldAt = Date.now(); worldPromise = loadWorldFresh().catch((e) => { worldPromise = null; throw e }) }
+  return worldPromise
+}
+export function prefetchWorld() { loadWorld().catch(() => {}) }
+
+async function loadWorldFresh() {
   const since = addDays(today(), -400)
   const [P, leads, activities, tasks, projects, receivables, payables, proposals, items, contracts, clients, goals,
-    meetings, timeEntries, commissions, terms, ideas, dismissals, settingsRows, playbooks, partners, milestones] = await Promise.all([
-    getPipelines(true),
+    meetings, timeEntries, commissions, ideas, dismissals, settingsRows, playbooks, partners, milestones] = await Promise.all([
+    getPipelines(),
     safe(fetchRows('leads', { limit: 5000 })),
     safe(fetchRows('activities', { where: (q) => q.gte('happened_at', since), order: 'happened_at', limit: 10000 })),
     safe(fetchRows('tasks', { limit: 5000 })),
@@ -30,7 +40,6 @@ export async function loadWorld() {
     safe(fetchRows('meetings', { order: 'starts_at', ascending: true })),
     safe(fetchRows('time_entries', { where: (q) => q.gte('started_at', since), order: 'started_at' })),
     safe(fetchRows('commissions', { order: null })),
-    safe(fetchRows('search_terms', { order: null })),
     safe(fetchRows('ideas')),
     safe(fetchRows('insight_dismissals', { order: null })),
     safe(fetchRows('settings', { order: null })),
@@ -41,7 +50,7 @@ export async function loadWorld() {
   const settings = Object.fromEntries(settingsRows.map((r) => [r.key, r.value]))
   return {
     P, leads, activities, tasks, projects, receivables, payables, proposals, items, contracts, clients, goals, meetings,
-    timeEntries, commissions, terms, ideas, dismissals, settings, playbooks, partners, milestones,
+    timeEntries, commissions, terms: [], ideas, dismissals, settings, playbooks, partners, milestones,
   }
 }
 

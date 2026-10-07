@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase'
 import { useData, insert, notify } from '../lib/data'
 import { today, addDays, minutesLabel, isoDate } from '../lib/format'
 import { stopTimer, defaultLeadStage } from '../lib/automations'
+import { prefetchWorld } from '../lib/world'
 import { Modal, Field, Select, MoneyInput, AsyncButton } from './ui'
 import { FRONTS, PRIORITIES, RECURRENCE, MEETING_TYPES, IDEA_TYPES } from '../lib/constants'
 
@@ -460,6 +461,16 @@ export function Shell() {
   const { crumb, title } = meta
   const [palette, setPalette] = useState(false)
   const routeKey = useLocation().pathname
+  // depois que o ERP abre: baixa o código das outras telas e os dados principais sem travar a tela atual
+  useEffect(() => {
+    const idle = window.requestIdleCallback || ((f) => setTimeout(f, 1200))
+    const id = idle(async () => {
+      prefetchWorld()
+      const { PAGE_LOADERS } = await import('../ErpApp')
+      for (const load of PAGE_LOADERS) { await load().catch(() => {}) }
+    })
+    return () => (window.cancelIdleCallback || clearTimeout)(id)
+  }, [])
   const [drawer, setDrawer] = useState(false)
   useEffect(() => { setDrawer(false) }, [routeKey])
   useEffect(() => { document.body.style.overflow = drawer ? 'hidden' : ''; return () => { document.body.style.overflow = '' } }, [drawer])
