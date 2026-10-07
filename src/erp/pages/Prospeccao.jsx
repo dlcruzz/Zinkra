@@ -229,23 +229,37 @@ function Terms({ terms, leads }) {
   const [niche, setNiche] = useState('')
   const [onlyOpen, setOnlyOpen] = useState(false)
   const [newT, setNewT] = useState({ niche: '', neighborhood: '' })
-  const niches = Array.from(new Set(terms.map((x) => x.niche))).sort()
-  const count = (t) => leads.filter((l) => l.search_term_id === t.id || ((l.niche || '').toLowerCase() === t.niche.toLowerCase() && (l.neighborhood || '').toLowerCase() === t.neighborhood.toLowerCase())).length
-  const rows = terms.filter((t) => (!niche || t.niche === niche) && (!onlyOpen || !t.done))
+  const [hood, setHood] = useState('')
+  const niches = useMemo(() => Array.from(new Set(terms.map((x) => x.niche))).sort(), [terms])
+  // contagem de leads por termo calculada uma vez (são milhares de termos)
+  const counts = useMemo(() => {
+    const byId = new Map(), byKey = new Map()
+    leads.forEach((l) => {
+      if (l.search_term_id) byId.set(l.search_term_id, (byId.get(l.search_term_id) || 0) + 1)
+      const k = `${(l.niche || '').toLowerCase()}|${(l.neighborhood || '').toLowerCase()}`
+      byKey.set(k, (byKey.get(k) || 0) + 1)
+    })
+    return { byId, byKey }
+  }, [leads])
+  const count = (t) => counts.byId.get(t.id) || counts.byKey.get(`${t.niche.toLowerCase()}|${t.neighborhood.toLowerCase()}`) || 0
+  const h = hood.trim().toLowerCase()
+  const rows = terms.filter((t) => (!niche || t.niche === niche) && (!onlyOpen || !t.done) && (!h || t.neighborhood.toLowerCase().includes(h)))
   const done = terms.filter((t) => t.done).length
+  const SHOW = 300
   return (
     <div className="card" style={{ overflow: 'hidden' }}>
       <div className="card-h">
         <div className="stack-s" style={{ gap: 2 }}><h2>Termos de busca · nicho × bairro</h2><span className="lbl">{done} de {terms.length} feitos. Marque cada busca feita no Instagram ou Google Maps e veja quais rendem.</span></div>
         <div className="row">
           <Select value={niche} onChange={(v) => setNiche(v || '')} placeholder="Todos os nichos" options={niches} style={{ width: 180 }} />
+          <input className="in" style={{ width: 160 }} placeholder="Bairro…" value={hood} onChange={(e) => setHood(e.target.value)} />
           <label className="check"><input type="checkbox" checked={onlyOpen} onChange={(e) => setOnlyOpen(e.target.checked)} />Só pendentes</label>
         </div>
       </div>
       <div className="tbl-wrap" style={{ maxHeight: 560 }}><table className="tbl">
         <thead><tr><th>Feito</th><th>Nicho</th><th>Bairro</th><th className="r">Leads gerados</th><th>Rendimento</th><th>Feito em</th></tr></thead>
         <tbody>
-          {rows.map((t) => {
+          {rows.slice(0, SHOW).map((t) => {
             const n = count(t)
             return (
               <tr key={t.id}>
@@ -259,6 +273,7 @@ function Terms({ terms, leads }) {
           })}
         </tbody>
       </table></div>
+      {rows.length > SHOW ? <div className="lbl" style={{ padding: '10px 16px', borderTop: '1px solid var(--line)' }}>Mostrando {SHOW} de {rows.length}. Filtre por nicho ou bairro para ver o resto.</div> : null}
       {auth.isTotal('prospeccao') ? (
         <div className="row" style={{ padding: '12px 16px', borderTop: '1px solid var(--line)' }}>
           <input className="in" style={{ width: 180 }} placeholder="Nicho" value={newT.niche} onChange={(e) => setNewT({ ...newT, niche: e.target.value })} />

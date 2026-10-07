@@ -77,15 +77,28 @@ export function useData(fn, tables = [], deps = []) {
 }
 
 // lê uma tabela inteira (ou filtrada). Lança erro em caso de falha.
+// O Supabase devolve no máximo 1000 linhas por requisição; aqui buscamos em páginas
+// até atingir o limite pedido (ou tudo, quando não há limite).
+const PAGE_SIZE = 1000
+const NO_ID = new Set(['settings', 'role_permissions', 'insight_dismissals'])
 export async function fetchRows(table, { select = '*', where, order, ascending = false, limit, archived = false } = {}) {
-  let q = supabase.from(table).select(select)
-  if (!archived && ARCHIVABLE.has(table)) q = q.is('archived_at', null)
-  if (where) q = where(q)
-  if (order !== null) q = q.order(order || 'created_at', { ascending })
-  if (limit) q = q.limit(limit)
-  const { data, error } = await q
-  if (error) throw error
-  return data || []
+  const max = limit || Infinity
+  const out = []
+  for (let from = 0; from < max; from += PAGE_SIZE) {
+    const to = Math.min(from + PAGE_SIZE, max) - 1
+    let q = supabase.from(table).select(select)
+    if (!archived && ARCHIVABLE.has(table)) q = q.is('archived_at', null)
+    if (where) q = where(q)
+    if (order !== null) q = q.order(order || 'created_at', { ascending })
+    // desempate estável para a paginação não repetir nem pular linhas
+    if (!NO_ID.has(table) && /(^|,\s*)id(\s*,|$)|^\*$/.test(select)) q = q.order('id', { ascending: true })
+    q = q.range(from, to)
+    const { data, error } = await q
+    if (error) throw error
+    out.push(...(data || []))
+    if (!data || data.length < to - from + 1) break
+  }
+  return out
 }
 
 export async function fetchOne(table, id, select = '*') {
