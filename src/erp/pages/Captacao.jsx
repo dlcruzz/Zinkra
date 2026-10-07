@@ -275,7 +275,13 @@ function Nova({ data, preset, onImport }) {
                 </span>
               </div>
               <Bar value={pct(counts.feito, locs.length)} />
-              <span className="lbl">Clique para escolher os locais deste lote. Já vêm marcados os próximos {size} que faltam.</span>
+              <div className="row" style={{ justifyContent: 'space-between' }}>
+                <span className="lbl">Clique nos bairros para marcar ou desmarcar. {chosen.length ? `${chosen.length} marcado(s) para este lote.` : 'Nenhum marcado.'}</span>
+                <div className="row">
+                  {chosen.length ? <button type="button" className="btn s" onClick={() => setSel([])}><Icon name="x" size={12} />Limpar seleção</button> : null}
+                  <button type="button" className="btn s g" onClick={() => setSel(null)}>Marcar os próximos {size}</button>
+                </div>
+              </div>
             </div>
             {groups.map(([region, list]) => (
               <div key={region} className="stack-s" style={{ gap: 8 }}>
