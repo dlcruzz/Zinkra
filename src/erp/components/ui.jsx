@@ -29,11 +29,50 @@ export function Card({ title, action, children, className = '', pad, style }) {
   )
 }
 
+// número que "sobe" contando até o valor; aceita número ou texto formatado ("R$ 1.234,50", "42%", "3 / 10")
+export function CountUp({ value, duration = 900 }) {
+  const parsed = parseNum(value)
+  const [shown, setShown] = useState(parsed ? 0 : null)
+  const from = useRef(0)
+  useEffect(() => {
+    if (!parsed) return undefined
+    const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    const start = performance.now(); const a = from.current; const b = parsed.n
+    if (reduce || a === b) { setShown(b); from.current = b; return undefined }
+    let raf
+    const step = (t) => {
+      const k = Math.min(1, (t - start) / duration); const e = 1 - Math.pow(1 - k, 3)
+      setShown(a + (b - a) * e)
+      if (k < 1) raf = requestAnimationFrame(step); else from.current = b
+    }
+    raf = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(raf)
+  }, [parsed?.n]) // eslint-disable-line react-hooks/exhaustive-deps
+  if (!parsed || shown === null) return <>{value}</>
+  return <>{parsed.pre}{formatLike(shown, parsed)}{parsed.post}</>
+}
+function parseNum(v) {
+  if (typeof v === 'number') return Number.isFinite(v) ? { n: v, pre: '', post: '', dec: Number.isInteger(v) ? 0 : 1, br: false, sep: false } : null
+  if (typeof v !== 'string') return null
+  if (/\d\/\d|\d:\d\d|\d{4}-\d{2}/.test(v)) return null // datas e horas não animam
+  const m = v.match(/-?\d{1,3}(?:\.\d{3})+(?:,\d+)?|-?\d+(?:,\d+)?/)
+  if (!m) return null
+  const raw = m[0]
+  const dec = raw.includes(',') ? raw.split(',')[1].length : 0
+  const n = Number(raw.replace(/\./g, '').replace(',', '.'))
+  if (!Number.isFinite(n)) return null
+  return { n, pre: v.slice(0, m.index), post: v.slice(m.index + raw.length), dec, sep: raw.includes('.'), br: true }
+}
+function formatLike(x, p) {
+  if (!p.br) return p.dec ? x.toFixed(1) : String(Math.round(x))
+  return x.toLocaleString('pt-BR', { minimumFractionDigits: p.dec, maximumFractionDigits: p.dec, useGrouping: p.sep })
+}
+
 export function Kpi({ label, value, hint, hintClass = 'lbl', bar, barClass = '', accent }) {
   return (
-    <div className="card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10, borderColor: accent ? 'var(--green-ln)' : undefined }}>
+    <div className="card kpi" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10, borderColor: accent ? 'var(--green-ln)' : undefined }}>
       <span className="lbl">{label}</span>
-      <span className="num big" style={accent ? { color: 'var(--green-tx)' } : undefined}>{value}</span>
+      <span className="num big" style={accent ? { color: 'var(--green-tx)' } : undefined}><CountUp value={value} /></span>
       {bar !== undefined ? <Bar value={bar} className={barClass} /> : null}
       {hint ? <span className={hintClass}>{hint}</span> : null}
     </div>
@@ -254,7 +293,7 @@ export function Stat({ label, value, sub, valueClass = '' }) {
   return (
     <div className="stat">
       <span className="lbl">{label}</span>
-      <span className={`num ${valueClass}`} style={{ fontSize: 20 }}>{value}</span>
+      <span className={`num ${valueClass}`} style={{ fontSize: 20 }}><CountUp value={value} /></span>
       {sub ? <span className="lbl">{sub}</span> : null}
     </div>
   )

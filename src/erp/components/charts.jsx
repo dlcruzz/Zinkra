@@ -1,5 +1,6 @@
 import React from 'react'
 import { brl0 } from '../lib/format'
+import { CountUp } from './ui'
 
 // Barras agrupadas por período: series = [{name, color, values:[], dashedFrom?}]
 export function GroupedBars({ labels, series, height = 200, format = brl0, goal, highlight }) {
@@ -9,7 +10,7 @@ export function GroupedBars({ labels, series, height = 200, format = brl0, goal,
       <div style={{ display: 'grid', gridTemplateColumns: `repeat(${labels.length}, minmax(0, 1fr))`, gap: 14, height,
         alignItems: 'end', borderBottom: '1px solid #232826', position: 'relative' }}>
         {goal ? (
-          <div title={`Meta: ${format(goal)}`} style={{ position: 'absolute', left: 0, right: 0, bottom: `${(goal / max) * 100}%`,
+          <div className="ch-goal" title={`Meta: ${format(goal)}`} style={{ position: 'absolute', left: 0, right: 0, bottom: `${(goal / max) * 100}%`,
             borderTop: '1px dashed #5A625E' }} />
         ) : null}
         {labels.map((l, i) => (
@@ -18,8 +19,8 @@ export function GroupedBars({ labels, series, height = 200, format = brl0, goal,
               const v = s.values[i] || 0
               const dashed = s.dashedFrom !== undefined && i >= s.dashedFrom
               return (
-                <div key={s.name} title={`${s.name} · ${l}: ${format(v)}`}
-                  style={{ width: 16, height: `${Math.max(v ? 1.5 : 0, (Math.abs(v) / max) * 100)}%`, borderRadius: '3px 3px 0 0',
+                <div key={s.name} className="ch-vbar" title={`${s.name} · ${l}: ${format(v)}`}
+                  style={{ animationDelay: `${i * 0.06}s`, width: 16, height: `${Math.max(v ? 1.5 : 0, (Math.abs(v) / max) * 100)}%`, borderRadius: '3px 3px 0 0',
                     background: dashed ? 'transparent' : s.color, border: dashed ? `1px dashed ${s.color}` : 0,
                     borderBottom: 0, opacity: dashed ? 1 : s.opacity || 1 }} />
               )
@@ -46,11 +47,11 @@ export function Funnel({ steps }) {
           <React.Fragment key={s.label}>
             <span style={{ color: 'var(--tx-3)' }}>{s.label}</span>
             <div style={{ height: 22, background: '#141816', borderRadius: 4, overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${Math.max(s.value ? 1.5 : 0, (s.value / first) * 100)}%`, background: 'var(--green)',
+              <div className="ch-hbar" style={{ animationDelay: `${i * 0.08}s`, height: '100%', width: `${Math.max(s.value ? 1.5 : 0, (s.value / first) * 100)}%`, background: 'var(--green)',
                 opacity: 1 - i * 0.08, borderRadius: 4 }} />
             </div>
             <span className="num" style={{ textAlign: 'right' }}>
-              {s.value}{conv !== null ? <span className="lbl"> {conv}%</span> : null}
+              <CountUp value={s.value} />{conv !== null ? <span className="lbl"> {conv}%</span> : null}
             </span>
           </React.Fragment>
         )
@@ -69,12 +70,12 @@ export function HBars({ rows, color = 'var(--green)', cols = ['', '', ''] }) {
           <span>{cols[0]}</span><span>{cols[1]}</span><span style={{ textAlign: 'right' }}>{cols[2]}</span><span style={{ textAlign: 'right' }}>{cols[3]}</span>
         </div>
       ) : null}
-      {rows.map((r) => (
+      {rows.map((r, i) => (
         <div key={r.label} style={{ display: 'grid', gridTemplateColumns: 'minmax(120px, 200px) 1fr 100px 80px', gap: 12, alignItems: 'center',
           padding: '9px 0', borderBottom: '1px solid var(--line-2)', fontSize: 13 }}>
           <span className="ellipsis">{r.label}</span>
           <div style={{ height: 18, borderRadius: 4, background: '#1A1F1C', overflow: 'hidden' }}>
-            <div style={{ height: '100%', width: `${(Math.max(0, r.value) / max) * 100}%`, background: r.color || color, borderRadius: 4 }} />
+            <div className="ch-hbar" style={{ animationDelay: `${i * 0.05}s`, height: '100%', width: `${(Math.max(0, r.value) / max) * 100}%`, background: r.color || color, borderRadius: 4 }} />
           </div>
           <span className="num" style={{ textAlign: 'right' }}>{r.display ?? r.value}</span>
           <span className="num" style={{ textAlign: 'right', color: 'var(--mut)' }}>{r.sub ?? ''}</span>
@@ -91,7 +92,7 @@ export function StackBar({ parts, format = (v) => v }) {
     <div className="stack" style={{ gap: 12 }}>
       <div style={{ display: 'flex', height: 26, borderRadius: 6, overflow: 'hidden', gap: 2, background: '#141816' }}>
         {total ? parts.filter((p) => p.value > 0).map((p) => (
-          <div key={p.label} title={`${p.label}: ${format(p.value)}`} style={{ flex: p.value, background: p.color }} />
+          <div key={p.label} className="ch-hbar" title={`${p.label}: ${format(p.value)}`} style={{ flex: p.value, background: p.color }} />
         )) : null}
       </div>
       <div className="legend">

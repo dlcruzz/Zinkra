@@ -5,7 +5,7 @@ import { useAuth } from '../lib/auth'
 import { useData, fetchRows, update, notify } from '../lib/data'
 import { getPipelines, registerActivity, defaultLeadStage } from '../lib/automations'
 import { today, waLink, igLink, igHandle, fillTemplate, relDay, MONTHS, startOfMonth, endOfMonth, businessDays, inRange, localDay } from '../lib/format'
-import { Loading, ErrorBox, Bar, Badge, Select, AsyncButton, Field, Empty } from '../components/ui'
+import { Loading, ErrorBox, Bar, Badge, Select, AsyncButton, Field, Empty, CountUp } from '../components/ui'
 import { Icon } from '../lib/icons'
 
 const CONTACT = new Set(['whatsapp', 'ligacao', 'email', 'visita'])
@@ -152,9 +152,9 @@ export default function Prospeccao() {
         {/* ESQUERDA: sessão, lead atual e fila */}
         <div className="prosp-left">
           <div className="card prosp-session">
-            <div className="prosp-stat"><span className="lbl">Na fila</span><span className="num big">{active.length}</span><span className="lbl">{total ? `${done} de ${total} feitos` : 'hoje'}</span></div>
-            <div className="prosp-stat"><span className="lbl">Contatos hoje</span><span className="num big">{contactsToday}<span className="lbl" style={{ fontSize: 13 }}> / {Math.ceil(dailyGoal)}</span></span><Bar value={(contactsToday / dailyGoal) * 100} /></div>
-            <div className="prosp-stat"><span className="lbl">Respostas</span><span className="num big ok">{repliesToday}</span></div>
+            <div className="prosp-stat"><span className="lbl">Na fila</span><span className="num big"><CountUp value={active.length} /></span><span className="lbl">{total ? `${done} de ${total} feitos` : 'hoje'}</span></div>
+            <div className="prosp-stat"><span className="lbl">Contatos hoje</span><span className="num big"><CountUp value={contactsToday} /><span className="lbl" style={{ fontSize: 13 }}> / {Math.ceil(dailyGoal)}</span></span><Bar value={(contactsToday / dailyGoal) * 100} /></div>
+            <div className="prosp-stat"><span className="lbl">Respostas</span><span className="num big ok"><CountUp value={repliesToday} /></span></div>
             <div className="prosp-stat"><span className="lbl">Sessão</span><span className="num big">{String(Math.floor(mins / 60)).padStart(2, '0')}:{String(mins % 60).padStart(2, '0')}</span></div>
             <div className="row" style={{ gridColumn: '1 / -1', justifyContent: 'flex-end' }}>
               <Link to="/erp/captacao" className="btn s g"><Icon name="search" size={14} />Captar clientes</Link>
@@ -163,7 +163,7 @@ export default function Prospeccao() {
           </div>
 
           {lead ? (
-            <div className="card prosp-lead">
+            <div className="card prosp-lead" key={lead.id}>
               <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'nowrap', gap: 12 }}>
                 <div className="stack-s" style={{ minWidth: 0 }}>
                   <span className="lbl">Agora · lead {done + 1} de {total}</span>

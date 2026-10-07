@@ -425,6 +425,7 @@ export function Shell() {
   const [meta, setMeta] = useState({ crumb: '', title: '' })
   const { crumb, title } = meta
   const [palette, setPalette] = useState(false)
+  const routeKey = useLocation().pathname
   const [quick, setQuick] = useState(null)
   const counts = useData(() => loadCounts(auth.uid), ['tasks', 'leads', 'proposals', 'payables', 'receivables', 'projects'], [auth.uid])
   const timer = useData(async () => {
@@ -459,7 +460,7 @@ export function Shell() {
           <Topbar crumb={crumb} title={title} onSearch={() => setPalette(true)} onNew={(k) => setQuick({ kind: k })}
             timer={timer.data || {}} insightsCount={(counts.data?.recv || 0) + (counts.data?.hoje || 0)} />
           <React.Suspense fallback={<div className="page"><div className="skel" style={{ height: 28, width: 240 }} /></div>}>
-            <Outlet />
+            <div className="route" key={routeKey}><Outlet /></div>
           </React.Suspense>
         </main>
       </div>
