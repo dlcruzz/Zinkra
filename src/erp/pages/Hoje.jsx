@@ -184,7 +184,7 @@ export default function Hoje() {
                         <Link to={`/erp/leads/${l.id}`} className="grow ellipsis" style={{ color: 'var(--tx)' }}>{l.company}</Link>
                         <span className="lbl num">{l.next_step_code || ''}</span>
                         {l.next_step_at < c.t ? <span className="lbl" style={{ color: 'var(--red)' }}>atrasado</span> : null}
-                        {wa ? <a className="btn s" href={wa} target="_blank" rel="noreferrer">WhatsApp</a> : l.instagram ? <span className="lbl">{igHandle(l.instagram)}</span> : null}
+                        {wa ? <a className="btn s" href={wa}>WhatsApp</a> : l.instagram ? <span className="lbl">{igHandle(l.instagram)}</span> : null}
                       </div>
                     )
                   })}

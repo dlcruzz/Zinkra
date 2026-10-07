@@ -275,3 +275,38 @@ body:has(.erp) { background: #0A0C0B; }
 .erp button:disabled { cursor: not-allowed !important; }
 .erp ul { list-style: disc; }
 .erp img { display: inline-block; }
+
+/* prospecção: tela dividida (lead e fila à esquerda, mensagens à direita) */
+.erp .prosp-split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.erp .prosp-left { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.erp .prosp-session { padding: 14px 16px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 16px; }
+.erp .prosp-stat { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.erp .prosp-stat .big { font-size: 22px; color: var(--tx); line-height: 1.1; }
+.erp .prosp-stat .big.ok { color: var(--green-tx); }
+.erp .prosp-lead { padding: 20px; display: flex; flex-direction: column; gap: 16px; border-color: var(--green-ln); }
+.erp .prosp-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.erp .prosp-steps li { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--s3); opacity: .6; }
+.erp .prosp-steps li.on { opacity: 1; border-color: var(--green-ln); background: var(--green-bg); }
+.erp .prosp-steps li.done { opacity: .75; }
+.erp .prosp-steps li.done .n { background: var(--green); color: #04130A; border-color: var(--green); }
+.erp .prosp-steps strong { font-size: 13px; font-weight: 600; color: var(--tx); }
+.erp .prosp-steps .n { flex: 0 0 26px; height: 26px; border-radius: 50%; border: 1px solid var(--line-3); display: flex; align-items: center; justify-content: center;
+  font-family: 'Geist Mono', monospace; font-size: 12px; color: var(--tx); }
+.erp .prosp-steps li.on .n { border-color: var(--green); color: var(--green-tx); }
+.erp .prosp-results { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.erp .prosp-results .btn { height: 58px; flex-direction: column; gap: 2px; }
+.erp .prosp-results kbd { border: 0; padding: 0; font-size: 10px; }
+.erp .prosp-results .res-respondeu { border-color: var(--green-ln); background: var(--green-bg); }
+.erp .prosp-results .res-invalido { border-color: #3A1A1C; }
+.erp .prosp-right { position: sticky; top: 16px; max-height: calc(100vh - 32px); display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+.erp .prosp-right-h { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+.erp .prosp-msgs { overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.erp .prosp-msg { display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: 8px; border: 1px solid var(--line-2); cursor: pointer; }
+.erp .prosp-msg:hover { border-color: var(--line-3); }
+.erp .prosp-msg.on { border-color: var(--green); background: var(--sel); }
+@media (max-width: 1100px) {
+  .erp .prosp-split { grid-template-columns: 1fr; }
+  .erp .prosp-right { position: static; max-height: none; }
+  .erp .prosp-session { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .erp .prosp-results { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

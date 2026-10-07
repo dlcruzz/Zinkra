@@ -98,7 +98,7 @@ export default function Clientes() {
                 <span className="lbl">Último contato: {sel.lastTouch ? relDay(sel.lastTouch) : '—'}</span>
               </div>
               <div className="row">
-                {sel.phone ? <a className="btn s ic" href={waLink(sel.phone)} target="_blank" rel="noreferrer" aria-label="WhatsApp"><Icon name="wa" size={13} /></a> : null}
+                {sel.phone ? <a className="btn s ic" href={waLink(sel.phone)} aria-label="WhatsApp"><Icon name="wa" size={13} /></a> : null}
                 {sel.instagram ? <a className="btn s ic" href={igLink(sel.instagram)} target="_blank" rel="noreferrer" aria-label={igHandle(sel.instagram)}>IG</a> : null}
                 <Badge kind={H[sel.health][1]}>{H[sel.health][0]}</Badge>
               </div>

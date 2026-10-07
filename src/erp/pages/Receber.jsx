@@ -120,7 +120,7 @@ export default function Receber() {
                 <div className="box" style={{ fontSize: 13 }}>{msg}</div>
                 <div className="row">
                   <button type="button" className="btn" onClick={async () => { try { await navigator.clipboard.writeText(msg); setCopied(true) } catch { notify('Não consegui copiar.', 'err') } }}><Icon name="copy" size={14} />{copied ? 'Copiado' : 'Copiar mensagem'}</button>
-                  {waLink(c?.phone, msg) ? <a className="btn" href={waLink(c.phone, msg)} target="_blank" rel="noreferrer"><Icon name="wa" size={14} />Abrir WhatsApp</a> : <span className="lbl">Cliente sem WhatsApp cadastrado.</span>}
+                  {waLink(c?.phone, msg) ? <a className="btn" href={waLink(c.phone, msg)}><Icon name="wa" size={14} />Abrir WhatsApp</a> : <span className="lbl">Cliente sem WhatsApp cadastrado.</span>}
                 </div>
                 {auth.canEdit('financeiro') ? (
                   <div className="stack" style={{ borderTop: '1px solid var(--line)', paddingTop: 12 }}>

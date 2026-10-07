@@ -126,7 +126,7 @@ export default function PropostaEditor() {
         {!readOnly ? <AsyncButton className="btn" disabled={!dirty && !isNew} onClick={() => save().then((s) => s && notify('Salvo.', 'ok'))}>Salvar rascunho</AsyncButton> : null}
         {!readOnly && ['rascunho', 'expirada'].includes(p.status) ? <AsyncButton className="btn p" onClick={markSent}>Marcar como enviada</AsyncButton> : null}
         {!readOnly && ['enviada', 'vista'].includes(p.status) ? <>
-          {wa ? <a className="btn" href={wa} target="_blank" rel="noreferrer"><Icon name="wa" size={14} />Cobrar retorno</a> : null}
+          {wa ? <a className="btn" href={wa}><Icon name="wa" size={14} />Cobrar retorno</a> : null}
           {p.status === 'enviada' ? <AsyncButton className="btn" onClick={async () => { await update('proposals', p.id, { status: 'vista' }); setP({ ...p, status: 'vista' }) }}>Cliente viu</AsyncButton> : null}
 <button type="button" className="btn d" onClick={() => setRefusing(true)}>Recusada</button>
           {auth.isTotal('clientes') ? <button type="button" className="btn p" onClick={() => setAccepting(true)}>Aceita</button> : null}

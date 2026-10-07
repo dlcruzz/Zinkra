@@ -66,7 +66,7 @@ export default function LeadDetalhe() {
       <Link to="/erp/leads" className="lbl" style={{ color: 'var(--mut)' }}>← Voltar para leads</Link>
       <PageHead title={<span className="row" style={{ gap: 10 }}>{lead.company} {st ? <Badge kind={kindClass}>{st.name}</Badge> : null} {lead.niche ? <Badge>{lead.niche}</Badge> : null}</span>}
         sub={`Responsável: ${lead.owner_id ? auth.memberName(lead.owner_id) : 'sem dono'} · criado em ${dmy(lead.created_at)}${lead.origin ? ` · ${lead.origin}` : ''} · ${P.pipelines.find((p) => p.id === lead.pipeline_id)?.name || ''}`}>
-        {wa ? <a className="btn p" href={wa} target="_blank" rel="noreferrer"><Icon name="wa" size={14} />Abrir WhatsApp</a> : null}
+        {wa ? <a className="btn p" href={wa}><Icon name="wa" size={14} />Abrir WhatsApp</a> : null}
         {!lead.owner_id && auth.canEdit('crm') ? <AsyncButton className="btn" onClick={() => update('leads', lead.id, { owner_id: auth.uid })}>Assumir lead</AsyncButton> : null}
         {auth.canEdit('reunioes') ? <button type="button" className="btn" onClick={() => erp.openQuick('meeting', { title: `Reunião · ${lead.company}`, type: 'prospeccao', lead_id: lead.id, participants: main?.name || '' })}>Agendar reunião</button> : null}
         {auth.canEdit('propostas') ? <button type="button" className="btn" onClick={() => nav(`/erp/propostas/nova?lead=${lead.id}`)}>Criar proposta</button> : null}
@@ -292,7 +292,7 @@ function Contacts({ lead, contacts, canEdit }) {
             <span className="lbl num">{[c.phone, c.email].filter(Boolean).join(' · ') || '—'}</span>
           </div>
           <div className="row" style={{ flexWrap: 'nowrap' }}>
-            {c.phone ? <a className="btn s ic g" href={waLink(c.phone)} target="_blank" rel="noreferrer" aria-label={`WhatsApp de ${c.name}`}><Icon name="wa" size={13} /></a> : null}
+            {c.phone ? <a className="btn s ic g" href={waLink(c.phone)} aria-label={`WhatsApp de ${c.name}`}><Icon name="wa" size={13} /></a> : null}
             <Badge kind={roleCls[c.decision_role]}>{c.decision_role}</Badge>
             {canEdit ? <button type="button" className="btn s ic g" aria-label="Remover contato" onClick={() => remove('contacts', c.id)}><Icon name="x" size={13} /></button> : null}
           </div>

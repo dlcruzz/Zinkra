@@ -166,7 +166,8 @@ export const waLink = (phone, text = '') => {
   let d = onlyDigits(phone)
   if (!d) return null
   if (d.length <= 11) d = '55' + d
-  return `https://wa.me/${d}${text ? '?text=' + encodeURIComponent(text) : ''}`
+  // abre direto no WhatsApp Desktop instalado (sem passar pelo WhatsApp Web nem abrir aba nova)
+  return `whatsapp://send?phone=${d}${text ? '&text=' + encodeURIComponent(text) : ''}`
 }
 export const igLink = (ig) => {
   if (!ig) return null

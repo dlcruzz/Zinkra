@@ -61,7 +61,7 @@ export default function Parceiros() {
                   <td style={{ fontWeight: 500 }}>{p.name}</td><td>{p.origin || '—'}</td><td className="num r">{Number(p.pct)}%</td>
                   <td className="num r">{ind.length}</td><td className="num r">{ind.filter((l) => l.won_at).length}</td><td className="num r">{brl0(sum(com))}</td>
                   <td><div className="row" style={{ flexWrap: 'nowrap', gap: 4 }}>
-                    {p.phone ? <a className="btn s ic g" href={waLink(p.phone, `Oi ${p.name.split(' ')[0]}, tudo bem? Passando para agradecer pelas indicações. Se lembrar de alguém que precise de site ou sistema, pode mandar que eu cuido de tudo.`)} target="_blank" rel="noreferrer" aria-label="WhatsApp"><Icon name="wa" size={13} /></a> : null}
+                    {p.phone ? <a className="btn s ic g" href={waLink(p.phone, `Oi ${p.name.split(' ')[0]}, tudo bem? Passando para agradecer pelas indicações. Se lembrar de alguém que precise de site ou sistema, pode mandar que eu cuido de tudo.`)} aria-label="WhatsApp"><Icon name="wa" size={13} /></a> : null}
                     {auth.canEdit('parceiros') ? <button type="button" className="btn s ic g" aria-label="Editar" onClick={() => setModal(p)}><Icon name="edit" size={13} /></button> : null}
                   </div></td>
                 </tr>
