@@ -556,7 +556,10 @@ body:has(.erp) { background: #0A0C0B; }
   .erp .page-head > .row > .btn { flex: 1; }
   .erp .cols > * { flex-basis: 100% !important; min-width: 0 !important; }
   .erp .grid-kpi { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-  .erp .grid-3, .erp .grid-2 { grid-template-columns: 1fr; }
+  .erp .grid-3, .erp .grid-2 { grid-template-columns: minmax(0, 1fr); }
+  .erp .grid-3 > *, .erp .grid-2 > *, .erp .grid-kpi > * { min-width: 0; }
+  .erp .hbars-row { grid-template-columns: minmax(70px, 110px) minmax(0, 1fr) 64px 44px !important; gap: 8px !important; }
+  .erp .funnel { grid-template-columns: 90px minmax(0, 1fr) 56px !important; }
   .erp .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .erp .stats > .stat + .stat { border-left: 0; }
   .erp .stats > .stat:nth-child(even) { border-left: 1px solid var(--line); }

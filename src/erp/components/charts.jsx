@@ -39,7 +39,7 @@ export function GroupedBars({ labels, series, height = 200, format = brl0, goal,
 export function Funnel({ steps }) {
   const first = Math.max(1, steps[0]?.value || 0)
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr 80px', gap: '10px 12px', alignItems: 'center', fontSize: 13 }}>
+    <div className="funnel" style={{ display: 'grid', gridTemplateColumns: '130px 1fr 80px', gap: '10px 12px', alignItems: 'center', fontSize: 13 }}>
       {steps.map((s, i) => {
         const prev = i > 0 ? steps[i - 1].value : null
         const conv = prev ? Math.round((s.value / prev) * 100) : null
@@ -66,12 +66,12 @@ export function HBars({ rows, color = 'var(--green)', cols = ['', '', ''] }) {
   return (
     <div className="stack" style={{ gap: 0 }}>
       {cols.some(Boolean) ? (
-        <div className="lbl" style={{ display: 'grid', gridTemplateColumns: 'minmax(120px, 200px) 1fr 100px 80px', gap: 12, padding: '6px 0' }}>
+        <div className="lbl hbars-row" style={{ display: 'grid', gridTemplateColumns: 'minmax(120px, 200px) 1fr 100px 80px', gap: 12, padding: '6px 0' }}>
           <span>{cols[0]}</span><span>{cols[1]}</span><span style={{ textAlign: 'right' }}>{cols[2]}</span><span style={{ textAlign: 'right' }}>{cols[3]}</span>
         </div>
       ) : null}
       {rows.map((r, i) => (
-        <div key={r.label} style={{ display: 'grid', gridTemplateColumns: 'minmax(120px, 200px) 1fr 100px 80px', gap: 12, alignItems: 'center',
+        <div key={r.label} className="hbars-row" style={{ display: 'grid', gridTemplateColumns: 'minmax(120px, 200px) 1fr 100px 80px', gap: 12, alignItems: 'center',
           padding: '9px 0', borderBottom: '1px solid var(--line-2)', fontSize: 13 }}>
           <span className="ellipsis">{r.label}</span>
           <div style={{ height: 18, borderRadius: 4, background: '#1A1F1C', overflow: 'hidden' }}>
