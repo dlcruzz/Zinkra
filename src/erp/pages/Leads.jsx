@@ -92,6 +92,27 @@ export default function Leads() {
     await updateWhere('leads', (qq) => qq.in('id', ids), patch)
     notify(msg, 'ok'); setSel(new Set()); setBulk(null)
   }
+  // leva os selecionados para uma prospecção só com eles e abre a tela de Prospecção
+  const prospect = async () => {
+    const chosen = data.leads.filter((l) => sel.has(l.id))
+    const chunks = (arr) => { const out = []; for (let i = 0; i < arr.length; i += 200) out.push(arr.slice(i, i + 200)); return out }
+    const fresh = chosen.filter((l) => !l.last_contact_at)
+    for (const [has, code] of [[true, 'M2'], [false, 'M1']]) {
+      for (const part of chunks(fresh.filter((l) => Boolean(l.has_site) === has).map((l) => l.id))) {
+        await updateWhere('leads', (qq) => qq.in('id', part), { next_step_at: t, next_step: 'Primeiro contato', next_step_code: code }, { quiet: true, silent: true })
+      }
+    }
+    const old = chosen.filter((l) => l.last_contact_at && (!l.next_step_at || l.next_step_at > t)).map((l) => l.id)
+    for (const part of chunks(old)) await updateWhere('leads', (qq) => qq.in('id', part), { next_step_at: t }, { quiet: true, silent: true })
+    const free = chosen.filter((l) => !l.owner_id).map((l) => l.id)
+    for (const part of chunks(free)) await updateWhere('leads', (qq) => qq.in('id', part), { owner_id: auth.uid }, { quiet: true, silent: true })
+    emitChange('leads')
+    const niches = Array.from(new Set(chosen.map((l) => l.niche).filter(Boolean)))
+    const label = `${niches.slice(0, 2).join(', ') || 'Leads selecionados'}${niches.length > 2 ? ' e outros' : ''} · ${chosen.length} lead(s)`
+    try { localStorage.setItem('zk.prospeccao.sessao', JSON.stringify({ kind: 'lista', ids: chosen.map((l) => l.id), label, at: Date.now() })) } catch { /* sem storage */ }
+    setSel(new Set())
+    nav('/erp/prospeccao')
+  }
   const exportCsv = () => {
     const rows = list.map((l) => [l.company, l.niche, l.neighborhood, l.phone, igHandle(l.instagram), l.has_site ? 'Sim' : 'Não', l.origin,
       P.stage(l.stage_id)?.name, auth.memberName(l.owner_id), localDay(l.last_contact_at), l.next_step_at, l.next_step, (l.estimated_value_cents || 0) / 100])
@@ -138,6 +159,7 @@ export default function Leads() {
       {sel.size ? (
         <div className="note g row">
           <span><b className="num" style={{ fontWeight: 500 }}>{sel.size}</b> selecionado(s)</span>
+          <AsyncButton className="btn s p" onClick={prospect}><Icon name="send" size={13} />Prospectar</AsyncButton>
           {auth.isTotal('crm') ? <button type="button" className="btn s" onClick={() => setBulk('owner')}>Atribuir a…</button> : null}
           <button type="button" className="btn s" onClick={() => setBulk('stage')}>Mover etapa</button>
           <AsyncButton className="btn s" onClick={() => bulkApply({ next_step_at: t, next_step: 'Contato (M1)', next_step_code: 'M1' }, 'Adicionados à fila de hoje.')}>Adicionar à fila de hoje</AsyncButton>

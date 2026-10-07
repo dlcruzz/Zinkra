@@ -21,12 +21,13 @@ const FIRST = new Set(['M1', 'M2'])
 function inSession(l, ses) {
   if (!ses) return false
   if (ses.kind === 'retornos') return Boolean(l.last_contact_at)
+  if (ses.kind === 'lista') return (ses.ids || []).includes(l.id)
   if (ses.niche && fold(l.niche) !== fold(ses.niche)) return false
   if (ses.city && fold(l.city) !== fold(ses.city)) return false
   if (ses.neighborhood && fold(l.neighborhood) !== fold(ses.neighborhood)) return false
   return true
 }
-const sesLabel = (ses) => (ses?.kind === 'retornos' ? 'Retornos e follow-ups' : [ses?.niche, ses?.neighborhood, ses?.city].filter(Boolean).join(' · ') || 'Todos os leads')
+const sesLabel = (ses) => (ses?.kind === 'lista' ? ses.label || 'Leads selecionados' : ses?.kind === 'retornos' ? 'Retornos e follow-ups' : [ses?.niche, ses?.neighborhood, ses?.city].filter(Boolean).join(' · ') || 'Todos os leads')
 const firstPending = (l) => !l.last_contact_at && (!l.next_step_code || FIRST.has(l.next_step_code))
 
 const readCol = () => { try { return localStorage.getItem(COL_KEY) || '' } catch { return '' } }
