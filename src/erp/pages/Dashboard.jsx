@@ -98,7 +98,7 @@ export default function Dashboard() {
           hintClass={c.cs.overdueR.length ? 'dn' : 'lbl'} />
         <Kpi label="A pagar em 30 dias" value={brl0(c.cs.pay30)}
           hint={c.cs.payWeek.length ? `${c.cs.payWeek.length} vence(m) esta semana` : 'Nada nesta semana'} hintClass={c.cs.payWeek.length ? 'warn lbl' : 'lbl'} />
-        <Kpi label="Saldo projetado 30 dias" value={brl0(c.cs.projected)} accent
+        <Kpi label="Saldo projetado 30 dias" value={brl0(c.cs.projected)} accent={c.cs.projected >= 0} danger={c.cs.projected < 0}
           hint={revDelta !== null ? `${revDelta >= 0 ? '+' : ''}${revDelta}% de recebimento vs mês anterior` : 'caixa + receber − pagar'}
           hintClass={revDelta === null ? 'lbl' : revDelta >= 0 ? 'up' : 'dn'} />
       </section>

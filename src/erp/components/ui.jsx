@@ -68,11 +68,12 @@ function formatLike(x, p) {
   return x.toLocaleString('pt-BR', { minimumFractionDigits: p.dec, maximumFractionDigits: p.dec, useGrouping: p.sep })
 }
 
-export function Kpi({ label, value, hint, hintClass = 'lbl', bar, barClass = '', accent }) {
+export function Kpi({ label, value, hint, hintClass = 'lbl', bar, barClass = '', accent, danger }) {
+  const tone = danger ? 'var(--red)' : accent ? 'var(--green-tx)' : undefined
   return (
-    <div className="card kpi" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10, borderColor: accent ? 'var(--green-ln)' : undefined }}>
+    <div className="card kpi" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10, borderColor: danger ? 'var(--red-ln)' : accent ? 'var(--green-ln)' : undefined }}>
       <span className="lbl">{label}</span>
-      <span className="num big" style={accent ? { color: 'var(--green-tx)' } : undefined}><CountUp value={value} /></span>
+      <span className="num big" style={tone ? { color: tone } : undefined}><CountUp value={value} /></span>
       {bar !== undefined ? <Bar value={bar} className={barClass} /> : null}
       {hint ? <span className={hintClass}>{hint}</span> : null}
     </div>
