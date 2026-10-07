@@ -17,6 +17,7 @@ const Leads = lazy(() => import('./pages/Leads'))
 const LeadDetalhe = lazy(() => import('./pages/LeadDetalhe'))
 const Pipelines = lazy(() => import('./pages/Pipelines'))
 const Prospeccao = lazy(() => import('./pages/Prospeccao'))
+const Captacao = lazy(() => import('./pages/Captacao'))
 const Metas = lazy(() => import('./pages/Metas'))
 const Propostas = lazy(() => import('./pages/Propostas'))
 const PropostaEditor = lazy(() => import('./pages/PropostaEditor'))
@@ -202,6 +203,7 @@ function Gate() {
         <Route path="leads/:id" element={<Guard module="crm"><LeadDetalhe /></Guard>} />
         <Route path="pipelines" element={<Guard module="crm"><Pipelines /></Guard>} />
         <Route path="pipelines/:slug" element={<Guard module="crm"><Pipelines /></Guard>} />
+        <Route path="captacao" element={<Guard module="prospeccao"><Captacao /></Guard>} />
         <Route path="prospeccao" element={<Guard module="prospeccao"><Prospeccao /></Guard>} />
         <Route path="metas" element={<Guard module="metas"><Metas /></Guard>} />
         <Route path="propostas" element={<Guard module="propostas"><Propostas /></Guard>} />

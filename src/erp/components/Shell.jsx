@@ -28,6 +28,7 @@ const NAV = [
   ['Comercial', [
     ['leads', 'Leads', '/erp/leads', 'leads', 'crm', 'leads'],
     ['pipelines', 'Pipelines', '/erp/pipelines', 'pipeline', 'crm'],
+    ['captacao', 'Captação', '/erp/captacao', 'search', 'prospeccao'],
     ['prospeccao', 'Prospecção', '/erp/prospeccao', 'send', 'prospeccao', 'follow'],
     ['metas', 'Metas', '/erp/metas', 'target', 'metas'],
     ['propostas', 'Propostas', '/erp/propostas', 'doc', 'propostas', 'props'],

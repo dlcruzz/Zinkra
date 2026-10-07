@@ -19,23 +19,21 @@ export default function Prospeccao() {
   const [copied, setCopied] = useState(false)
   const [started] = useState(() => Date.now())
   const [, tick] = useState(0)
-  const [tab, setTab] = useState('fila')
   const [pull, setPull] = useState(false)
 
   useEffect(() => { const i = setInterval(() => tick((x) => x + 1), 30000); return () => clearInterval(i) }, [])
 
   const { data, loading, error, reload } = useData(async () => {
     const t = today()
-    const [P, leads, playbooks, acts, goals, terms] = await Promise.all([
+    const [P, leads, playbooks, acts, goals] = await Promise.all([
       getPipelines(),
       fetchRows('leads', { limit: 5000 }),
       fetchRows('playbooks', { order: 'code', ascending: true }),
       fetchRows('activities', { where: (q) => q.eq('owner_id', auth.uid).gte('happened_at', t), order: 'happened_at' }),
       fetchRows('goals').catch(() => []),
-      fetchRows('search_terms', { order: 'niche', ascending: true }).catch(() => []),
     ])
-    return { P, leads, playbooks, acts, goals, terms }
-  }, ['leads', 'activities', 'goals', 'search_terms'], [auth.uid])
+    return { P, leads, playbooks, acts, goals }
+  }, ['leads', 'activities', 'goals'], [auth.uid])
 
   const queue = useMemo(() => {
     if (!data) return []
@@ -70,7 +68,7 @@ export default function Prospeccao() {
   if (error) return <div className="page"><ErrorBox error={error} onRetry={reload} /></div>
   if (loading || !data) return <div className="page"><Loading rows={6} /></div>
 
-  const { P, playbooks, acts, goals, terms } = data
+  const { P, playbooks, acts, goals } = data
   const contactsToday = acts.filter((a) => CONTACT.has(a.type)).length
   const repliesToday = acts.filter((a) => a.result === 'respondeu').length
   const g = goals.find((x) => !x.archived_at && x.user_id === auth.uid && x.metric === 'contatos')
@@ -106,13 +104,12 @@ export default function Prospeccao() {
         <div className="stack-s" style={{ gap: 2 }}><span className="lbl">Respostas</span><span className="num" style={{ fontSize: 15 }}>{repliesToday}</span></div>
         <div className="stack-s" style={{ gap: 2 }}><span className="lbl">Tempo de sessão</span><span className="num" style={{ fontSize: 15 }}>{String(Math.floor(mins / 60)).padStart(2, '0')}:{String(mins % 60).padStart(2, '0')}</span></div>
         <div className="row">
-          <button type="button" className={`btn s ${tab === 'fila' ? '' : 'g'}`} onClick={() => setTab('fila')}>Fila</button>
-          <button type="button" className={`btn s ${tab === 'termos' ? '' : 'g'}`} onClick={() => setTab('termos')}>Termos de busca</button>
+          <Link to="/erp/captacao" className="btn s g"><Icon name="search" size={14} />Captar clientes</Link>
           <Link to={auth.isDirector ? '/erp' : '/erp/painel'} className="btn s">Encerrar sessão</Link>
         </div>
       </div>
 
-      {tab === 'termos' ? <Terms terms={terms} leads={data.leads} /> : (
+      {(
         <div className="cols">
           {lead ? (
             <div className="card" style={{ flex: '2 1 520px', minWidth: 0, padding: 22, display: 'flex', flexDirection: 'column', gap: 18 }}>
@@ -164,10 +161,10 @@ export default function Prospeccao() {
                 <div className="row" style={{ justifyContent: 'center' }}>
                   {skipped.length ? <button type="button" className="btn" onClick={() => setSkipped([])}>Rever pulados ({skipped.length})</button> : null}
                   <button type="button" className="btn p" onClick={() => setPull(true)}>Puxar novos leads para a fila</button>
-                  <button type="button" className="btn" onClick={() => setTab('termos')}>Ver termos de busca</button>
+                  <Link to="/erp/captacao" className="btn">Captar clientes novos</Link>
                 </div>
               }>
-                {queue.length ? 'Você passou por toda a fila de hoje.' : 'Fila vazia. Puxe leads novos ou importe uma planilha.'}
+                {queue.length ? 'Você passou por toda a fila de hoje.' : 'Fila vazia. Puxe leads novos ou capte clientes em Captação.'}
               </Empty>
             </div>
           )}
@@ -220,70 +217,6 @@ function PullModal({ leads, P, onClose }) {
           }}>Puxar {Math.min(n, pool.length)}</AsyncButton>
         </div>
       </div>
-    </div>
-  )
-}
-
-function Terms({ terms, leads }) {
-  const auth = useAuth()
-  const [niche, setNiche] = useState('')
-  const [onlyOpen, setOnlyOpen] = useState(false)
-  const [newT, setNewT] = useState({ niche: '', neighborhood: '' })
-  const [hood, setHood] = useState('')
-  const niches = useMemo(() => Array.from(new Set(terms.map((x) => x.niche))).sort(), [terms])
-  // contagem de leads por termo calculada uma vez (são milhares de termos)
-  const counts = useMemo(() => {
-    const byId = new Map(), byKey = new Map()
-    leads.forEach((l) => {
-      if (l.search_term_id) byId.set(l.search_term_id, (byId.get(l.search_term_id) || 0) + 1)
-      const k = `${(l.niche || '').toLowerCase()}|${(l.neighborhood || '').toLowerCase()}`
-      byKey.set(k, (byKey.get(k) || 0) + 1)
-    })
-    return { byId, byKey }
-  }, [leads])
-  const count = (t) => counts.byId.get(t.id) || counts.byKey.get(`${t.niche.toLowerCase()}|${t.neighborhood.toLowerCase()}`) || 0
-  const h = hood.trim().toLowerCase()
-  const rows = terms.filter((t) => (!niche || t.niche === niche) && (!onlyOpen || !t.done) && (!h || t.neighborhood.toLowerCase().includes(h)))
-  const done = terms.filter((t) => t.done).length
-  const SHOW = 300
-  return (
-    <div className="card" style={{ overflow: 'hidden' }}>
-      <div className="card-h">
-        <div className="stack-s" style={{ gap: 2 }}><h2>Termos de busca · nicho × bairro</h2><span className="lbl">{done} de {terms.length} feitos. Marque cada busca feita no Instagram ou Google Maps e veja quais rendem.</span></div>
-        <div className="row">
-          <Select value={niche} onChange={(v) => setNiche(v || '')} placeholder="Todos os nichos" options={niches} style={{ width: 180 }} />
-          <input className="in" style={{ width: 160 }} placeholder="Bairro…" value={hood} onChange={(e) => setHood(e.target.value)} />
-          <label className="check"><input type="checkbox" checked={onlyOpen} onChange={(e) => setOnlyOpen(e.target.checked)} />Só pendentes</label>
-        </div>
-      </div>
-      <div className="tbl-wrap" style={{ maxHeight: 560 }}><table className="tbl">
-        <thead><tr><th>Feito</th><th>Nicho</th><th>Bairro</th><th className="r">Leads gerados</th><th>Rendimento</th><th>Feito em</th></tr></thead>
-        <tbody>
-          {rows.slice(0, SHOW).map((t) => {
-            const n = count(t)
-            return (
-              <tr key={t.id}>
-                <td><input type="checkbox" checked={t.done} aria-label={`${t.niche} em ${t.neighborhood}`} onChange={(e) => update('search_terms', t.id, { done: e.target.checked })} /></td>
-                <td>{t.niche}</td><td>{t.neighborhood}</td>
-                <td className="num r">{n || '—'}</td>
-                <td>{!t.done ? <span className="b">a fazer</span> : n >= 15 ? <Badge kind="g">bom</Badge> : n >= 5 ? <Badge>médio</Badge> : <Badge kind="r">fraco</Badge>}</td>
-                <td className="num lbl">{t.done_at ? t.done_at.slice(8, 10) + '/' + t.done_at.slice(5, 7) : ''}</td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table></div>
-      {rows.length > SHOW ? <div className="lbl" style={{ padding: '10px 16px', borderTop: '1px solid var(--line)' }}>Mostrando {SHOW} de {rows.length}. Filtre por nicho ou bairro para ver o resto.</div> : null}
-      {auth.isTotal('prospeccao') ? (
-        <div className="row" style={{ padding: '12px 16px', borderTop: '1px solid var(--line)' }}>
-          <input className="in" style={{ width: 180 }} placeholder="Nicho" value={newT.niche} onChange={(e) => setNewT({ ...newT, niche: e.target.value })} />
-          <input className="in" style={{ width: 180 }} placeholder="Bairro ou cidade" value={newT.neighborhood} onChange={(e) => setNewT({ ...newT, neighborhood: e.target.value })} />
-          <AsyncButton className="btn" onClick={async () => {
-            if (!newT.niche || !newT.neighborhood) return
-            await insert('search_terms', { ...newT, owner_id: null }); setNewT({ niche: '', neighborhood: '' })
-          }}>Adicionar termo</AsyncButton>
-        </div>
-      ) : null}
     </div>
   )
 }

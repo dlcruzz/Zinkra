@@ -7,8 +7,9 @@ O ERP mora dentro do site, em **zinkra.com.br/erp**. O código está em `src/erp
 1. Em [supabase.com](https://supabase.com), crie um projeto. Região: **South America (São Paulo)**. Guarde a senha do banco.
 2. Abra **SQL Editor → New query**, cole o conteúdo de `supabase/erp-schema.sql` e clique em **Run**.
 3. Nova query com `supabase/erp-seed.sql` → **Run**. Isso cria pipelines, catálogo de serviços com seus preços, templates de projeto, scripts M1/M2/V2/F1/A1/P1/R1, cobranças C1/C2 e a matriz nicho × bairro.
-4. **Authentication → Sign In / Providers → Email**: deixe ativo e **desligue "Allow new users to sign up"**. Ninguém se cadastra sozinho.
-5. **Authentication → URL Configuration**:
+4. Nova query com `supabase/erp-captacao.sql` → **Run**. Isso liga a tela **Captação** (cidade/UF nos termos de busca e a tabela de lotes). Pode rodar de novo sem problema.
+5. **Authentication → Sign In / Providers → Email**: deixe ativo e **desligue "Allow new users to sign up"**. Ninguém se cadastra sozinho.
+6. **Authentication → URL Configuration**:
    - Site URL: `https://www.zinkra.com.br`
    - Redirect URLs: `https://www.zinkra.com.br/erp/**` e `http://localhost:5173/erp/**`
 
@@ -60,6 +61,15 @@ Abra `http://localhost:5173/erp`. Convite de usuário e assistente usam as funç
 6. **Clientes → Novo cliente / Novo contrato** para os clientes atuais. Contratos mensais geram as cobranças sozinhos.
 7. **Contas a pagar → Nova despesa** para as assinaturas recorrentes.
 
+## Captação de clientes (Comercial → Captação)
+
+1. Escolha nicho, estado e cidade. A tela mostra os bairros já buscados (verde), os que estão num lote esperando importação (amarelo) e os que faltam.
+2. **Gerar prompt** já marca os próximos que faltam, cria o lote e copia o prompt. Cole no Claude (com a extensão do Chrome e o Google Maps).
+3. O Claude devolve uma tabela TSV (ou arquivo .tsv/.xlsx). Em **Importar resultado**, cole ou suba o arquivo: o sistema tira duplicados (telefone/Instagram), cria os leads com nicho, cidade e bairro, e marca as buscas como feitas.
+4. **Cobertura** mostra o que falta por nicho, cidade e bairro, e quais cidades do estado ainda não têm nenhuma busca.
+
+Cidade nova sem bairros: busque a cidade inteira ou cole a lista de bairros (o botão "Prompt de bairros" gera o pedido para o Claude).
+
 ## O que o sistema faz sozinho
 
 - Registrou contato → agenda follow-up (F1 em 3 dias; depois de 3 tentativas, R1 em 30 dias) e move o lead de etapa.
@@ -99,6 +109,7 @@ Confira os limites atuais do plano gratuito (tamanho do banco e pausa por inativ
 | `src/erp/lib/automations.js` | Regras que trabalham por você (follow-up, proposta aceita, templates…) |
 | `src/erp/lib/insights.js` | Motor de inteligência e prioridades |
 | `src/erp/lib/world.js` | Cálculos de metas, caixa e fluxo |
+| `src/erp/lib/captacao.js` | Locais (Brasil), prompt de captação para o Claude e leitura do resultado |
 | `src/erp/pages/*` | Uma tela por arquivo |
 | `supabase/erp-schema.sql` | Tabelas, permissões, gatilhos e automações do banco |
 | `api/erp-ai.js` · `api/erp-invite.js` | Assistente com IA e convite de usuários (servidor) |

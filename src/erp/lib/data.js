@@ -35,7 +35,7 @@ function subscribe(tables, fn) {
 
 const ARCHIVABLE = new Set([
   'partners', 'search_terms', 'leads', 'playbooks', 'clients', 'proposals', 'contracts', 'projects',
-  'meetings', 'tasks', 'payables', 'receivables', 'ideas', 'goals',
+  'meetings', 'tasks', 'payables', 'receivables', 'ideas', 'goals', 'capture_batches',
 ])
 
 export function friendlyError(error) {
@@ -124,25 +124,25 @@ function fail(error, quiet) {
   throw e
 }
 
-export async function insert(table, values, { quiet, select = '*' } = {}) {
+export async function insert(table, values, { quiet, select = '*', silent } = {}) {
   const { data, error } = await supabase.from(table).insert(values).select(select)
   if (error) fail(error, quiet)
-  emitChange(table)
+  if (!silent) emitChange(table)
   return Array.isArray(values) ? data : data?.[0]
 }
 
-export async function update(table, id, patch, { quiet } = {}) {
+export async function update(table, id, patch, { quiet, silent } = {}) {
   const { data, error } = await supabase.from(table).update(patch).eq('id', id).select()
   if (error) fail(error, quiet)
   if (!data?.length && !quiet) notify('Nada foi alterado. Talvez você não tenha permissão.', 'err')
-  emitChange(table)
+  if (!silent) emitChange(table)
   return data?.[0]
 }
 
-export async function updateWhere(table, where, patch, { quiet } = {}) {
+export async function updateWhere(table, where, patch, { quiet, silent } = {}) {
   const { data, error } = await where(supabase.from(table).update(patch)).select()
   if (error) fail(error, quiet)
-  emitChange(table)
+  if (!silent) emitChange(table)
   return data
 }
 
@@ -159,10 +159,10 @@ export async function archive(table, id, { quiet, undo = true } = {}) {
   }
 }
 
-export async function upsert(table, values, { onConflict, quiet } = {}) {
+export async function upsert(table, values, { onConflict, quiet, silent } = {}) {
   const { data, error } = await supabase.from(table).upsert(values, onConflict ? { onConflict } : undefined).select()
   if (error) fail(error, quiet)
-  emitChange(table)
+  if (!silent) emitChange(table)
   return data
 }
 

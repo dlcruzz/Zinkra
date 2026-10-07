@@ -304,8 +304,12 @@ function Lists() {
           await saveSetting('niches', niches); await saveSetting('neighborhoods', hoods); await saveSetting('lost_reasons', lines(f.lost))
           await saveSetting('lead_rules', { ...(settings.lead_rules || {}), stale_days: Number(f.stale) || 7, follow_up_days: Number(f.fu) || 3 })
           // cria os termos de busca novos (nicho × bairro)
-          const rows = niches.flatMap((n) => hoods.map((b) => ({ niche: n, neighborhood: b, owner_id: null })))
-          for (let i = 0; i < rows.length; i += 300) await upsert('search_terms', rows.slice(i, i + 300), { onConflict: 'niche,neighborhood', quiet: true }).catch(() => {})
+          // bairros sem cidade são de São Paulo - SP; para outras cidades use Comercial → Captação
+          const rows = niches.flatMap((n) => hoods.map((b) => ({ niche: n, neighborhood: b, city: 'São Paulo', uf: 'SP', owner_id: null })))
+          for (let i = 0; i < rows.length; i += 300) {
+            await upsert('search_terms', rows.slice(i, i + 300), { onConflict: 'niche,neighborhood,city,uf', quiet: true })
+              .catch(() => upsert('search_terms', rows.slice(i, i + 300).map(({ city, uf, ...r }) => r), { onConflict: 'niche,neighborhood', quiet: true }).catch(() => {}))
+          }
           notify('Listas salvas. A matriz de termos de busca foi atualizada.', 'ok')
         }}>Salvar</AsyncButton>
       </div>
