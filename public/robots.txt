@@ -12,6 +12,8 @@ Disallow: /*.mjs$
 # Área interna — não indexar
 Disallow: /propostas
 Disallow: /propostas/
+Disallow: /erp
+Disallow: /erp/
 
 # Sitemap
 Sitemap: https://www.zinkra.com.br/sitemap.xml

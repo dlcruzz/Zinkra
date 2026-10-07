@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { lazy, Suspense } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import { HelmetProvider } from 'react-helmet-async'
 
@@ -17,6 +17,9 @@ import NotFound            from './pages/NotFound'
 import PropostasLogin      from './pages/propostas/PropostasLogin'
 import PropostaDashboard   from './pages/propostas/PropostaDashboard'
 import PropostaGerador     from './pages/propostas/PropostaGerador'
+
+// ERP interno: carregado só quando alguém abre /erp (não pesa no site)
+const ErpApp = lazy(() => import('./erp/ErpApp'))
 
 export default function App() {
   return (
@@ -41,6 +44,9 @@ export default function App() {
         <Route path="/propostas"                       element={<PropostasLogin />}    />
         <Route path="/propostas/dashboard"             element={<PropostaDashboard />} />
         <Route path="/propostas/gerar/:templateId"     element={<PropostaGerador />}   />
+
+        {/* ERP Zinkra — área interna com login, sem o Layout do site */}
+        <Route path="/erp/*" element={<Suspense fallback={<div style={{ minHeight: '100vh', background: '#0A0C0B' }} />}><ErpApp /></Suspense>} />
       </Routes>
     </HelmetProvider>
   )
