@@ -19,6 +19,7 @@ export default function Pipelines() {
   const [drag, setDrag] = useState(null)
   const [over, setOver] = useState(null)
   const [modal, setModal] = useState(null)
+  const [showProsp, setShowProsp] = useState(false)
 
   const { data, loading, error, reload } = useData(async () => {
     const [P, leads] = await Promise.all([getPipelines(), fetchRows('leads', { limit: 5000 })])
@@ -31,12 +32,24 @@ export default function Pipelines() {
   const cols = useMemo(() => {
     if (!data || !cur) return []
     const leads = data.leads.filter((l) => l.pipeline_id === cur.id && (!mine || l.owner_id === auth.uid))
-    return data.P.of(cur.id).map((s) => {
-      const cards = leads.filter((l) => l.stage_id === s.id)
+    // no pipeline de prospecção, Novo e Contatado ficam na tela de Prospecção: aqui só entra quem avançou
+    const stages = data.P.of(cur.id)
+    const firstAdv = stages.find((s) => /^respond/i.test(s.name))
+    const hideBefore = !showProsp && firstAdv ? firstAdv.sort : -Infinity
+    return stages.filter((s) => s.kind !== 'open' || s.sort >= hideBefore).map((s) => {
+      const cards = leads.filter((l) => l.stage_id === s.id && !(hideBefore > -Infinity && s.kind === 'lost' && l.lost_reason === 'Número inválido'))
         .sort((a, b) => (s.kind === 'lost' || s.kind === 'won' ? (b.stage_changed_at || '').localeCompare(a.stage_changed_at || '') : (a.stage_changed_at || '').localeCompare(b.stage_changed_at || '')))
       const total = cards.reduce((a, l) => a + (l.estimated_value_cents || 0), 0)
       return { s, cards, total, weighted: Math.round(total * (s.probability / 100)) }
     })
+  }, [data, cur, mine, auth.uid, showProsp])
+  const prospCount = useMemo(() => {
+    if (!data || !cur) return 0
+    const stages = data.P.of(cur.id)
+    const firstAdv = stages.find((s) => /^respond/i.test(s.name))
+    if (!firstAdv) return 0
+    const early = new Set(stages.filter((s) => s.kind === 'open' && s.sort < firstAdv.sort).map((s) => s.id))
+    return data.leads.filter((l) => early.has(l.stage_id) && (!mine || l.owner_id === auth.uid)).length
   }, [data, cur, mine, auth.uid])
 
   if (error) return <div className="page"><ErrorBox error={error} onRetry={reload} /></div>
@@ -70,6 +83,7 @@ export default function Pipelines() {
         sub={`${openCount} em aberto · ${brl0(openTotal)} estimado · ponderado ${brl0(weighted)}${rate !== null ? ` · taxa de ganho ${rate}%` : ''}`}>
         <Seg value={view} onChange={setView} options={[['kanban', 'Kanban'], ['list', 'Lista']]} />
         <label className="check"><input type="checkbox" checked={mine} onChange={(e) => setMine(e.target.checked)} />Só os meus</label>
+        {prospCount ? <label className="check" title="Leads em Novo e Contatado, que ficam na tela de Prospecção"><input type="checkbox" checked={showProsp} onChange={(e) => setShowProsp(e.target.checked)} />Mostrar em prospecção ({prospCount})</label> : null}
         {auth.isTotal('config') ? <Link to="/erp/config?s=pipes" className="btn">Editar etapas</Link> : null}
         {auth.canEdit('crm') ? <button type="button" className="btn p" onClick={() => erp.openQuick('lead')}>Novo lead</button> : null}
       </PageHead>

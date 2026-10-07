@@ -614,3 +614,9 @@ body:has(.erp) { background: #0A0C0B; }
   .erp .prosp-right-h .sel { width: 100%; }
 }
 @keyframes erp-sheet-in { from { transform: translateY(40px); opacity: .4; } }
+
+/* prospecção: início e prospecção atual */
+.erp .prosp-start { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.erp .prosp-current { padding: 12px 16px; display: flex; flex-direction: column; gap: 2px; border-color: var(--green-ln); background: linear-gradient(90deg, rgba(21,196,90,.08), transparent 70%), var(--s1); }
+.erp .prosp-current strong { font-size: 15px; font-weight: 600; }
+@media (max-width: 860px) { .erp .prosp-start { grid-template-columns: minmax(0, 1fr); } }

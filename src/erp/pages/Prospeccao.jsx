@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useMeta } from '../components/Shell'
 import { useAuth } from '../lib/auth'
-import { useData, fetchRows, update, notify } from '../lib/data'
+import { useData, fetchRows, update, notify, emitChange } from '../lib/data'
 import { getPipelines, registerActivity, defaultLeadStage } from '../lib/automations'
 import { today, waLink, igLink, igHandle, fillTemplate, relDay, MONTHS, startOfMonth, endOfMonth, businessDays, inRange, localDay } from '../lib/format'
 import { Loading, ErrorBox, Bar, Badge, Select, AsyncButton, Field, Empty, CountUp } from '../components/ui'
@@ -11,6 +11,23 @@ import { Icon } from '../lib/icons'
 const CONTACT = new Set(['whatsapp', 'ligacao', 'email', 'visita'])
 const COL_KEY = 'zk.prospeccao.playbook'
 const GENERIC = new Set(['Cobrança', 'Objeções', 'Prospecção'])
+
+const SES_KEY = 'zk.prospeccao.sessao'
+const readSes = () => { try { return JSON.parse(localStorage.getItem(SES_KEY) || 'null') } catch { return null } }
+const saveSes = (v) => { try { v ? localStorage.setItem(SES_KEY, JSON.stringify(v)) : localStorage.removeItem(SES_KEY) } catch { /* sem storage */ } }
+const fold = (s) => String(s || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+const FIRST = new Set(['M1', 'M2'])
+// o lead entra nesta prospecção? (público + local escolhidos, ou retornos de quem já foi contatado)
+function inSession(l, ses) {
+  if (!ses) return false
+  if (ses.kind === 'retornos') return Boolean(l.last_contact_at)
+  if (ses.niche && fold(l.niche) !== fold(ses.niche)) return false
+  if (ses.city && fold(l.city) !== fold(ses.city)) return false
+  if (ses.neighborhood && fold(l.neighborhood) !== fold(ses.neighborhood)) return false
+  return true
+}
+const sesLabel = (ses) => (ses?.kind === 'retornos' ? 'Retornos e follow-ups' : [ses?.niche, ses?.neighborhood, ses?.city].filter(Boolean).join(' · ') || 'Todos os leads')
+const firstPending = (l) => !l.last_contact_at && (!l.next_step_code || FIRST.has(l.next_step_code))
 
 const readCol = () => { try { return localStorage.getItem(COL_KEY) || '' } catch { return '' } }
 const saveCol = (c) => { try { localStorage.setItem(COL_KEY, c) } catch { /* sem storage */ } }
@@ -52,6 +69,9 @@ export default function Prospeccao() {
   const [started] = useState(() => Date.now())
   const [, tick] = useState(0)
   const [pull, setPull] = useState(false)
+  const [ses, setSesState] = useState(readSes)
+  const [ending, setEnding] = useState(false)
+  const setSes = (v) => { setSesState(v); saveSes(v); setSkipped([]) }
 
   const setCol = (c) => { setColState(c); saveCol(c) }
 
@@ -74,7 +94,7 @@ export default function Prospeccao() {
     const t = today()
     return data.leads.filter((l) => {
       const st = data.P.stage(l.stage_id)
-      return st && st.kind === 'open' && l.next_step_at && l.next_step_at <= t && (l.owner_id === auth.uid || !l.owner_id)
+      return st && st.kind === 'open' && l.next_step_at && l.next_step_at <= t && (l.owner_id === auth.uid || !l.owner_id) && inSession(l, ses)
     }).sort((a, b) => {
       // respondeu primeiro, depois atrasados, depois novos
       const ra = data.P.stage(a.stage_id)?.name.toLowerCase().startsWith('respond') ? 0 : 1
@@ -82,7 +102,7 @@ export default function Prospeccao() {
       if (ra !== rb) return ra - rb
       return (a.next_step_at || '').localeCompare(b.next_step_at || '')
     })
-  }, [data, auth])
+  }, [data, auth, ses])
 
   const cols = useMemo(() => (data ? Array.from(new Set(data.playbooks.map((p) => p.collection))).sort() : []), [data])
   const active = queue.filter((l) => !skipped.includes(l.id))
@@ -112,6 +132,7 @@ export default function Prospeccao() {
 
   if (error) return <div className="page"><ErrorBox error={error} onRetry={reload} /></div>
   if (loading || !data) return <div className="page"><Loading rows={6} /></div>
+  if (!ses) return <NovaProspeccao data={data} onStart={setSes} />
 
   const { P, playbooks, acts, goals } = data
   const contactsToday = acts.filter((a) => CONTACT.has(a.type)).length
@@ -151,6 +172,10 @@ export default function Prospeccao() {
       <div className="prosp-split">
         {/* ESQUERDA: sessão, lead atual e fila */}
         <div className="prosp-left">
+          <div className="card prosp-current">
+            <span className="lbl">Prospecção atual</span>
+            <strong className="ellipsis">{sesLabel(ses)}</strong>
+          </div>
           <div className="card prosp-session">
             <div className="prosp-stat"><span className="lbl">Na fila</span><span className="num big"><CountUp value={active.length} /></span><span className="lbl">{total ? `${done} de ${total} feitos` : 'hoje'}</span></div>
             <div className="prosp-stat"><span className="lbl">Contatos hoje</span><span className="num big"><CountUp value={contactsToday} /><span className="lbl" style={{ fontSize: 13 }}> / {Math.ceil(dailyGoal)}</span></span><Bar value={(contactsToday / dailyGoal) * 100} /></div>
@@ -158,7 +183,7 @@ export default function Prospeccao() {
             <div className="prosp-stat"><span className="lbl">Sessão</span><span className="num big">{String(Math.floor(mins / 60)).padStart(2, '0')}:{String(mins % 60).padStart(2, '0')}</span></div>
             <div className="row" style={{ gridColumn: '1 / -1', justifyContent: 'flex-end' }}>
               <Link to="/erp/captacao" className="btn s g"><Icon name="search" size={14} />Captar clientes</Link>
-              <Link to={auth.isDirector ? '/erp' : '/erp/painel'} className="btn s">Encerrar sessão</Link>
+              <button type="button" className="btn s d" onClick={() => setEnding(true)}><Icon name="stop" size={13} />Encerrar prospecção</button>
             </div>
           </div>
 
@@ -218,11 +243,11 @@ export default function Prospeccao() {
               <Empty icon="check" action={
                 <div className="row" style={{ justifyContent: 'center' }}>
                   {skipped.length ? <button type="button" className="btn" onClick={() => setSkipped([])}>Rever pulados ({skipped.length})</button> : null}
-                  <button type="button" className="btn p" onClick={() => setPull(true)}>Puxar novos leads para a fila</button>
+                  <button type="button" className="btn p" onClick={() => setEnding(true)}>Encerrar e começar outra</button>
                   <Link to="/erp/captacao" className="btn">Captar clientes novos</Link>
                 </div>
               }>
-                {queue.length ? 'Você passou por toda a fila de hoje.' : 'Fila vazia. Puxe leads novos ou capte clientes em Captação.'}
+                {queue.length ? 'Você passou por toda a fila desta prospecção.' : 'Nenhum lead nesta prospecção. Encerre e escolha outro público ou local.'}
               </Empty>
             </div>
           )}
@@ -273,6 +298,133 @@ export default function Prospeccao() {
         </aside>
       </div>
       {pull ? <PullModal leads={data.leads} P={P} onClose={() => setPull(false)} /> : null}
+      {ending ? <EndModal ses={ses} leads={queue} onClose={() => setEnding(false)} onEnd={() => { setEnding(false); setSes(null) }} /> : null}
+    </div>
+  )
+}
+
+// ---------- início: escolher público e local ----------
+function NovaProspeccao({ data, onStart }) {
+  const auth = useAuth()
+  const t = today()
+  const { P, leads } = data
+  const mineOrFree = (l) => !l.owner_id || l.owner_id === auth.uid
+  const isOpen = (l) => P.stage(l.stage_id)?.kind === 'open'
+  const pool = useMemo(() => leads.filter((l) => isOpen(l) && !l.next_step_at && mineOrFree(l)), [leads]) // eslint-disable-line react-hooks/exhaustive-deps
+  const due = useMemo(() => leads.filter((l) => isOpen(l) && l.next_step_at && l.next_step_at <= t && mineOrFree(l)), [leads]) // eslint-disable-line react-hooks/exhaustive-deps
+  const returns = due.filter((l) => l.last_contact_at)
+  const pending = due.filter(firstPending)
+
+  const count = (arr, key) => {
+    const m = new Map()
+    arr.forEach((l) => { const v = (l[key] || '').trim(); if (!v) return; const k = fold(v); const cur = m.get(k) || { label: v, n: 0 }; cur.n++; m.set(k, cur) })
+    return [...m.values()].sort((a, b) => b.n - a.n || a.label.localeCompare(b.label))
+  }
+  const niches = useMemo(() => count(pool, 'niche'), [pool])
+  const [niche, setNiche] = useState('')
+  const byNiche = pool.filter((l) => !niche || fold(l.niche) === fold(niche))
+  const cities = count(byNiche, 'city')
+  const [city, setCity] = useState('')
+  const byCity = byNiche.filter((l) => !city || fold(l.city) === fold(city))
+  const hoods = count(byCity, 'neighborhood')
+  const [hood, setHood] = useState('')
+  const avail = byCity.filter((l) => !hood || fold(l.neighborhood) === fold(hood))
+  const [n, setN] = useState(30)
+  useEffect(() => { setCity(''); setHood('') }, [niche])
+  useEffect(() => { setHood('') }, [city])
+
+  // fila antiga (de antes): agrupa por público e cidade para continuar ou devolver
+  const groups = useMemo(() => {
+    const m = new Map()
+    pending.forEach((l) => { const k = fold(l.niche) + '|' + fold(l.city); const g = m.get(k) || { niche: l.niche || '', city: l.city || '', leads: [] }; g.leads.push(l); m.set(k, g) })
+    return [...m.values()].sort((a, b) => b.leads.length - a.leads.length)
+  }, [pending])
+
+  const start = async () => {
+    const pick = avail.slice(0, Math.max(0, n))
+    for (const l of pick) await update('leads', l.id, { owner_id: auth.uid, next_step_at: t, next_step: 'Primeiro contato', next_step_code: l.has_site ? 'M2' : 'M1' }, { quiet: true, silent: true })
+    emitChange('leads')
+    onStart({ kind: 'nova', niche, city, neighborhood: hood, at: Date.now() })
+    notify(`Prospecção iniciada com ${pick.length} lead(s).`, 'ok')
+  }
+  const giveBack = async (list) => {
+    for (const l of list) await update('leads', l.id, { next_step_at: null, next_step: null, next_step_code: null }, { quiet: true, silent: true })
+    emitChange('leads')
+    notify(`${list.length} lead(s) voltaram para a base.`, 'ok')
+  }
+
+  return (
+    <div className="page">
+      <div className="page-head"><div className="t"><h1>Nova prospecção</h1><span className="lbl">Escolha o público e o local. Só esses leads entram na fila.</span></div></div>
+      <div className="prosp-start">
+        <section className="card pad stack">
+          <div className="fields">
+            <Field label="Público"><Select value={niche} onChange={(v) => setNiche(v || '')} placeholder="Escolha o público" options={niches.map((x) => [x.label, `${x.label} (${x.n})`])} /></Field>
+            <Field label="Cidade"><Select value={city} onChange={(v) => setCity(v || '')} placeholder="Todas as cidades" options={cities.map((x) => [x.label, `${x.label} (${x.n})`])} /></Field>
+            <Field label="Bairro"><Select value={hood} onChange={(v) => setHood(v || '')} placeholder="Todos os bairros" options={hoods.map((x) => [x.label, `${x.label} (${x.n})`])} disabled={!city} /></Field>
+            <Field label="Quantos leads"><input type="number" min="1" className="in num" value={n} onChange={(e) => setN(Number(e.target.value) || 0)} /></Field>
+          </div>
+          <div className="row" style={{ justifyContent: 'space-between' }}>
+            <span className="lbl">{avail.length ? `${avail.length} lead(s) disponíveis com esse filtro, nunca puxados para a fila.` : niche ? 'Nenhum lead disponível com esse filtro. Capte mais em Captação.' : 'Escolha um público para começar.'}</span>
+            <AsyncButton className="btn p" disabled={!niche || !avail.length || n < 1} onClick={start}><Icon name="play" size={14} />Iniciar prospecção ({Math.min(n, avail.length)})</AsyncButton>
+          </div>
+        </section>
+
+        <div className="stack">
+          {returns.length ? (
+            <section className="card pad stack-s">
+              <h2>Retornos para hoje</h2>
+              <span className="lbl">{returns.length} lead(s) já contatados aguardando follow-up ou resposta sua.</span>
+              <button type="button" className="btn" style={{ alignSelf: 'flex-start' }} onClick={() => onStart({ kind: 'retornos', at: Date.now() })}>Fazer os retornos</button>
+            </section>
+          ) : null}
+          {groups.length ? (
+            <section className="card pad stack-s">
+              <h2>Fila já puxada</h2>
+              <span className="lbl">Leads que já estavam na sua fila e ainda não receberam o primeiro contato.</span>
+              {groups.map((g) => (
+                <div key={g.niche + g.city} className="li" style={{ flexWrap: 'wrap' }}>
+                  <span className="grow" style={{ minWidth: 140 }}><strong style={{ fontWeight: 500 }}>{g.niche || 'Sem público'}</strong><span className="lbl"> · {g.city || 'sem cidade'} · {g.leads.length}</span></span>
+                  <div className="row">
+                    <button type="button" className="btn s" onClick={() => onStart({ kind: 'nova', niche: g.niche, city: g.city, neighborhood: '', at: Date.now() })}>Continuar</button>
+                    <AsyncButton className="btn s g" onClick={() => giveBack(g.leads)}>Devolver para a base</AsyncButton>
+                  </div>
+                </div>
+              ))}
+            </section>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ---------- encerrar a prospecção atual ----------
+function EndModal({ ses, leads, onClose, onEnd }) {
+  const left = ses?.kind === 'retornos' ? [] : leads.filter(firstPending)
+  const [giveBack, setGiveBack] = useState(true)
+  return (
+    <div className="erp-overlay center" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="modal sm" role="dialog" aria-label="Encerrar prospecção">
+        <div className="modal-h"><h2 style={{ fontSize: 15 }}>Encerrar prospecção</h2><button type="button" className="btn ic s g" aria-label="Fechar" onClick={onClose}><Icon name="x" /></button></div>
+        <div className="modal-b">
+          <p style={{ lineHeight: 1.55 }}>Encerrar <strong>{sesLabel(ses)}</strong> e voltar para a escolha de público e local?</p>
+          {left.length ? (
+            <label className="check"><input type="checkbox" checked={giveBack} onChange={(e) => setGiveBack(e.target.checked)} />Devolver para a base os {left.length} lead(s) que ainda não receberam o primeiro contato</label>
+          ) : null}
+          <span className="lbl">Quem você já contatou continua com o follow-up agendado normalmente.</span>
+        </div>
+        <div className="modal-f">
+          <button type="button" className="btn" onClick={onClose}>Continuar prospectando</button>
+          <AsyncButton className="btn p" onClick={async () => {
+            if (giveBack && left.length) {
+              for (const l of left) await update('leads', l.id, { next_step_at: null, next_step: null, next_step_code: null }, { quiet: true, silent: true })
+              emitChange('leads')
+            }
+            onEnd()
+          }}>Encerrar</AsyncButton>
+        </div>
+      </div>
     </div>
   )
 }
