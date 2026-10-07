@@ -503,3 +503,110 @@ body:has(.erp) { background: #0A0C0B; }
 @media (prefers-reduced-motion: reduce) {
   .erp *, .erp *::before, .erp *::after, .erp-overlay { animation-duration: .001ms !important; animation-delay: 0s !important; transition-duration: .001ms !important; }
 }
+
+/* ======================================================================
+   CELULAR — menu em gaveta, barra fixa no rodapé e telas para toque
+   ====================================================================== */
+.erp .only-m, .erp .bottom-nav, .erp .side-scrim { display: none; }
+
+@media (max-width: 860px) {
+  .erp .only-m { display: inline-flex; }
+  .erp .hide-m { display: none !important; }
+  .erp .shell { display: block; }
+  .erp .main { min-height: 100vh; padding-bottom: calc(72px + env(safe-area-inset-bottom)); }
+
+  /* menu lateral vira gaveta */
+  .erp .side { position: fixed; top: 0; left: 0; bottom: 0; height: 100dvh; width: min(300px, 86vw); z-index: 120;
+    transform: translateX(-104%); transition: transform .38s var(--ease); box-shadow: 30px 0 80px -20px rgba(0,0,0,.8);
+    border-radius: 0 var(--r-xl) var(--r-xl) 0; padding-top: calc(18px + env(safe-area-inset-top)); }
+  .erp .side.open { transform: none; }
+  .erp .side .nav-item { height: 44px; font-size: 14px; }
+  .erp .side .nav-item:hover { transform: none; }
+  .erp .side-scrim { display: block; position: fixed; inset: 0; z-index: 110; background: rgba(4,6,5,.6); backdrop-filter: blur(4px); animation: erp-fade .25s var(--ease); }
+
+  /* topo compacto */
+  .erp .top { padding: 8px 12px; padding-top: calc(8px + env(safe-area-inset-top)); flex-wrap: nowrap; gap: 8px; min-height: 56px; }
+  .erp .crumb { flex: 1 1 auto; font-size: 15px; }
+  .erp .crumb span:first-child, .erp .crumb .sep { display: none; }
+  .erp .search-trigger { width: 40px; height: 40px; padding: 0; justify-content: center; flex: none; }
+  .erp .top .btn.p { width: 40px; height: 40px; padding: 0; border-radius: 50%; }
+  .erp .icon-btn { width: 40px; height: 40px; flex: none; }
+  .erp .timer-pill { height: 40px; }
+
+  /* barra fixa no rodapé */
+  .erp .bottom-nav { display: grid; grid-template-columns: repeat(5, 1fr); position: fixed; left: 0; right: 0; bottom: 0; z-index: 90;
+    padding: 6px 6px calc(6px + env(safe-area-inset-bottom)); background: rgba(12,15,13,.88); backdrop-filter: blur(16px) saturate(1.4);
+    border-top: 1px solid #1a1f1c; }
+  .erp .bn-item { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; height: 54px; border: 0; background: none;
+    color: var(--mut); font: 500 10.5px Geist, sans-serif; border-radius: 14px; -webkit-tap-highlight-color: transparent; transition: color .2s var(--ease); }
+  .erp .bn-item:hover { color: var(--mut); }
+  .erp .bn-item.on { color: var(--green-tx); }
+  .erp .bn-ic { position: relative; display: flex; align-items: center; justify-content: center; width: 52px; height: 28px; border-radius: 999px;
+    transition: background .3s var(--ease), transform .3s var(--ease-spring); }
+  .erp .bn-item.on .bn-ic { background: rgba(21,196,90,.14); transform: translateY(-1px); }
+  .erp .bn-item:active .bn-ic { transform: scale(.9); }
+  .erp .bn-cnt { position: absolute; top: -4px; right: 4px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--green);
+    color: #04130A; font: 700 10px 'Geist Mono', monospace; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 2px #0c0f0d; }
+
+  /* conteúdo */
+  .erp .page { padding: 16px 14px 24px; gap: 14px; }
+  .erp .page-head h1, .erp h1 { font-size: 21px; }
+  .erp .page-head { align-items: stretch; }
+  .erp .page-head > .row { width: 100%; }
+  .erp .page-head > .row > .btn { flex: 1; }
+  .erp .cols > * { flex-basis: 100% !important; min-width: 0 !important; }
+  .erp .grid-kpi { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .erp .grid-3, .erp .grid-2 { grid-template-columns: 1fr; }
+  .erp .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .erp .stats > .stat + .stat { border-left: 0; }
+  .erp .stats > .stat:nth-child(even) { border-left: 1px solid var(--line); }
+  .erp .big { font-size: 22px; }
+  .erp .card.pad { padding: 14px; }
+  .erp .card-h { padding: 14px; }
+  .erp .kv { grid-template-columns: 1fr; gap: 2px 0; }
+  .erp .kv dd { margin-bottom: 8px; }
+
+  /* toque: alvos maiores e sem zoom do iPhone nos campos */
+  .erp .btn { height: 42px; }
+  .erp .btn.s { height: 36px; }
+  .erp .btn.ic { width: 36px; }
+  .erp .in, .erp .sel, .erp .ta, .erp .cmdk input { font-size: 16px; }
+  .erp .in, .erp .sel { height: 44px; }
+  .erp .seg, .erp .tabs { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; scrollbar-width: none; }
+  .erp .seg::-webkit-scrollbar, .erp .tabs::-webkit-scrollbar { display: none; }
+  .erp .tab { white-space: nowrap; }
+  .erp .row { row-gap: 8px; }
+  .erp .btn:hover, .erp .kpi:hover, .erp .kcard:hover, .erp .prosp-msg:hover { transform: none; }
+  .erp .li:hover { padding-left: 0 !important; padding-right: 0 !important; background: transparent; }
+
+  /* tabelas e kanban deslizam de lado */
+  .erp .tbl-wrap { margin: 0 -14px; padding: 0 14px; -webkit-overflow-scrolling: touch; }
+  .erp .tbl td { height: 52px; }
+  .erp .kanban { scroll-snap-type: x mandatory; margin: 0 -14px; padding: 0 14px 8px; }
+  .erp .kcol { width: 84vw; scroll-snap-align: start; }
+
+  /* modais viram folhas que sobem do rodapé */
+  .erp-overlay.center { align-items: flex-end; padding: 0; }
+  .erp .modal, .erp .modal.sm, .erp .modal.lg { width: 100%; max-height: 92dvh; overflow-y: auto; border-radius: var(--r-xl) var(--r-xl) 0 0;
+    animation: erp-sheet-in .4s var(--ease); padding-bottom: env(safe-area-inset-bottom); }
+  .erp .modal-h { position: sticky; top: 0; background: #121513; z-index: 1; }
+  .erp .modal-h::before { content: ''; position: absolute; top: 6px; left: 50%; width: 38px; height: 4px; margin-left: -19px; border-radius: 4px; background: #2a302d; }
+  .erp .modal-f { position: sticky; bottom: 0; background: #121513; }
+  .erp .modal-f .btn { flex: 1; }
+  .erp .drawer { width: 100%; border-radius: 0; }
+  .erp .cmdk { border-radius: var(--r-xl) var(--r-xl) 0 0; width: 100%; }
+  .erp .toasts { left: 12px; right: 12px; bottom: calc(80px + env(safe-area-inset-bottom)); }
+  .erp .toast { min-width: 0; max-width: none; }
+
+  /* prospecção */
+  .erp .prosp-session { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .erp .prosp-session > .row { justify-content: stretch !important; }
+  .erp .prosp-session > .row > * { flex: 1; }
+  .erp .prosp-lead { padding: 16px; }
+  .erp .prosp-steps li { flex-wrap: wrap; }
+  .erp .prosp-steps li > .btn { width: 100%; height: 48px; }
+  .erp .prosp-results .btn { height: 60px; }
+  .erp .prosp-right-h { flex-direction: column; align-items: stretch; }
+  .erp .prosp-right-h .sel { width: 100%; }
+}
+@keyframes erp-sheet-in { from { transform: translateY(40px); opacity: .4; } }

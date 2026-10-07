@@ -66,16 +66,21 @@ async function loadCounts(uid) {
   return { hoje, follow, props, pay, recv, projs }
 }
 
-function Sidebar({ counts }) {
+function Sidebar({ counts, open, onClose }) {
   const auth = useAuth()
   const loc = useLocation()
   const hot = { hoje: counts.hoje > 0, follow: counts.follow > 0, recv: counts.recv > 0, pay: counts.pay > 0 }
   return (
-    <nav className="side" aria-label="Navegação do ERP">
-      <Link to="/erp" className="brand">
-        <b><i>Z</i>inkra<i>.</i></b>
-        <span className="tag-erp">ERP</span>
-      </Link>
+    <>
+    {open ? <div className="side-scrim" onClick={onClose} aria-hidden="true" /> : null}
+    <nav className={`side ${open ? 'open' : ''}`} aria-label="Navegação do ERP">
+      <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'nowrap' }}>
+        <Link to="/erp" className="brand">
+          <b><i>Z</i>inkra<i>.</i></b>
+          <span className="tag-erp">ERP</span>
+        </Link>
+        <button type="button" className="btn ic s g only-m" aria-label="Fechar menu" onClick={onClose}><Icon name="x" /></button>
+      </div>
       {NAV.map(([group, items]) => {
         const visible = items.filter(([, , , , mod]) => !mod || auth.canSee(mod))
         if (!visible.length) return null
@@ -118,6 +123,34 @@ function Sidebar({ counts }) {
         </div>
       </div>
     </nav>
+    </>
+  )
+}
+
+// barra fixa de navegação no rodapé (só no celular)
+const BOTTOM = ['hoje', 'leads', 'prospeccao', 'tarefas']
+function BottomNav({ counts, onMenu, menuOpen }) {
+  const auth = useAuth()
+  const loc = useLocation()
+  const all = NAV.flatMap(([, items]) => items)
+  const items = BOTTOM.map((id) => all.find((x) => x[0] === id)).filter((x) => x && (!x[4] || auth.canSee(x[4])))
+  return (
+    <nav className="bottom-nav" aria-label="Navegação rápida">
+      {items.map(([id, label, to, icon, , countKey]) => {
+        const on = !menuOpen && loc.pathname.startsWith(to)
+        const n = countKey ? counts[countKey] : 0
+        return (
+          <NavLink key={id} to={to} className={`bn-item ${on ? 'on' : ''}`}>
+            <span className="bn-ic"><Icon name={icon} size={19} />{n ? <span className="bn-cnt">{n > 99 ? '99+' : n}</span> : null}</span>
+            <span>{label}</span>
+          </NavLink>
+        )
+      })}
+      <button type="button" className={`bn-item ${menuOpen ? 'on' : ''}`} onClick={onMenu} aria-expanded={menuOpen}>
+        <span className="bn-ic"><Icon name="menu" size={19} /></span>
+        <span>Menu</span>
+      </button>
+    </nav>
   )
 }
 
@@ -137,7 +170,7 @@ function TimerPill({ entry, tasks }) {
   )
 }
 
-function Topbar({ crumb, title, onSearch, onNew, timer, insightsCount }) {
+function Topbar({ crumb, title, onSearch, onNew, timer, insightsCount, onMenu }) {
   const [menu, setMenu] = useState(false)
   const nav = useNavigate()
   const auth = useAuth()
@@ -153,19 +186,20 @@ function Topbar({ crumb, title, onSearch, onNew, timer, insightsCount }) {
   ].filter(([, , , m]) => auth.canEdit(m) || (m === 'ideias' && auth.canSee(m)))
   return (
     <header className="top">
+      <button type="button" className="icon-btn only-m" aria-label="Abrir menu" onClick={onMenu}><Icon name="menu" /></button>
       <div className="crumb">
         {crumb ? <><span>{crumb}</span><span className="sep">/</span></> : null}
         <b>{title}</b>
       </div>
       <TimerPill entry={timer.entry} tasks={timer.tasks} />
-      <button type="button" className="search-trigger" onClick={onSearch}>
+      <button type="button" className="search-trigger" onClick={onSearch} aria-label="Buscar">
         <Icon name="search" size={15} />
-        <span>Buscar ou executar…</span>
-        <kbd>Ctrl K</kbd>
+        <span className="hide-m">Buscar ou executar…</span>
+        <kbd className="hide-m">Ctrl K</kbd>
       </button>
       <div ref={ref} style={{ position: 'relative' }}>
         <button type="button" className="btn p" onClick={() => setMenu((m) => !m)} aria-expanded={menu} aria-haspopup="menu">
-          <Icon name="plus" size={14} stroke={2.2} /> Novo
+          <Icon name="plus" size={14} stroke={2.2} /><span className="hide-m">Novo</span>
         </button>
         {menu ? (
           <div role="menu" className="card" style={{ position: 'absolute', right: 0, top: 40, width: 200, padding: 6, zIndex: 30, background: '#121513' }}>
@@ -426,6 +460,9 @@ export function Shell() {
   const { crumb, title } = meta
   const [palette, setPalette] = useState(false)
   const routeKey = useLocation().pathname
+  const [drawer, setDrawer] = useState(false)
+  useEffect(() => { setDrawer(false) }, [routeKey])
+  useEffect(() => { document.body.style.overflow = drawer ? 'hidden' : ''; return () => { document.body.style.overflow = '' } }, [drawer])
   const [quick, setQuick] = useState(null)
   const counts = useData(() => loadCounts(auth.uid), ['tasks', 'leads', 'proposals', 'payables', 'receivables', 'projects'], [auth.uid])
   const timer = useData(async () => {
@@ -455,14 +492,15 @@ export function Shell() {
   return (
     <ErpCtx.Provider value={ctx}>
       <div className="shell">
-        <Sidebar counts={counts.data || {}} />
+        <Sidebar counts={counts.data || {}} open={drawer} onClose={() => setDrawer(false)} />
         <main className="main">
-          <Topbar crumb={crumb} title={title} onSearch={() => setPalette(true)} onNew={(k) => setQuick({ kind: k })}
+          <Topbar onMenu={() => setDrawer(true)} crumb={crumb} title={title} onSearch={() => setPalette(true)} onNew={(k) => setQuick({ kind: k })}
             timer={timer.data || {}} insightsCount={(counts.data?.recv || 0) + (counts.data?.hoje || 0)} />
           <React.Suspense fallback={<div className="page"><div className="skel" style={{ height: 28, width: 240 }} /></div>}>
             <div className="route" key={routeKey}><Outlet /></div>
           </React.Suspense>
         </main>
+        <BottomNav counts={counts.data || {}} menuOpen={drawer} onMenu={() => setDrawer((d) => !d)} />
       </div>
       {palette ? <CommandPalette onClose={() => setPalette(false)} onNew={(k) => setQuick({ kind: k })} /> : null}
       {quick?.kind === 'task' ? <QuickTask defaults={quick.defaults} onClose={() => setQuick(null)} /> : null}
