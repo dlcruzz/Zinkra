@@ -599,6 +599,7 @@ body:has(.erp) { background: #0A0C0B; }
   .erp .toast { min-width: 0; max-width: none; }
 
   /* prospecção */
+  .erp .prosp-lead .fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .erp .prosp-session { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .erp .prosp-session > .row { justify-content: stretch !important; }
   .erp .prosp-session > .row > * { flex: 1; }

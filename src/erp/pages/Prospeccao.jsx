@@ -185,7 +185,7 @@ export default function Prospeccao() {
                   <span className="n">1</span>
                   <div className="stack-s grow">
                     <strong>Abra a conversa</strong>
-                    <span className="lbl">Abre direto no WhatsApp do computador, já com a mensagem {code || ''} escrita.</span>
+                    <span className="lbl">Abre direto no app do WhatsApp, já com a mensagem {code || ''} escrita.</span>
                   </div>
                   {wa ? <a className="btn p" href={wa} onClick={() => setOpened(true)}><Icon name="wa" size={14} />Abrir WhatsApp</a>
                     : lead.instagram ? <a className="btn p" href={igLink(lead.instagram)} target="_blank" rel="noreferrer" onClick={() => setOpened(true)}>Abrir Instagram</a>
