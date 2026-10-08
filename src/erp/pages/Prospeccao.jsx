@@ -70,6 +70,7 @@ export default function Prospeccao() {
   const [started] = useState(() => Date.now())
   const [, tick] = useState(0)
   const [pull, setPull] = useState(false)
+  const [editing, setEditing] = useState(null) // { id, body }
   const [ses, setSesState] = useState(readSes)
   const [ending, setEnding] = useState(false)
   const setSes = (v) => { setSesState(v); saveSes(v); setSkipped([]) }
@@ -285,12 +286,31 @@ export default function Prospeccao() {
                 <div key={p.id} className={`prosp-msg ${on ? 'on' : ''}`} onClick={() => setCode(p.code)}>
                   <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'nowrap', gap: 8 }}>
                     <span style={{ fontSize: 13, fontWeight: 500, minWidth: 0 }} className="ellipsis"><span className="num ok">{p.code}</span> · {p.title}</span>
-                    <button type="button" className={`btn s ${copied === p.code ? 'p' : ''}`} onClick={(e) => { e.stopPropagation(); copy(p) }}>
-                      <Icon name={copied === p.code ? 'check' : 'copy'} size={13} />{copied === p.code ? 'Copiado' : 'Copiar'}
-                    </button>
+                    <div className="row" style={{ flexWrap: 'nowrap', gap: 6 }}>
+                      {auth.isTotal('playbooks') && editing?.id !== p.id ? (
+                        <button type="button" className="btn s g" onClick={(e) => { e.stopPropagation(); setEditing({ id: p.id, body: p.body }) }}><Icon name="edit" size={13} />Editar</button>
+                      ) : null}
+                      <button type="button" className={`btn s ${copied === p.code ? 'p' : ''}`} onClick={(e) => { e.stopPropagation(); copy(p) }}>
+                        <Icon name={copied === p.code ? 'check' : 'copy'} size={13} />{copied === p.code ? 'Copiado' : 'Copiar'}
+                      </button>
+                    </div>
                   </div>
                   {p.when_to_use ? <span className="lbl">{p.when_to_use}</span> : null}
-                  <div className="box">{fill(p.body)}</div>
+                  {editing?.id === p.id ? (
+                    <div className="stack-s" onClick={(e) => e.stopPropagation()}>
+                      <textarea className="ta" rows={6} autoFocus value={editing.body} onChange={(e) => setEditing({ ...editing, body: e.target.value })}
+                        onKeyDown={(e) => { if (e.key === 'Escape') setEditing(null) }} aria-label={`Texto da mensagem ${p.code}`} />
+                      <span className="lbl">Use [EMPRESA], [NOME], [BAIRRO] e [NICHO] para preencher com os dados do lead. A mudança vale para todos os leads.</span>
+                      <div className="row" style={{ justifyContent: 'flex-end' }}>
+                        <button type="button" className="btn s" onClick={() => setEditing(null)}>Cancelar</button>
+                        <AsyncButton className="btn s p" onClick={async () => {
+                          if (!editing.body.trim()) return notify('A mensagem não pode ficar vazia.', 'err')
+                          await update('playbooks', p.id, { body: editing.body })
+                          notify(`Mensagem ${p.code} salva.`, 'ok'); setEditing(null)
+                        }}>Salvar</AsyncButton>
+                      </div>
+                    </div>
+                  ) : <div className="box">{fill(p.body)}</div>}
                 </div>
               )
             })}
