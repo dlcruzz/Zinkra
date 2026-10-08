@@ -7,6 +7,7 @@ import { getPipelines, registerActivity, defaultLeadStage } from '../lib/automat
 import { today, waLink, igLink, igHandle, fillTemplate, relDay, MONTHS, startOfMonth, endOfMonth, businessDays, inRange, localDay } from '../lib/format'
 import { Loading, ErrorBox, Bar, Badge, Select, AsyncButton, Field, Empty, CountUp } from '../components/ui'
 import { Icon } from '../lib/icons'
+import { usePacer, PRESETS, mmss } from '../lib/pacer'
 
 const CONTACT = new Set(['whatsapp', 'ligacao', 'email', 'visita'])
 const COL_KEY = 'zk.prospeccao.playbook'
@@ -71,6 +72,7 @@ export default function Prospeccao() {
   const [, tick] = useState(0)
   const [pull, setPull] = useState(false)
   const [editing, setEditing] = useState(null) // { id, body }
+  const pacer = usePacer()
   const [ses, setSesState] = useState(readSes)
   const [ending, setEnding] = useState(false)
   const setSes = (v) => { setSesState(v); saveSes(v); setSkipped([]) }
@@ -150,6 +152,8 @@ export default function Prospeccao() {
   const pb = items.find((p) => p.code === code)
   const msg = pb ? fill(pb.body) : ''
   const wa = lead ? waLink(lead.phone, msg) : null
+  // quem já respondeu é conversa em andamento: não entra no limite de primeiros contatos
+  const isReply = lead ? /^respond/i.test(P.stage(lead.stage_id)?.name || '') : false
   const done = skipped.length
   const total = queue.length
 
@@ -189,6 +193,8 @@ export default function Prospeccao() {
             </div>
           </div>
 
+          <PacerCard pacer={pacer} />
+
           {lead ? (
             <div className="card prosp-lead" key={lead.id}>
               <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'nowrap', gap: 12 }}>
@@ -214,7 +220,9 @@ export default function Prospeccao() {
                     <strong>Abra a conversa</strong>
                     <span className="lbl">Abre direto no app do WhatsApp, já com a mensagem {code || ''} escrita.</span>
                   </div>
-                  {wa ? <a className="btn p" href={wa} onClick={() => setOpened(true)}><Icon name="wa" size={14} />Abrir WhatsApp</a>
+                  {wa ? (isReply || pacer.status === 'livre'
+                    ? <a className="btn p" href={wa} onClick={() => { setOpened(true); if (!isReply) pacer.registerSend() }}><Icon name="wa" size={14} />Abrir WhatsApp</a>
+                    : <button type="button" className="btn" disabled title="Respeitando o ritmo para não bloquear o WhatsApp"><Icon name="clock" size={14} />{pacer.status === 'dia' ? 'Limite de hoje atingido' : `Aguarde ${mmss(pacer.waiting)}`}</button>)
                     : lead.instagram ? <a className="btn p" href={igLink(lead.instagram)} target="_blank" rel="noreferrer" onClick={() => setOpened(true)}>Abrir Instagram</a>
                       : <span className="lbl">Sem telefone nem Instagram.</span>}
                 </li>
@@ -446,6 +454,48 @@ function EndModal({ ses, leads, onClose, onEnd }) {
           }}>Encerrar</AsyncButton>
         </div>
       </div>
+    </div>
+  )
+}
+
+// ---------- ritmo de envio ----------
+function PacerCard({ pacer }) {
+  const [open, setOpen] = useState(false)
+  const { cfg, status, waiting } = pacer
+  const big = status === 'pausa' || status === 'hora'
+  const title = status === 'livre' ? 'Pode enviar' : status === 'intervalo' ? 'Intervalo entre mensagens' : status === 'pausa' ? 'Pausa do bloco' : status === 'hora' ? 'Limite da hora atingido' : 'Limite de hoje atingido'
+  return (
+    <div className={`card pacer pacer-${status}`}>
+      <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'nowrap', gap: 12 }}>
+        <div className="stack-s" style={{ gap: 2, minWidth: 0 }}>
+          <span className="lbl">Ritmo de envio · {PRESETS[pacer.preset]?.label}</span>
+          <strong className="pacer-title">{title}</strong>
+        </div>
+        {status !== 'livre' && status !== 'dia' ? <span className={`num pacer-clock ${big ? 'big' : ''}`}>{mmss(waiting)}</span> : null}
+      </div>
+      {big ? <p className="lbl" style={{ margin: 0 }}>Volte a enviar quando o cronômetro zerar. Vai tocar um alarme, pode deixar esta aba aberta e fazer outra coisa.</p> : null}
+      {status === 'dia' ? <p className="lbl" style={{ margin: 0 }}>Você chegou a {cfg.perDay} primeiros contatos hoje. Respostas de quem já falou com você continuam liberadas.</p> : null}
+      <div className="pacer-stats">
+        <span>Bloco <b className="num">{pacer.blockCount}/{cfg.perBlock}</b></span>
+        <span>Última hora <b className="num">{pacer.lastHour}/{cfg.perHour}</b></span>
+        <span>Hoje <b className="num">{pacer.today}/{cfg.perDay}</b></span>
+      </div>
+      <div className="row" style={{ gap: 6 }}>
+        <button type="button" className="btn s g" onClick={() => setOpen((o) => !o)}><Icon name="sliders" size={13} />Ajustar ritmo</button>
+        <button type="button" className="btn s g" onClick={pacer.testAlarm}><Icon name="bell" size={13} />Testar alarme</button>
+        {status !== 'livre' && status !== 'dia' ? <button type="button" className="btn s g" onClick={pacer.skipWait}>Liberar agora</button> : null}
+      </div>
+      {open ? (
+        <div className="stack-s pacer-presets">
+          {Object.entries(PRESETS).map(([k, p]) => (
+            <label key={k} className="check" style={{ alignItems: 'flex-start' }}>
+              <input type="radio" name="pacer" checked={pacer.preset === k} onChange={() => pacer.setPreset(k)} />
+              <span><b style={{ fontWeight: 500 }}>{p.label}</b><br /><span className="lbl">{p.perBlock} por bloco · {p.gapMin}–{p.gapMax}s entre mensagens · pausa de {p.pauseMin} min · até {p.perHour}/hora e {p.perDay}/dia</span></span>
+            </label>
+          ))}
+          <button type="button" className="btn s g" style={{ alignSelf: 'flex-start' }} onClick={pacer.resetDay}>Zerar contagem de hoje</button>
+        </div>
+      ) : null}
     </div>
   )
 }

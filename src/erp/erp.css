@@ -620,3 +620,19 @@ body:has(.erp) { background: #0A0C0B; }
 .erp .prosp-current { padding: 12px 16px; display: flex; flex-direction: column; gap: 2px; border-color: var(--green-ln); background: linear-gradient(90deg, rgba(21,196,90,.08), transparent 70%), var(--s1); }
 .erp .prosp-current strong { font-size: 15px; font-weight: 600; }
 @media (max-width: 860px) { .erp .prosp-start { grid-template-columns: minmax(0, 1fr); } }
+
+/* ritmo de envio */
+.erp .pacer { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; transition: border-color .3s var(--ease), background .3s var(--ease); }
+.erp .pacer-title { font-size: 15px; font-weight: 600; }
+.erp .pacer-livre { border-color: var(--green-ln); }
+.erp .pacer-livre .pacer-title { color: var(--green-tx); }
+.erp .pacer-intervalo .pacer-title { color: var(--tx-2); }
+.erp .pacer-pausa, .erp .pacer-hora { border-color: var(--yel-ln); background: linear-gradient(90deg, var(--yel-bg), transparent 80%), var(--s1); }
+.erp .pacer-pausa .pacer-title, .erp .pacer-hora .pacer-title { color: var(--yel); }
+.erp .pacer-dia { border-color: var(--red-ln); }
+.erp .pacer-dia .pacer-title { color: var(--red); }
+.erp .pacer-clock { font-size: 18px; color: var(--tx-2); }
+.erp .pacer-clock.big { font-size: 34px; color: var(--yel); line-height: 1; }
+.erp .pacer-stats { display: flex; gap: 18px; flex-wrap: wrap; font-size: 13px; color: var(--mut); }
+.erp .pacer-stats b { color: var(--tx); font-weight: 500; }
+.erp .pacer-presets { padding-top: 6px; border-top: 1px solid var(--line); }
