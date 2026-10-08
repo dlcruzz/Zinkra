@@ -636,3 +636,11 @@ body:has(.erp) { background: #0A0C0B; }
 .erp .pacer-stats { display: flex; gap: 18px; flex-wrap: wrap; font-size: 13px; color: var(--mut); }
 .erp .pacer-stats b { color: var(--tx); font-weight: 500; }
 .erp .pacer-presets { padding-top: 6px; border-top: 1px solid var(--line); }
+
+/* ---------- canal da prospecção (WhatsApp / Instagram) ---------- */
+.erp .prosp-channel { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.erp .prosp-ch { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--r2, 12px); background: transparent; color: var(--tx); cursor: pointer; transition: border-color .2s var(--ease, ease), background .2s var(--ease, ease), transform .2s var(--ease, ease); }
+.erp .prosp-ch:hover { transform: translateY(-1px); }
+.erp .prosp-ch.on { border-color: var(--green-ln); background: rgba(21, 196, 90, .08); }
+.erp .prosp-ch.on svg { color: var(--green-tx); }
+@media (max-width: 520px) { .erp .prosp-channel { grid-template-columns: minmax(0, 1fr); } }

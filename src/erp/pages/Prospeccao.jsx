@@ -4,10 +4,10 @@ import { useMeta } from '../components/Shell'
 import { useAuth } from '../lib/auth'
 import { useData, fetchRows, update, notify, emitChange } from '../lib/data'
 import { getPipelines, registerActivity, defaultLeadStage } from '../lib/automations'
-import { today, waLink, igLink, igHandle, fillTemplate, relDay, MONTHS, startOfMonth, endOfMonth, businessDays, inRange, localDay } from '../lib/format'
+import { today, waLink, igLink, igDm, igHandle, fillTemplate, relDay, MONTHS, startOfMonth, endOfMonth, businessDays, inRange, localDay } from '../lib/format'
 import { Loading, ErrorBox, Bar, Badge, Select, AsyncButton, Field, Empty, CountUp } from '../components/ui'
 import { Icon } from '../lib/icons'
-import { usePacer, PRESETS, mmss } from '../lib/pacer'
+import { usePacer, mmss } from '../lib/pacer'
 
 const CONTACT = new Set(['whatsapp', 'ligacao', 'email', 'visita'])
 const COL_KEY = 'zk.prospeccao.playbook'
@@ -21,6 +21,7 @@ const FIRST = new Set(['M1', 'M2'])
 // o lead entra nesta prospecção? (público + local escolhidos, ou retornos de quem já foi contatado)
 function inSession(l, ses) {
   if (!ses) return false
+  if (ses.channel === 'instagram' && !l.instagram) return false
   if (ses.kind === 'retornos') return Boolean(l.last_contact_at)
   if (ses.kind === 'lista') return (ses.ids || []).includes(l.id)
   if (ses.niche && fold(l.niche) !== fold(ses.niche)) return false
@@ -28,7 +29,10 @@ function inSession(l, ses) {
   if (ses.neighborhood && fold(l.neighborhood) !== fold(ses.neighborhood)) return false
   return true
 }
-const sesLabel = (ses) => (ses?.kind === 'lista' ? ses.label || 'Leads selecionados' : ses?.kind === 'retornos' ? 'Retornos e follow-ups' : [ses?.niche, ses?.neighborhood, ses?.city].filter(Boolean).join(' · ') || 'Todos os leads')
+const sesLabel = (ses) => (ses?.channel === 'instagram' ? 'Instagram · ' : '') + (ses?.kind === 'lista' ? ses.label || 'Leads selecionados' : ses?.kind === 'retornos' ? 'Retornos e follow-ups' : [ses?.niche, ses?.neighborhood, ses?.city].filter(Boolean).join(' · ') || 'Todos os leads')
+const CH_KEY = 'zk.prospeccao.canal'
+const readCh = () => { try { return localStorage.getItem(CH_KEY) || 'whatsapp' } catch { return 'whatsapp' } }
+const saveCh = (c) => { try { localStorage.setItem(CH_KEY, c) } catch { /* sem storage */ } }
 const firstPending = (l) => !l.last_contact_at && (!l.next_step_code || FIRST.has(l.next_step_code))
 
 const readCol = () => { try { return localStorage.getItem(COL_KEY) || '' } catch { return '' } }
@@ -72,8 +76,10 @@ export default function Prospeccao() {
   const [, tick] = useState(0)
   const [pull, setPull] = useState(false)
   const [editing, setEditing] = useState(null) // { id, body }
-  const pacer = usePacer()
   const [ses, setSesState] = useState(readSes)
+  const channel = ses?.channel === 'instagram' ? 'instagram' : 'whatsapp'
+  const isIg = channel === 'instagram'
+  const pacer = usePacer(channel)
   const [ending, setEnding] = useState(false)
   const setSes = (v) => { setSesState(v); saveSes(v); setSkipped([]) }
 
@@ -136,7 +142,7 @@ export default function Prospeccao() {
 
   if (error) return <div className="page"><ErrorBox error={error} onRetry={reload} /></div>
   if (loading || !data) return <div className="page"><Loading rows={6} /></div>
-  if (!ses) return <NovaProspeccao data={data} onStart={setSes} />
+  if (!ses) return <NovaProspeccao data={data} onStart={(v) => { saveCh(v.channel); setSes(v) }} />
 
   const { P, playbooks, acts, goals } = data
   const contactsToday = acts.filter((a) => CONTACT.has(a.type)).length
@@ -159,7 +165,7 @@ export default function Prospeccao() {
 
   const act = async (result) => {
     if (!lead) return
-    await registerActivity(lead, { type: 'whatsapp', result, script_code: code || null })
+    await registerActivity(lead, { type: 'whatsapp', result, script_code: code || null, note: isIg ? 'Instagram Direct' : null })
     if (!lead.owner_id) await update('leads', lead.id, { owner_id: auth.uid }, { quiet: true })
     setSkipped((s) => [...s, lead.id])
   }
@@ -193,7 +199,7 @@ export default function Prospeccao() {
             </div>
           </div>
 
-          <PacerCard pacer={pacer} />
+          <PacerCard pacer={pacer} isIg={isIg} />
 
           {lead ? (
             <div className="card prosp-lead" key={lead.id}>
@@ -216,11 +222,24 @@ export default function Prospeccao() {
               <ol className="prosp-steps">
                 <li className={opened ? 'done' : 'on'}>
                   <span className="n">1</span>
-                  <div className="stack-s grow">
-                    <strong>Abra a conversa</strong>
-                    <span className="lbl">Abre direto no app do WhatsApp, já com a mensagem {code || ''} escrita.</span>
-                  </div>
-                  {wa ? (isReply || pacer.status === 'livre'
+                  {isIg ? (
+                    <div className="stack-s grow">
+                      <strong>Abra o Direct</strong>
+                      <span className="lbl">Copia a mensagem {code || ''} e abre a conversa com {igHandle(lead.instagram)}. Lá é só colar (Ctrl+V) e enviar.</span>
+                    </div>
+                  ) : (
+                    <div className="stack-s grow">
+                      <strong>Abra a conversa</strong>
+                      <span className="lbl">Abre direto no app do WhatsApp, já com a mensagem {code || ''} escrita.</span>
+                    </div>
+                  )}
+                  {isIg ? (isReply || pacer.status === 'livre'
+                    ? <a className="btn p" href={igDm(lead.instagram)} target="_blank" rel="noreferrer" onClick={() => {
+                      if (msg) navigator.clipboard.writeText(msg).then(() => setCopied(code)).catch(() => notify('Não consegui copiar. Copie no painel da direita.', 'err'))
+                      setOpened(true); if (!isReply) pacer.registerSend()
+                    }}><Icon name="ig" size={14} />Copiar e abrir Direct</a>
+                    : <button type="button" className="btn" disabled title="Respeitando o ritmo para não restringir o Instagram"><Icon name="clock" size={14} />{pacer.status === 'dia' ? 'Limite de hoje atingido' : `Aguarde ${mmss(pacer.waiting)}`}</button>)
+                  : wa ? (isReply || pacer.status === 'livre'
                     ? <a className="btn p" href={wa} onClick={() => { setOpened(true); if (!isReply) pacer.registerSend() }}><Icon name="wa" size={14} />Abrir WhatsApp</a>
                     : <button type="button" className="btn" disabled title="Respeitando o ritmo para não bloquear o WhatsApp"><Icon name="clock" size={14} />{pacer.status === 'dia' ? 'Limite de hoje atingido' : `Aguarde ${mmss(pacer.waiting)}`}</button>)
                     : lead.instagram ? <a className="btn p" href={igLink(lead.instagram)} target="_blank" rel="noreferrer" onClick={() => setOpened(true)}>Abrir Instagram</a>
@@ -230,7 +249,7 @@ export default function Prospeccao() {
                   <span className="n">2</span>
                   <div className="stack-s grow">
                     <strong>Mande as mensagens</strong>
-                    <span className="lbl">Copie cada balão no painel da direita, um por vez.</span>
+                    <span className="lbl">{isIg ? 'Se o script tiver mais de um balão, copie o próximo no painel da direita. Mande sem link na primeira mensagem.' : 'Copie cada balão no painel da direita, um por vez.'}</span>
                   </div>
                 </li>
                 <li className={opened ? 'on' : ''}>
@@ -240,7 +259,7 @@ export default function Prospeccao() {
               </ol>
               <div className="prosp-results">
                 {[['enviado', 'Enviado', '1 · follow-up em 3 dias'], ['respondeu', 'Respondeu', '2 · vai para Respondeu'],
-                  ['sem_resposta', 'Sem resposta', '3 · tenta de novo depois'], ['invalido', 'Número inválido', '4 · vai para Perdido']].map(([r, l, k]) => (
+                  ['sem_resposta', 'Sem resposta', '3 · tenta de novo depois'], ['invalido', isIg ? 'Perfil errado' : 'Número inválido', '4 · vai para Perdido']].map(([r, l, k]) => (
                   <AsyncButton key={r} className={`btn res-${r}`} onClick={() => act(r)}>
                     <span>{l}</span><kbd>{k}</kbd>
                   </AsyncButton>
@@ -337,10 +356,12 @@ function NovaProspeccao({ data, onStart }) {
   const auth = useAuth()
   const t = today()
   const { P, leads } = data
+  const [channel, setChannel] = useState(readCh)
+  const ig = channel === 'instagram'
   const mineOrFree = (l) => !l.owner_id || l.owner_id === auth.uid
-  const isOpen = (l) => P.stage(l.stage_id)?.kind === 'open'
-  const pool = useMemo(() => leads.filter((l) => isOpen(l) && !l.next_step_at && mineOrFree(l)), [leads]) // eslint-disable-line react-hooks/exhaustive-deps
-  const due = useMemo(() => leads.filter((l) => isOpen(l) && l.next_step_at && l.next_step_at <= t && mineOrFree(l)), [leads]) // eslint-disable-line react-hooks/exhaustive-deps
+  const isOpen = (l) => P.stage(l.stage_id)?.kind === 'open' && (!ig || Boolean(l.instagram))
+  const pool = useMemo(() => leads.filter((l) => isOpen(l) && !l.next_step_at && mineOrFree(l)), [leads, ig]) // eslint-disable-line react-hooks/exhaustive-deps
+  const due = useMemo(() => leads.filter((l) => isOpen(l) && l.next_step_at && l.next_step_at <= t && mineOrFree(l)), [leads, ig]) // eslint-disable-line react-hooks/exhaustive-deps
   const returns = due.filter((l) => l.last_contact_at)
   const pending = due.filter(firstPending)
 
@@ -351,6 +372,7 @@ function NovaProspeccao({ data, onStart }) {
   }
   const niches = useMemo(() => count(pool, 'niche'), [pool])
   const [niche, setNiche] = useState('')
+  useEffect(() => { if (niche && !niches.some((x) => fold(x.label) === fold(niche))) setNiche('') }, [niches]) // eslint-disable-line react-hooks/exhaustive-deps
   const byNiche = pool.filter((l) => !niche || fold(l.niche) === fold(niche))
   const cities = count(byNiche, 'city')
   const [city, setCity] = useState('')
@@ -373,7 +395,7 @@ function NovaProspeccao({ data, onStart }) {
     const pick = avail.slice(0, Math.max(0, n))
     for (const l of pick) await update('leads', l.id, { owner_id: auth.uid, next_step_at: t, next_step: 'Primeiro contato', next_step_code: l.has_site ? 'M2' : 'M1' }, { quiet: true, silent: true })
     emitChange('leads')
-    onStart({ kind: 'nova', niche, city, neighborhood: hood, at: Date.now() })
+    onStart({ kind: 'nova', channel, niche, city, neighborhood: hood, at: Date.now() })
     notify(`Prospecção iniciada com ${pick.length} lead(s).`, 'ok')
   }
   const giveBack = async (list) => {
@@ -384,9 +406,16 @@ function NovaProspeccao({ data, onStart }) {
 
   return (
     <div className="page">
-      <div className="page-head"><div className="t"><h1>Nova prospecção</h1><span className="lbl">Escolha o público e o local. Só esses leads entram na fila.</span></div></div>
+      <div className="page-head"><div className="t"><h1>Nova prospecção</h1><span className="lbl">Escolha o canal, o público e o local. Só esses leads entram na fila.</span></div></div>
       <div className="prosp-start">
         <section className="card pad stack">
+          <div className="prosp-channel" role="radiogroup" aria-label="Canal">
+            {[['whatsapp', 'wa', 'WhatsApp', 'Abre o app com a mensagem escrita'], ['instagram', 'ig', 'Instagram', 'Copia a mensagem e abre o Direct · só leads com @']].map(([k, ic, l, d]) => (
+              <button key={k} type="button" role="radio" aria-checked={channel === k} className={`prosp-ch ${channel === k ? 'on' : ''}`} onClick={() => { setChannel(k); saveCh(k) }}>
+                <Icon name={ic} size={18} /><span className="stack-s" style={{ gap: 1, textAlign: 'left' }}><strong>{l}</strong><span className="lbl">{d}</span></span>
+              </button>
+            ))}
+          </div>
           <div className="fields">
             <Field label="Público"><Select value={niche} onChange={(v) => setNiche(v || '')} placeholder="Escolha o público" options={niches.map((x) => [x.label, `${x.label} (${x.n})`])} /></Field>
             <Field label="Cidade"><Select value={city} onChange={(v) => setCity(v || '')} placeholder="Todas as cidades" options={cities.map((x) => [x.label, `${x.label} (${x.n})`])} /></Field>
@@ -394,7 +423,7 @@ function NovaProspeccao({ data, onStart }) {
             <Field label="Quantos leads"><input type="number" min="1" className="in num" value={n} onChange={(e) => setN(Number(e.target.value) || 0)} /></Field>
           </div>
           <div className="row" style={{ justifyContent: 'space-between' }}>
-            <span className="lbl">{avail.length ? `${avail.length} lead(s) disponíveis com esse filtro, nunca puxados para a fila.` : niche ? 'Nenhum lead disponível com esse filtro. Capte mais em Captação.' : 'Escolha um público para começar.'}</span>
+            <span className="lbl">{avail.length ? `${avail.length} lead(s) ${ig ? 'com Instagram ' : ''}disponíveis com esse filtro, nunca puxados para a fila.` : niche ? 'Nenhum lead disponível com esse filtro. Capte mais em Captação.' : niches.length ? 'Escolha um público para começar.' : ig ? 'Nenhum lead com Instagram ainda. Capte em Captação → Onde captar: Instagram.' : 'Escolha um público para começar.'}</span>
             <AsyncButton className="btn p" disabled={!niche || !avail.length || n < 1} onClick={start}><Icon name="play" size={14} />Iniciar prospecção ({Math.min(n, avail.length)})</AsyncButton>
           </div>
         </section>
@@ -404,7 +433,7 @@ function NovaProspeccao({ data, onStart }) {
             <section className="card pad stack-s">
               <h2>Retornos para hoje</h2>
               <span className="lbl">{returns.length} lead(s) já contatados aguardando follow-up ou resposta sua.</span>
-              <button type="button" className="btn" style={{ alignSelf: 'flex-start' }} onClick={() => onStart({ kind: 'retornos', at: Date.now() })}>Fazer os retornos</button>
+              <button type="button" className="btn" style={{ alignSelf: 'flex-start' }} onClick={() => onStart({ kind: 'retornos', channel, at: Date.now() })}>Fazer os retornos</button>
             </section>
           ) : null}
           {groups.length ? (
@@ -415,7 +444,7 @@ function NovaProspeccao({ data, onStart }) {
                 <div key={g.niche + g.city} className="li" style={{ flexWrap: 'wrap' }}>
                   <span className="grow" style={{ minWidth: 140 }}><strong style={{ fontWeight: 500 }}>{g.niche || 'Sem público'}</strong><span className="lbl"> · {g.city || 'sem cidade'} · {g.leads.length}</span></span>
                   <div className="row">
-                    <button type="button" className="btn s" onClick={() => onStart({ kind: 'nova', niche: g.niche, city: g.city, neighborhood: '', at: Date.now() })}>Continuar</button>
+                    <button type="button" className="btn s" onClick={() => onStart({ kind: 'nova', channel, niche: g.niche, city: g.city, neighborhood: '', at: Date.now() })}>Continuar</button>
                     <AsyncButton className="btn s g" onClick={() => giveBack(g.leads)}>Devolver para a base</AsyncButton>
                   </div>
                 </div>
@@ -459,7 +488,8 @@ function EndModal({ ses, leads, onClose, onEnd }) {
 }
 
 // ---------- ritmo de envio ----------
-function PacerCard({ pacer }) {
+function PacerCard({ pacer, isIg }) {
+  const PRESETS = pacer.presets
   const [open, setOpen] = useState(false)
   const { cfg, status, waiting } = pacer
   const big = status === 'pausa' || status === 'hora'
@@ -468,7 +498,7 @@ function PacerCard({ pacer }) {
     <div className={`card pacer pacer-${status}`}>
       <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'nowrap', gap: 12 }}>
         <div className="stack-s" style={{ gap: 2, minWidth: 0 }}>
-          <span className="lbl">Ritmo de envio · {PRESETS[pacer.preset]?.label}</span>
+          <span className="lbl">Ritmo {isIg ? 'do Direct' : 'do WhatsApp'} · {PRESETS[pacer.preset]?.label}</span>
           <strong className="pacer-title">{title}</strong>
         </div>
         {status !== 'livre' && status !== 'dia' ? <span className={`num pacer-clock ${big ? 'big' : ''}`}>{mmss(waiting)}</span> : null}
@@ -489,7 +519,7 @@ function PacerCard({ pacer }) {
         <div className="stack-s pacer-presets">
           {Object.entries(PRESETS).map(([k, p]) => (
             <label key={k} className="check" style={{ alignItems: 'flex-start' }}>
-              <input type="radio" name="pacer" checked={pacer.preset === k} onChange={() => pacer.setPreset(k)} />
+              <input type="radio" name={`pacer-${pacer.channel}`} checked={pacer.preset === k} onChange={() => pacer.setPreset(k)} />
               <span><b style={{ fontWeight: 500 }}>{p.label}</b><br /><span className="lbl">{p.perBlock} por bloco · {p.gapMin}–{p.gapMax}s entre mensagens · pausa de {p.pauseMin} min · até {p.perHour}/hora e {p.perDay}/dia</span></span>
             </label>
           ))}

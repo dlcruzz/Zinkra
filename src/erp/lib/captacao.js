@@ -124,6 +124,64 @@ ${COLS.join('\t')}
 Clínica Exemplo\t(11) 98765-4321\t@clinicaexemplo\tNão\tSantana\t${queries[0] || ''}`
 }
 
+// Prompt de captação pelo Instagram (Google + perfil aberto no Instagram já logado)
+export function buildInstagramPrompt({ code, niche, city, uf, terms, onlyNoSite }) {
+  const list = terms.map((t, i) => {
+    const local = t.neighborhood ? `"${t.neighborhood}" "${city}"` : `"${city}"`
+    return `${i + 1}. ${t.query}\n   Google: site:instagram.com "${niche}" ${local}\n   No Instagram: ${niche} ${t.neighborhood || city}`
+  }).join('\n')
+  const filtro = onlyNoSite
+    ? `- Capte SOMENTE quem NÃO tem site próprio. Link da bio para Linktree, WhatsApp, agenda online, Doctoralia ou página de rede social NÃO conta como site: isso é "sem site".
+- Se o link da bio for um site próprio de verdade (domínio próprio, página institucional), DESCARTE.`
+    : `- Capte todos e preencha "Site atual?" com Sim (link da bio é site próprio) ou Não (Linktree, WhatsApp, agenda, sem link).`
+  return `Você é meu assistente de captação de leads da Zinkra. Use a extensão Claude in Chrome. Estou logado no Instagram da Zinkra neste Chrome.
+
+LOTE ${code} · ${niche} · ${city} - ${uf} · FONTE: INSTAGRAM
+
+OBJETIVO
+Encontrar perfis comerciais de ${niche.toLowerCase()} em ${city} - ${uf} no Instagram, para eu prospectar pelo Direct oferecendo sites e sistemas.
+
+BUSCAS (faça todas, uma por vez, nesta ordem)
+${list}
+
+COMO BUSCAR (para cada busca)
+1. Pesquise no Google a linha "Google" exatamente como está. Veja as 2 primeiras páginas de resultados.
+2. Se vierem poucos perfis, use também a busca do próprio Instagram (instagram.com/explore/search) com a linha "No Instagram".
+3. Abra cada perfil encontrado (instagram.com/perfil) e leia o nome, a bio, o link da bio e o endereço, se tiver.
+4. Fique só com perfis COMERCIAIS do nicho que atendem em ${city}: escritório, clínica, profissional autônomo com perfil de trabalho. Descarte perfis pessoais, de estudantes, de outras cidades, franquias nacionais e páginas de cursos ou vagas.
+5. Se a busca não render nenhum lead válido, registre UMA linha com Empresa = "${NO_RESULT}" e Onde achei = a busca.
+
+CUIDADO COM A CONTA (muito importante)
+- Vá devagar: espere de 5 a 10 segundos entre um perfil e outro. Abra no máximo 40 perfis por lote.
+- NÃO siga, NÃO curta, NÃO comente, NÃO mande Direct, NÃO clique em "Seguir" nem em botões de contato. Só leia.
+- Se o Instagram mostrar aviso de "tente novamente mais tarde", limite de ações, verificação ou CAPTCHA, PARE na hora e me entregue o que já tiver.
+
+FILTRO
+${filtro}
+
+COLUNAS (exatamente estas 6, nesta ordem, separadas por TAB)
+${COLS.join(' | ')}
+
+- Empresa: nome do perfil (o nome em negrito, não o @). Se não tiver, use o @.
+- Telefone/WhatsApp: só se aparecer na bio, no botão de contato visível ou no link da bio (wa.me/55...). Com DDD. Se não tiver, "-".
+- Instagram: o @perfil. Obrigatório.
+- Site atual?: "Não"${onlyNoSite ? ' (nesta lista, sempre Não)' : ' ou "Sim"'}.
+- Bairro: o bairro do endereço da bio ou do perfil. Se não der para saber, "-".
+- Onde achei: a busca EXATA da lista acima (a primeira linha de cada item, sem o "Google:"), igual, sem mudar nada.
+
+REGRAS
+- Toda célula precisa ter conteúdo. Onde faltar dado, use "-". Nunca deixe coluna vazia nem desloque colunas.
+- Não duplique: mesmo @ ou mesmo telefone = uma linha só.
+- Não invente dados. Só o que estiver no perfil.
+- Se não conseguir terminar todas as buscas, me diga quais faltaram.
+
+ENTREGA
+Ao final, me entregue tudo em UM bloco de código no formato TSV (com a linha de cabeçalho) e também como arquivo .tsv para baixar. Exemplo:
+
+${COLS.join('\t')}
+Escritório Exemplo\t-\t@escritorioexemplo\tNão\tCentro\t${terms[0]?.query || ''}`
+}
+
 // Mini prompt para descobrir bairros de uma cidade nova
 export function hoodsPrompt(city, uf) {
   return `Liste os principais bairros e regiões comerciais de ${city} - ${uf}, onde existe mais comércio, clínicas e escritórios. Responda só com os nomes, um por linha, sem numeração e sem comentários. No máximo 40.`

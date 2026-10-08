@@ -1,4 +1,4 @@
-// Controle de ritmo dos envios no WhatsApp: intervalo entre mensagens, pausa a cada bloco,
+// Controle de ritmo dos envios (WhatsApp ou Direct do Instagram): intervalo entre mensagens, pausa a cada bloco,
 // limite por hora e por dia, e alarme sonoro quando pode voltar a enviar.
 // Os números são estimativas da prática (o WhatsApp não publica limites oficiais).
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -8,17 +8,27 @@ export const PRESETS = {
   cuidadoso: { label: 'Cuidadoso', perBlock: 5, gapMin: 60, gapMax: 120, pauseMin: 15, perHour: 15, perDay: 40 },
   normal: { label: 'Normal (número aquecido)', perBlock: 8, gapMin: 45, gapMax: 90, pauseMin: 10, perHour: 25, perDay: 80 },
 }
-const KEY = 'zk.pacer.v1'
+// Direct para quem não te segue é bem mais vigiado: ritmo mais lento e limite diário menor
+export const IG_PRESETS = {
+  ig_seguro: { label: 'Seguro (conta nova ou pouco usada)', perBlock: 4, gapMin: 120, gapMax: 240, pauseMin: 25, perHour: 8, perDay: 20 },
+  ig_cuidadoso: { label: 'Cuidadoso', perBlock: 5, gapMin: 90, gapMax: 180, pauseMin: 20, perHour: 12, perDay: 30 },
+  ig_normal: { label: 'Normal (conta ativa, com posts e seguidores)', perBlock: 6, gapMin: 60, gapMax: 120, pauseMin: 15, perHour: 15, perDay: 45 },
+}
+const CHANNELS = {
+  whatsapp: { key: 'zk.pacer.v1', presets: PRESETS, def: 'recuperacao' },
+  instagram: { key: 'zk.pacer.ig.v1', presets: IG_PRESETS, def: 'ig_seguro' },
+}
 const dayKey = () => new Date().toLocaleDateString('sv-SE')
-const load = () => { try { return JSON.parse(localStorage.getItem(KEY) || 'null') } catch { return null } }
-const save = (v) => { try { localStorage.setItem(KEY, JSON.stringify(v)) } catch { /* sem storage */ } }
+const load = (key) => { try { return JSON.parse(localStorage.getItem(key) || 'null') } catch { return null } }
+const save = (key, v) => { try { localStorage.setItem(key, JSON.stringify(v)) } catch { /* sem storage */ } }
 
-function initial() {
-  const s = load()
-  const base = { preset: 'recuperacao', cfg: PRESETS.recuperacao, day: dayKey(), sends: [], blockCount: 0, until: 0, reason: '' }
-  if (!s) return base
-  if (s.day !== dayKey()) return { ...base, preset: s.preset, cfg: s.cfg || PRESETS[s.preset] || base.cfg }
-  return { ...base, ...s }
+function initial(channel) {
+  const ch = CHANNELS[channel] || CHANNELS.whatsapp
+  const s = load(ch.key)
+  const base = { channel, preset: ch.def, cfg: ch.presets[ch.def], day: dayKey(), sends: [], blockCount: 0, until: 0, reason: '' }
+  if (!s || !ch.presets[s.preset]) return base
+  if (s.day !== dayKey()) return { ...base, preset: s.preset, cfg: ch.presets[s.preset] }
+  return { ...base, ...s, channel, cfg: ch.presets[s.preset] }
 }
 
 // ---------- alarme ----------
@@ -49,13 +59,22 @@ function notifyDesktop(text) {
   } catch { /* sem notificação */ }
 }
 
-export function usePacer() {
-  const [st, setSt] = useState(initial)
+export function usePacer(channel = 'whatsapp') {
+  const ch = CHANNELS[channel] || CHANNELS.whatsapp
+  const [st, setSt] = useState(() => initial(channel))
   const [now, setNow] = useState(Date.now())
   const rang = useRef(null)
   if (rang.current === null) rang.current = !(st.until > Date.now())
 
-  useEffect(() => { save(st) }, [st])
+  // trocou de canal: carrega a contagem daquele canal (cada um tem seus limites)
+  useEffect(() => {
+    if (st.channel === channel) return
+    cancelAlarm()
+    const n = initial(channel)
+    rang.current = !(n.until > Date.now())
+    setSt(n)
+  }, [channel]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (st.channel === channel) save(ch.key, st) }, [st]) // eslint-disable-line react-hooks/exhaustive-deps
   // só atualiza a cada segundo enquanto há cronômetro rodando; parado, atualiza a cada 30 s
   useEffect(() => {
     const fast = st.until > Date.now()
@@ -108,11 +127,11 @@ export function usePacer() {
     })
   }, [])
 
-  const setPreset = (p) => setSt((s) => ({ ...s, preset: p, cfg: PRESETS[p] }))
+  const setPreset = (p) => setSt((s) => ({ ...s, preset: p, cfg: ch.presets[p] }))
   const skipWait = () => { cancelAlarm(); rang.current = true; setSt((s) => ({ ...s, until: 0, reason: '' })) }
   const resetDay = () => setSt((s) => ({ ...s, sends: [], blockCount: 0, until: 0, reason: '' }))
 
-  return { cfg, preset: st.preset, today, lastHour, blockCount: st.blockCount, waiting, status, registerSend, setPreset, skipWait, resetDay, testAlarm: () => alarm(1) }
+  return { channel, presets: ch.presets, cfg, preset: st.preset, today, lastHour, blockCount: st.blockCount, waiting, status, registerSend, setPreset, skipWait, resetDay, testAlarm: () => alarm(1) }
 }
 
 export const mmss = (ms) => { const s = Math.ceil(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` }

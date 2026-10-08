@@ -175,6 +175,8 @@ export const igLink = (ig) => {
   return `https://instagram.com/${h}`
 }
 export const igHandle = (ig) => (ig ? '@' + String(ig).trim().replace(/^@/, '').replace(/^https?:\/\/(www\.)?instagram\.com\//, '').replace(/\/$/, '') : '')
+// abre a conversa do Direct com o perfil (o Instagram não aceita texto pronto no link)
+export const igDm = (ig) => (ig ? `https://ig.me/m/${igHandle(ig).slice(1).split(/[/?]/)[0]}` : null)
 export const normalizePhone = (p) => onlyDigits(p).replace(/^55(?=\d{10,11}$)/, '')
 
 // preenche [EMPRESA], [NOME], [BAIRRO]… num texto de playbook

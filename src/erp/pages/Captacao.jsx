@@ -7,7 +7,7 @@ import { defaultLeadStage } from '../lib/automations'
 import { today, dm, igHandle, normalizePhone, pct } from '../lib/format'
 import { yes } from '../lib/csv'
 import {
-  UFS, UF_NAME, knownHoods, regionOf, fetchCities, fold, locKey, termQuery, batchCode, buildPrompt, hoodsPrompt,
+  UFS, UF_NAME, knownHoods, regionOf, fetchCities, fold, locKey, termQuery, batchCode, buildPrompt, buildInstagramPrompt, hoodsPrompt,
   readResultFile, parseResult, matchTerm, NO_RESULT, COLS,
 } from '../lib/captacao'
 import { PageHead, Loading, ErrorBox, Bar, Badge, Select, AsyncButton, Field, Empty, Tabs, Modal, Stat } from '../components/ui'
@@ -17,6 +17,8 @@ import { supabase } from '../lib/supabase'
 const TERM_COLS = 'id, niche, neighborhood, city, uf, region, done, done_at, leads_found, batch_id, reserved_at'
 
 // termos são milhares: busca as páginas de 1000 em paralelo
+const isIgBatch = (b) => (b?.terms || []).some((t) => t.source === 'instagram')
+
 async function fetchTerms() {
   const base = () => supabase.from('search_terms').select(TERM_COLS).is('archived_at', null)
   const { count, error } = await supabase.from('search_terms').select('id', { count: 'exact', head: true }).is('archived_at', null)
@@ -136,6 +138,7 @@ function Nova({ data, preset, onImport }) {
   const [city, setCity] = useState(preset.city || 'São Paulo')
   const [size, setSize] = useState(5)
   const [onlyNoSite, setOnlyNoSite] = useState(true)
+  const [source, setSource] = useState('maps') // maps | instagram
   const [extra, setExtra] = useState([])
   const [newHoods, setNewHoods] = useState('')
   const [sel, setSel] = useState(null) // null = seleção automática
@@ -205,10 +208,14 @@ function Nova({ data, preset, onImport }) {
     const byHood = new Map(created.map((t) => [fold(t.neighborhood), t]))
     const chosenTerms = pick.map((l) => l.term || byHood.get(fold(l.neighborhood))).filter(Boolean)
     const code = batchCode()
-    const list = chosenTerms.map((t) => ({ id: t.id, neighborhood: t.neighborhood, query: termQuery({ niche: nicheName, neighborhood: t.neighborhood, city: cityName, uf }) }))
-    const prompt = buildPrompt({ code, niche: nicheName, city: cityName, uf, queries: list.map((x) => x.query), onlyNoSite })
+    const ig = source === 'instagram'
+    const list = chosenTerms.map((t) => ({ id: t.id, neighborhood: t.neighborhood, query: termQuery({ niche: nicheName, neighborhood: t.neighborhood, city: cityName, uf }), ...(ig ? { source: 'instagram' } : {}) }))
+    const prompt = ig
+      ? buildInstagramPrompt({ code, niche: nicheName, city: cityName, uf, terms: list, onlyNoSite })
+      : buildPrompt({ code, niche: nicheName, city: cityName, uf, queries: list.map((x) => x.query), onlyNoSite })
     const batch = await insert('capture_batches', { code, niche: nicheName, city: cityName, uf, terms: list, only_no_site: onlyNoSite, prompt, owner_id: auth.uid }, { silent: true })
-    await updateWhere('search_terms', (q) => q.in('id', list.map((x) => x.id)), { batch_id: batch.id, reserved_at: new Date().toISOString() }, { quiet: true, silent: true })
+    // a cobertura de bairros é do Google Maps: lote do Instagram não reserva nem marca as buscas
+    if (!ig) await updateWhere('search_terms', (q) => q.in('id', list.map((x) => x.id)), { batch_id: batch.id, reserved_at: new Date().toISOString() }, { quiet: true, silent: true })
     emitChange('search_terms', 'capture_batches')
     setResult(batch)
     copy(prompt, 'prompt')
@@ -220,7 +227,7 @@ function Nova({ data, preset, onImport }) {
         <div className="card" style={{ flex: '2 1 560px', minWidth: 0, padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div className="row" style={{ justifyContent: 'space-between' }}>
             <div className="stack-s" style={{ gap: 2 }}>
-              <h2>Lote <span className="num ok">{result.code}</span> · {result.niche} · {result.city} - {result.uf}</h2>
+              <h2>Lote <span className="num ok">{result.code}</span>{result.terms[0]?.source === 'instagram' ? ' · Instagram' : ''} · {result.niche} · {result.city} - {result.uf}</h2>
               <span className="lbl">{result.terms.length} busca(s). {copied === 'prompt' ? 'Prompt copiado.' : 'Copie o prompt e cole no Claude.'}</span>
             </div>
             <div className="row">
@@ -236,7 +243,7 @@ function Nova({ data, preset, onImport }) {
           <h2 style={{ paddingBottom: 8 }}>Como usar</h2>
           <ol className="lbl" style={{ lineHeight: 1.8, paddingLeft: 18 }}>
             <li>No Chrome, abra o Claude com a extensão ativa.</li>
-            <li>Cole o prompt e deixe ele rodar as buscas no Google Maps.</li>
+            <li>{result.terms[0]?.source === 'instagram' ? 'Cole o prompt e deixe ele buscar os perfis (Google + Instagram). Mantenha o Instagram da Zinkra logado.' : 'Cole o prompt e deixe ele rodar as buscas no Google Maps.'}</li>
             <li>Copie o bloco TSV que ele devolver (ou baixe o arquivo).</li>
             <li>Clique em <b>Importar resultado</b>. Os leads entram no CRM e as buscas ficam marcadas como feitas.</li>
           </ol>
@@ -261,7 +268,15 @@ function Nova({ data, preset, onImport }) {
           </Field>
           <Field label="Buscas por lote" hint="5 a 8 rende bem numa conversa"><input type="number" min={1} max={30} className="in num" value={size} onChange={(e) => { setSize(Math.max(1, Number(e.target.value) || 1)); setSel(null) }} /></Field>
         </div>
-        <label className="check"><input type="checkbox" checked={onlyNoSite} onChange={(e) => setOnlyNoSite(e.target.checked)} />Captar só quem não tem site próprio</label>
+        <div className="row" style={{ gap: 18, flexWrap: 'wrap' }}>
+          <div className="row" style={{ gap: 6 }} role="radiogroup" aria-label="Onde captar">
+            <span className="lbl">Onde captar</span>
+            <button type="button" className={`chip ${source === 'maps' ? 'on' : ''}`} onClick={() => setSource('maps')}><Icon name="search" size={12} />Google Maps</button>
+            <button type="button" className={`chip ${source === 'instagram' ? 'on' : ''}`} onClick={() => setSource('instagram')}><Icon name="ig" size={12} />Instagram</button>
+          </div>
+          <label className="check"><input type="checkbox" checked={onlyNoSite} onChange={(e) => setOnlyNoSite(e.target.checked)} />Captar só quem não tem site próprio</label>
+        </div>
+        {source === 'instagram' ? <div className="note y">O Claude abre os perfis no Instagram logado neste Chrome, devagar e só lendo (sem seguir nem mandar Direct). Os leads entram com o @ para você prospectar pelo canal Instagram.</div> : null}
 
         {nicheName && cityName ? (
           <>
@@ -324,7 +339,7 @@ function Nova({ data, preset, onImport }) {
         ) : <Empty icon="search">Escolha o nicho e a cidade para ver o que já foi buscado.</Empty>}
 
         <div className="row" style={{ justifyContent: 'space-between', borderTop: '1px solid var(--line)', paddingTop: 16 }}>
-          <span className="lbl">{chosen.length} local(is) no lote{onlyNoSite ? ' · só sem site' : ''}</span>
+          <span className="lbl">{chosen.length} local(is) no lote{source === 'instagram' ? ' · Instagram' : ''}{onlyNoSite ? ' · só sem site' : ''}</span>
           <AsyncButton className="btn p" disabled={!nicheName || !cityName || !chosen.length} onClick={generate}><Icon name="spark" size={14} />Gerar prompt</AsyncButton>
         </div>
       </div>
@@ -335,7 +350,7 @@ function Nova({ data, preset, onImport }) {
           {batches.filter((b) => b.status === 'aguardando').slice(0, 6).map((b) => (
             <div key={b.id} className="li">
               <div className="stack-s grow" style={{ gap: 2, minWidth: 0 }}>
-                <span className="ellipsis"><span className="num ok">{b.code}</span> · {b.niche}</span>
+                <span className="ellipsis"><span className="num ok">{b.code}</span>{isIgBatch(b) ? ' · Instagram' : ''} · {b.niche}</span>
                 <span className="lbl ellipsis">{b.city} - {b.uf} · {b.terms.length} busca(s) · {dm(b.created_at.slice(0, 10))}</span>
               </div>
               <button type="button" className="btn s" onClick={() => onImport(b)}>Importar</button>
@@ -480,7 +495,7 @@ function Lotes({ data, onImport }) {
         <tbody>
           {batches.map((b) => (
             <tr key={b.id}>
-              <td className="num ok">{b.code}</td>
+              <td className="num ok">{b.code}{isIgBatch(b) ? <Badge kind="y">Insta</Badge> : null}</td>
               <td className="num lbl">{dm(b.created_at.slice(0, 10))}</td>
               <td>{b.niche}</td>
               <td className="ellipsis" style={{ maxWidth: 260 }} title={b.terms.map((t) => hoodLabel(t.neighborhood)).join(', ')}>{b.city} - {b.uf} <span className="lbl">· {b.terms.map((t) => hoodLabel(t.neighborhood)).join(', ')}</span></td>
@@ -524,6 +539,7 @@ function ImportModal({ batch, data, onClose }) {
   const [doneMap, setDoneMap] = useState({})
   const [busy, setBusy] = useState(false)
   const bTerms = batch.terms || []
+  const ig = isIgBatch(batch)
 
   const load = (text, name) => {
     const p = parseResult(text)
@@ -582,7 +598,7 @@ function ImportModal({ batch, data, onClose }) {
         neighborhood: r.neighborhood || term?.neighborhood || null,
         phone: r.phone || null, instagram: r.instagram ? igHandle(r.instagram) : null,
         has_site: r.site ? yes(r.site) : false,
-        origin: term?.query || r.where || 'Captação',
+        origin: ig ? `Instagram · ${term?.neighborhood || batch.city}` : term?.query || r.where || 'Captação',
         search_term_id: term?.id || null,
         notes: `Captação · lote ${batch.code}`,
         owner_id: owner || null, ...st,
@@ -594,7 +610,7 @@ function ImportModal({ batch, data, onClose }) {
         created += res.length
       }
       const now = new Date().toISOString()
-      for (const p of analysis.per) {
+      for (const p of ig ? [] : analysis.per) {
         if (doneMap[p.term.id]) await update('search_terms', p.term.id, { done: true, leads_found: p.fresh + p.dup, batch_id: batch.id, reserved_at: null }, { quiet: true, silent: true })
         else await update('search_terms', p.term.id, { batch_id: null, reserved_at: null }, { quiet: true, silent: true })
       }
@@ -638,14 +654,14 @@ function ImportModal({ batch, data, onClose }) {
           </div>
           {unmatched ? <div className="note y">{unmatched} linha(s) não bateram com nenhuma busca do lote pelo "Onde achei". Elas entram mesmo assim, sem marcar busca.</div> : null}
           <div className="tbl-wrap"><table className="tbl">
-            <thead><tr><th>Busca</th><th className="r">Linhas</th><th className="r">Novos</th><th className="r">Repetidos</th><th>Marcar como feita</th></tr></thead>
+            <thead><tr><th>Busca</th><th className="r">Linhas</th><th className="r">Novos</th><th className="r">Repetidos</th>{ig ? null : <th>Marcar como feita</th>}</tr></thead>
             <tbody>
               {analysis.per.map((p) => (
                 <tr key={p.term.id}>
                   <td>{p.term.query}</td>
                   <td className="num r">{p.rows}</td><td className="num r">{p.fresh}</td><td className="num r">{p.dup}</td>
-                  <td><label className="check"><input type="checkbox" checked={!!doneMap[p.term.id]} onChange={(e) => setDoneMap({ ...doneMap, [p.term.id]: e.target.checked })} />
-                    {analysis.touched.has(p.term.id) ? 'feita' : <span className="lbl">não veio no resultado</span>}</label></td>
+                  {ig ? null : <td><label className="check"><input type="checkbox" checked={!!doneMap[p.term.id]} onChange={(e) => setDoneMap({ ...doneMap, [p.term.id]: e.target.checked })} />
+                    {analysis.touched.has(p.term.id) ? 'feita' : <span className="lbl">não veio no resultado</span>}</label></td>}
                 </tr>
               ))}
             </tbody>
@@ -668,8 +684,8 @@ function ImportModal({ batch, data, onClose }) {
           <div className="fields">
             {auth.isTotal('crm') ? <Field label="Responsável"><Select value={owner} onChange={(v) => setOwner(v || '')} placeholder="sem dono (fila de todos)" options={auth.members.map((m) => [m.id, m.name])} /></Field> : null}
           </div>
-          <label className="check"><input type="checkbox" checked={queueToday} onChange={(e) => setQueueToday(e.target.checked)} />Colocar os novos na fila de prospecção de hoje (mensagem M1)</label>
-          <span className="lbl">Sem marcar, eles ficam em Leads e você puxa para a fila quando quiser, em Prospecção → Puxar novos leads.</span>
+          {ig ? null : <label className="check"><input type="checkbox" checked={queueToday} onChange={(e) => setQueueToday(e.target.checked)} />Colocar os novos na fila de prospecção de hoje (mensagem M1)</label>}
+          <span className="lbl">{ig ? 'Eles ficam em Leads. Para mandar Direct, vá em Prospecção, escolha o canal Instagram e o público.' : 'Sem marcar, eles ficam em Leads e você puxa para a fila quando quiser, em Prospecção → Puxar novos leads.'}</span>
         </div>
       )}
     </Modal>
