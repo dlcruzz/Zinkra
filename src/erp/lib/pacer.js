@@ -53,6 +53,16 @@ export function alarm(times = 3, delaySec = 0) {
     }
   }
 }
+// um "pim" só: avisa que acabou o intervalo entre uma mensagem e outra
+export function ping(delaySec = 0) {
+  unlockAudio(); if (!ctx) return
+  const t = ctx.currentTime + 0.05 + delaySec
+  const o = ctx.createOscillator(); const g = ctx.createGain()
+  o.type = 'sine'; o.frequency.setValueAtTime(1320, t)
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.7, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.45)
+  o.connect(g).connect(ctx.destination); o.start(t); o.stop(t + 0.5)
+  if (delaySec) scheduled.push(o)
+}
 function notifyDesktop(text) {
   try {
     if ('Notification' in window && Notification.permission === 'granted') new Notification('Prospecção liberada', { body: text, silent: false })
@@ -97,7 +107,11 @@ export function usePacer(channel = 'whatsapp') {
       if (st.reason === 'pausa' || st.reason === 'hora') {
         if (!scheduled.length) alarm(3) // pausa iniciada antes de recarregar a página
         scheduled = []
-        notifyDesktop('Pode voltar a enviar mensagens.')
+        notifyDesktop('Pausa encerrada. Pode voltar a enviar mensagens.')
+      } else if (st.reason === 'intervalo') {
+        if (!scheduled.length) ping()
+        scheduled = []
+        notifyDesktop('Pode mandar a próxima mensagem.')
       }
       const t = document.title; document.title = '🔔 Pode enviar! · ' + t.replace(/^🔔 Pode enviar! · /, '')
       setTimeout(() => { document.title = document.title.replace(/^🔔 Pode enviar! · /, '') }, 15000)
@@ -123,6 +137,7 @@ export function usePacer(channel = 'whatsapp') {
       rang.current = false
       cancelAlarm()
       if (reason === 'pausa' || reason === 'hora') alarm(3, (until - t) / 1000)
+      else if (reason === 'intervalo') ping((until - t) / 1000)
       return { ...s, sends, blockCount, until, reason }
     })
   }, [])
@@ -131,7 +146,7 @@ export function usePacer(channel = 'whatsapp') {
   const skipWait = () => { cancelAlarm(); rang.current = true; setSt((s) => ({ ...s, until: 0, reason: '' })) }
   const resetDay = () => setSt((s) => ({ ...s, sends: [], blockCount: 0, until: 0, reason: '' }))
 
-  return { channel, presets: ch.presets, cfg, preset: st.preset, today, lastHour, blockCount: st.blockCount, waiting, status, registerSend, setPreset, skipWait, resetDay, testAlarm: () => alarm(1) }
+  return { channel, presets: ch.presets, cfg, preset: st.preset, today, lastHour, blockCount: st.blockCount, waiting, status, registerSend, setPreset, skipWait, resetDay, testAlarm: () => alarm(1), testPing: () => ping() }
 }
 
 export const mmss = (ms) => { const s = Math.ceil(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` }

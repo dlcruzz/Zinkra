@@ -512,7 +512,8 @@ function PacerCard({ pacer, isIg }) {
       </div>
       <div className="row" style={{ gap: 6 }}>
         <button type="button" className="btn s g" onClick={() => setOpen((o) => !o)}><Icon name="sliders" size={13} />Ajustar ritmo</button>
-        <button type="button" className="btn s g" onClick={pacer.testAlarm}><Icon name="bell" size={13} />Testar alarme</button>
+        <button type="button" className="btn s g" onClick={pacer.testPing} title="Toca quando acaba o intervalo entre uma mensagem e outra">Testar pim</button>
+        <button type="button" className="btn s g" onClick={pacer.testAlarm} title="Toca quando acaba a pausa do bloco"><Icon name="bell" size={13} />Testar alarme</button>
         {status !== 'livre' && status !== 'dia' ? <button type="button" className="btn s g" onClick={pacer.skipWait}>Liberar agora</button> : null}
       </div>
       {open ? (
