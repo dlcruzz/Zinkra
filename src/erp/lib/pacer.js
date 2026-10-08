@@ -56,7 +56,12 @@ export function usePacer() {
   if (rang.current === null) rang.current = !(st.until > Date.now())
 
   useEffect(() => { save(st) }, [st])
-  useEffect(() => { const i = setInterval(() => setNow(Date.now()), 500); return () => clearInterval(i) }, [])
+  // só atualiza a cada segundo enquanto há cronômetro rodando; parado, atualiza a cada 30 s
+  useEffect(() => {
+    const fast = st.until > Date.now()
+    const i = setInterval(() => { const n = Date.now(); setNow(n); if (fast && n >= st.until + 1000) clearInterval(i) }, fast ? 1000 : 30000)
+    return () => clearInterval(i)
+  }, [st.until])
   // virou o dia: zera contadores
   useEffect(() => { if (st.day !== dayKey()) setSt((s) => ({ ...s, day: dayKey(), sends: [], blockCount: 0, until: 0, reason: '' })) }, [now]) // eslint-disable-line react-hooks/exhaustive-deps
 
