@@ -187,9 +187,11 @@ export default function Prospeccao() {
   const dailyGoal = g ? (g.period === 'day' ? Number(g.target) : g.period === 'week' ? Number(g.target) / 5 : Number(g.target) / (businessDays(startOfMonth(t), endOfMonth(t)) || 22)) : 30
   const mins = Math.floor((Date.now() - started) / 60000)
   const items = playbooks.filter((p) => p.collection === col && p.code)
-  const vars = lead ? { EMPRESA: lead.company, NICHO: (lead.niche || '').toLowerCase(), BAIRRO: lead.neighborhood || 'sua região', NOME: '', MES: MONTHS[new Date().getMonth()] } : {}
+  const vars = lead ? { EMPRESA: lead.company, NICHO: (lead.niche || '').toLowerCase(), BAIRRO: lead.neighborhood || 'sua região', NOME: '', CIDADE: lead.city || 'sua cidade', MES: MONTHS[new Date().getMonth()] } : {}
   // sem nome do contato: "Falo com [NOME]" vira "Falo com o responsável"; "Oi, [NOME]!" vira "Oi!"
-  const fill = (body) => (lead ? fillTemplate(body, vars).replace(/com (a |o )?\[NOME\],?/g, 'com o responsável').replace(/pra \[NOME\]/g, 'pro responsável').replace(/,? ?\[NOME\]/g, '').replace(/ ,/g, ',').replace(/ +([!?.])/g, '$1') : body)
+  // scripts antigos citam "São Paulo" fixo: troca pela cidade do lead quando ele é de outro lugar
+  const localize = (t) => (lead?.city && !/^s[aã]o paulo$/i.test(lead.city.trim()) ? t.replace(/\b(em|de|aqui em|da região de) São Paulo\b/g, `$1 ${lead.city}`) : t)
+  const fill = (body) => (lead ? localize(fillTemplate(body, vars)).replace(/com (a |o )?\[NOME\],?/g, 'com o responsável').replace(/pra \[NOME\]/g, 'pro responsável').replace(/,? ?\[NOME\]/g, '').replace(/ ,/g, ',').replace(/ +([!?.])/g, '$1') : body)
   const pb = items.find((p) => p.code === code)
   const msg = pb ? fill(pb.body) : ''
   const wa = lead ? waLink(lead.phone, msg) : null
@@ -364,7 +366,7 @@ export default function Prospeccao() {
                     <div className="stack-s" onClick={(e) => e.stopPropagation()}>
                       <textarea className="ta" rows={6} autoFocus value={editing.body} onChange={(e) => setEditing({ ...editing, body: e.target.value })}
                         onKeyDown={(e) => { if (e.key === 'Escape') setEditing(null) }} aria-label={`Texto da mensagem ${p.code}`} />
-                      <span className="lbl">Use [EMPRESA], [NOME], [BAIRRO] e [NICHO] para preencher com os dados do lead. A mudança vale para todos os leads.</span>
+                      <span className="lbl">Use [EMPRESA], [NOME], [BAIRRO], [CIDADE] e [NICHO] para preencher com os dados do lead. A mudança vale para todos os leads.</span>
                       <div className="row" style={{ justifyContent: 'flex-end' }}>
                         <button type="button" className="btn s" onClick={() => setEditing(null)}>Cancelar</button>
                         <AsyncButton className="btn s p" onClick={async () => {
