@@ -6,7 +6,7 @@ import Potencial from '../components/Potencial'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useMeta } from '../components/Shell'
 import { useAuth } from '../lib/auth'
-import { useData, fetchRows, insert, upsert, update, updateWhere, notify, emitChange, useSettings } from '../lib/data'
+import { useData, fetchRows, insert, upsert, update, updateWhere, notify, emitChange, useSettings, saveSetting } from '../lib/data'
 import { defaultLeadStage, getPipelines } from '../lib/automations'
 import { today, dm, igHandle, normalizePhone, pct } from '../lib/format'
 import { yes } from '../lib/csv'
@@ -42,6 +42,7 @@ export default function Captacao() {
   const tab = sp.get('tab') || 'nova'
   const setTab = (t, extra = {}) => setSp({ tab: t, ...extra })
   const [importing, setImporting] = useState(null)
+  const [preload, setPreload] = useState(null) // linhas vindas da captação automática
 
   const { data, loading, error, reload } = useData(async () => {
     const [terms, batches, leads] = await Promise.all([
@@ -92,14 +93,14 @@ export default function Captacao() {
       {tab === 'nova' ? (
         <Nova key={`${sp.get('niche') || ''}|${sp.get('city') || ''}|${sp.get('uf') || ''}`} data={extra ? { ...data, ...extra } : data}
           preset={{ niche: sp.get('niche') || '', city: sp.get('city') || '', uf: sp.get('uf') || '' }}
-          onImport={(b) => setImporting(b)} />
+          onImport={(b) => setImporting(b)} onAuto={(b, rows) => { setPreload(rows); setImporting(b) }} />
       ) : tab === 'cobertura' ? (
         <Cobertura data={data} onCapture={(p) => setTab('nova', p)} />
       ) : (
         <Lotes data={data} onImport={(b) => setImporting(b)} />
       )}
 
-      {importing ? <ImportModal batch={importing} data={data} onClose={() => setImporting(null)} /> : null}
+      {importing ? <ImportModal batch={importing} data={data} preload={preload} onClose={() => { setImporting(null); setPreload(null) }} /> : null}
     </div>
   )
 }
@@ -145,7 +146,7 @@ function useLocations(terms, batches, niche, city, uf, extra) {
 }
 
 // ------------------------------------------------------------------ Nova captação
-function Nova({ data, preset, onImport }) {
+function Nova({ data, preset, onImport, onAuto }) {
   const auth = useAuth()
   const settings = useSettings()
   const { terms, batches, leads } = data
@@ -211,11 +212,12 @@ function Nova({ data, preset, onImport }) {
     try { await navigator.clipboard.writeText(txt); setCopied(what); setTimeout(() => setCopied(''), 1800) } catch { notify('Não consegui copiar. Selecione o texto.', 'err') }
   }
 
-  const generate = async () => {
-    if (!nicheName) { document.getElementById('cap-niche')?.focus(); return notify('Falta escolher o nicho (ex.: Dentista).', 'err') }
-    if (!cityName) return notify('Escolha a cidade.', 'err')
+  // cria o lote (termos + registro) — usado pelo prompt e pela captação automática
+  const makeBatch = async (mode) => {
+    if (!nicheName) { document.getElementById('cap-niche')?.focus(); notify('Falta escolher o nicho (ex.: Dentista).', 'err'); return null }
+    if (!cityName) { notify('Escolha a cidade.', 'err'); return null }
     const pick = locs.filter(isSel)
-    if (!pick.length) return notify('Selecione pelo menos um local.', 'err')
+    if (!pick.length) { notify('Selecione pelo menos um local.', 'err'); return null }
     const owner = auth.isTotal('prospeccao') ? null : auth.uid
     const missing = pick.filter((l) => !l.term).map((l) => ({
       niche: nicheName, neighborhood: l.neighborhood, city: cityName, uf, region: l.region && !['Bairros', 'Cidade'].includes(l.region) ? l.region : null, owner_id: owner,
@@ -224,17 +226,59 @@ function Nova({ data, preset, onImport }) {
     const byHood = new Map(created.map((t) => [fold(t.neighborhood), t]))
     const chosenTerms = pick.map((l) => l.term || byHood.get(fold(l.neighborhood))).filter(Boolean)
     const code = batchCode()
-    const ig = source === 'instagram'
+    const ig = mode !== 'auto' && source === 'instagram'
     const list = chosenTerms.map((t) => ({ id: t.id, neighborhood: t.neighborhood, query: termQuery({ niche: nicheName, neighborhood: t.neighborhood, city: cityName, uf }), ...(ig ? { source: 'instagram' } : {}) }))
-    const prompt = ig
+    const prompt = mode === 'auto' ? `Captação automática (Google) · ${list.length} busca(s)` : ig
       ? buildInstagramPrompt({ code, niche: nicheName, city: cityName, uf, terms: list, onlyNoSite })
       : buildPrompt({ code, niche: nicheName, city: cityName, uf, queries: list.map((x) => x.query), onlyNoSite })
     const batch = await insert('capture_batches', { code, niche: nicheName, city: cityName, uf, terms: list, only_no_site: onlyNoSite, prompt, owner_id: auth.uid }, { silent: true })
     // a cobertura de bairros é do Google Maps: lote do Instagram não reserva nem marca as buscas
     if (!ig) await updateWhere('search_terms', (q) => q.in('id', list.map((x) => x.id)), { batch_id: batch.id, reserved_at: new Date().toISOString() }, { quiet: true, silent: true })
     emitChange('search_terms', 'capture_batches')
+    return batch
+  }
+  const generate = async () => {
+    const batch = await makeBatch('prompt')
+    if (!batch) return
     setResult(batch)
-    copy(prompt, 'prompt')
+    copy(batch.prompt, 'prompt')
+  }
+
+  // captação automática: o servidor busca no Google e devolve as linhas prontas
+  const [autoOn, setAutoOn] = useState(null)
+  const [run, setRun] = useState(null) // { i, n, found, calls, term }
+  useEffect(() => { fetch('/api/places-search').then((r) => r.json()).then((j) => setAutoOn(Boolean(j.configured))).catch(() => setAutoOn(false)) }, [])
+  const month = new Date().toISOString().slice(0, 7)
+  const usage = settings.places_usage?.month === month ? Number(settings.places_usage.calls || 0) : 0
+  const FREE = 1000
+  const autoCapture = async () => {
+    const pickN = locs.filter(isSel).length
+    if (pickN && usage + pickN * 3 > FREE && !window.confirm(`Este mês você já usou ${usage} de ${FREE} buscas grátis do Google. Esta captação pode usar até ${pickN * 3}. O que passar da cota é cobrado pelo Google (cerca de US$ 0,035 por busca). Continuar?`)) return
+    const batch = await makeBatch('auto')
+    if (!batch) return
+    const { data: sess } = await supabase.auth.getSession()
+    const token = sess?.session?.access_token
+    const all = []
+    let calls = 0
+    try {
+      for (let i = 0; i < batch.terms.length; i++) {
+        const t = batch.terms[i]
+        setRun({ i: i + 1, n: batch.terms.length, found: all.length, calls, term: t.query })
+        const r = await fetch('/api/places-search', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ query: t.query, pages: 3 }) })
+        const j = await r.json().catch(() => ({}))
+        calls += j.calls || 0
+        if (j.rows) all.push(...j.rows)
+        if (!r.ok) { notify(`Parei na busca ${i + 1}: ${j.error || r.status}. O que já veio está na importação.`, 'err'); break }
+        // busca sem resultado também conta como feita
+        if (!(j.rows || []).length) all.push({ company: NO_RESULT, phone: '', instagram: '', site: '', neighborhood: t.neighborhood || '', where: t.query })
+      }
+    } finally {
+      setRun(null)
+      await saveSetting('places_usage', { month, calls: usage + calls }).catch(() => {})
+      emitChange('settings')
+    }
+    if (!all.length) return notify('O Google não devolveu nada para essas buscas.', 'err')
+    onAuto(batch, all)
   }
 
   if (result) {
@@ -359,8 +403,25 @@ function Nova({ data, preset, onImport }) {
 
         <div className="row" style={{ justifyContent: 'space-between', borderTop: '1px solid var(--line)', paddingTop: 16 }}>
           <span className="lbl">{chosen.length} local(is) no lote{source === 'instagram' ? ' · Instagram' : ''}{onlyNoSite ? ' · só sem site' : ''}</span>
-          <AsyncButton className="btn p" onClick={generate}><Icon name="spark" size={14} />{!nicheName ? 'Escolha o nicho' : !cityName ? 'Escolha a cidade' : !chosen.length ? 'Marque um bairro' : 'Gerar prompt'}</AsyncButton>
+          <div className="row" style={{ gap: 8 }}>
+            {source === 'maps' && autoOn ? <AsyncButton className="btn p" disabled={Boolean(run)} onClick={autoCapture}><Icon name="search" size={14} />{!nicheName ? 'Escolha o nicho' : !cityName ? 'Escolha a cidade' : !chosen.length ? 'Marque um bairro' : 'Captar automático'}</AsyncButton> : null}
+            <AsyncButton className={`btn ${source === 'maps' && autoOn ? '' : 'p'}`} onClick={generate}><Icon name="spark" size={14} />{source === 'maps' && autoOn ? 'Gerar prompt' : !nicheName ? 'Escolha o nicho' : !cityName ? 'Escolha a cidade' : !chosen.length ? 'Marque um bairro' : 'Gerar prompt'}</AsyncButton>
+          </div>
         </div>
+        {source === 'maps' ? (
+          <div className="lbl" style={{ marginTop: -8 }}>
+            {autoOn === false ? <>Captação automática desligada: falta a chave do Google na Vercel (<b>GOOGLE_PLACES_KEY</b>). Até lá, use o prompt.</>
+              : autoOn ? <>Captação automática: <b className="num">{usage}</b> de {FREE.toLocaleString('pt-BR')} buscas grátis usadas em {month.slice(5)}/{month.slice(0, 4)}. Cada bairro usa até 3 buscas (até 60 lugares).</> : null}
+          </div>
+        ) : null}
+        {run ? (
+          <div className="card pick">
+            <span className="lbl"><Icon name="search" size={12} /> Captando no Google · busca {run.i} de {run.n}</span>
+            <strong>{run.term}</strong>
+            <Bar value={((run.i - 1) / run.n) * 100} />
+            <span className="lbl">{run.found} lugar(es) encontrados até agora · {run.calls} chamada(s) ao Google</span>
+          </div>
+        ) : null}
       </div>
 
       <div className="stack" style={{ flex: '1 1 300px', minWidth: 0 }}>
@@ -618,10 +679,10 @@ function Lotes({ data, onImport }) {
 }
 
 // ------------------------------------------------------------------ Importação do resultado
-function ImportModal({ batch, data, onClose }) {
+function ImportModal({ batch, data, preload, onClose }) {
   const auth = useAuth()
-  const [parsed, setParsed] = useState(null)
-  const [fileName, setFileName] = useState('')
+  const [parsed, setParsed] = useState(() => (preload?.length ? { rows: preload, missing: [] } : null))
+  const [fileName, setFileName] = useState(preload?.length ? 'captação automática (Google)' : '')
   const [owner, setOwner] = useState(auth.isTotal('crm') ? '' : auth.uid)
   const [queueToday, setQueueToday] = useState(false)
   const [doneMap, setDoneMap] = useState({})
@@ -685,6 +746,7 @@ function ImportModal({ batch, data, onClose }) {
         niche: batch.niche, city: batch.city, uf: batch.uf,
         neighborhood: r.neighborhood || term?.neighborhood || null,
         phone: r.phone || null, instagram: r.instagram ? igHandle(r.instagram) : null,
+        ...(r.website ? { website: r.website } : {}),
         has_site: r.site ? yes(r.site) : false,
         origin: ig ? `Instagram · ${term?.neighborhood || batch.city}` : term?.query || r.where || 'Captação',
         search_term_id: term?.id || null,
