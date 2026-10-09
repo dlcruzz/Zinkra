@@ -199,7 +199,7 @@ function Nova({ data, preset, onImport }) {
   }
 
   const generate = async () => {
-    if (!nicheName) return notify('Escolha o nicho.', 'err')
+    if (!nicheName) { document.getElementById('cap-niche')?.focus(); return notify('Falta escolher o nicho (ex.: Dentista).', 'err') }
     if (!cityName) return notify('Escolha a cidade.', 'err')
     const pick = locs.filter(isSel)
     if (!pick.length) return notify('Selecione pelo menos um local.', 'err')
@@ -261,7 +261,7 @@ function Nova({ data, preset, onImport }) {
       <div className="card" style={{ flex: '2 1 560px', minWidth: 0, padding: 20, display: 'flex', flexDirection: 'column', gap: 18 }}>
         <div className="fields">
           <Field label="Nicho">
-            <input className="in" list="cap-niches" value={niche} onChange={(e) => setNiche(e.target.value)} placeholder="Ex.: Dentista" />
+            <input id="cap-niche" className="in" list="cap-niches" value={niche} onChange={(e) => setNiche(e.target.value)} placeholder="Ex.: Dentista" />
             <datalist id="cap-niches">{niches.map((n) => <option key={n} value={n} />)}</datalist>
           </Field>
           <Field label="Estado"><Select value={uf} onChange={(v) => { setUf(v || 'SP'); setCity('') }} options={UFS.map(([s, n]) => [s, `${s} · ${n}`])} /></Field>
@@ -341,11 +341,11 @@ function Nova({ data, preset, onImport }) {
               <span className="lbl">Cole a lista que o Claude devolver (um bairro por linha também funciona).</span>
             </div>
           </>
-        ) : <Empty icon="search">Escolha o nicho e a cidade para ver o que já foi buscado.</Empty>}
+        ) : <Empty icon="search">{!nicheName && cityName ? <>Agora escolha o <b>nicho</b> lá em cima (ex.: Dentista, Advogado) para ver os bairros de {cityName}.</> : 'Escolha o nicho e a cidade para ver o que já foi buscado.'}</Empty>}
 
         <div className="row" style={{ justifyContent: 'space-between', borderTop: '1px solid var(--line)', paddingTop: 16 }}>
           <span className="lbl">{chosen.length} local(is) no lote{source === 'instagram' ? ' · Instagram' : ''}{onlyNoSite ? ' · só sem site' : ''}</span>
-          <AsyncButton className="btn p" disabled={!nicheName || !cityName || !chosen.length} onClick={generate}><Icon name="spark" size={14} />Gerar prompt</AsyncButton>
+          <AsyncButton className="btn p" onClick={generate}><Icon name="spark" size={14} />{!nicheName ? 'Escolha o nicho' : !cityName ? 'Escolha a cidade' : !chosen.length ? 'Marque um bairro' : 'Gerar prompt'}</AsyncButton>
         </div>
       </div>
 
