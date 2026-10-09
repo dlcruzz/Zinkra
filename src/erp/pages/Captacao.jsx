@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import { BOOKMARKLET } from '../lib/bookmarklet'
 import { rankPlaces, placeReasons } from '../lib/locais'
 import { nicheStats, rankNiches, reasons, LEVEL } from '../lib/nicheScore'
 import { nicheKey, KIND_LABEL, CATALOG_NAMES } from '../lib/nichos'
@@ -21,6 +22,20 @@ import { supabase } from '../lib/supabase'
 const TERM_COLS = 'id, niche, neighborhood, city, uf, region, done, done_at, leads_found, batch_id, reserved_at'
 
 // termos são milhares: busca as páginas de 1000 em paralelo
+const isBotao = (b) => String(b?.prompt || '').startsWith('Botão do Chrome')
+function BookmarkletLink() {
+  const ref = React.useRef(null)
+  // o React bloqueia links "javascript:" no JSX; coloca o endereço direto no elemento
+  useEffect(() => { if (ref.current) ref.current.setAttribute('href', BOOKMARKLET) }, [])
+  return (
+    <div className="stack-s" style={{ gap: 6, paddingTop: 12 }}>
+      <a ref={ref} className="btn p" style={{ alignSelf: 'flex-start', cursor: 'grab' }} onClick={(e) => { e.preventDefault(); notify('Arraste este botão para a barra de favoritos do Chrome (Ctrl+Shift+B mostra a barra).', 'ok') }}>
+        <Icon name="spark" size={14} />Captar Zinkra
+      </a>
+      <span className="lbl">Arraste para a barra de favoritos. Não precisa de Claude nem de chave: roda no seu Chrome.</span>
+    </div>
+  )
+}
 const isIgBatch = (b) => (b?.terms || []).some((t) => t.source === 'instagram')
 
 async function fetchTerms() {
@@ -228,7 +243,7 @@ function Nova({ data, preset, onImport, onAuto }) {
     const code = batchCode()
     const ig = mode !== 'auto' && source === 'instagram'
     const list = chosenTerms.map((t) => ({ id: t.id, neighborhood: t.neighborhood, query: termQuery({ niche: nicheName, neighborhood: t.neighborhood, city: cityName, uf }), ...(ig ? { source: 'instagram' } : {}) }))
-    const prompt = mode === 'auto' ? `Captação automática (Google) · ${list.length} busca(s)` : ig
+    const prompt = mode === 'auto' ? `Captação automática (Google) · ${list.length} busca(s)` : mode === 'botao' ? `Botão do Chrome · ${list.length} busca(s)` : ig
       ? buildInstagramPrompt({ code, niche: nicheName, city: cityName, uf, terms: list, onlyNoSite })
       : buildPrompt({ code, niche: nicheName, city: cityName, uf, queries: list.map((x) => x.query), onlyNoSite })
     const batch = await insert('capture_batches', { code, niche: nicheName, city: cityName, uf, terms: list, only_no_site: onlyNoSite, prompt, owner_id: auth.uid }, { silent: true })
@@ -242,6 +257,10 @@ function Nova({ data, preset, onImport, onAuto }) {
     if (!batch) return
     setResult(batch)
     copy(batch.prompt, 'prompt')
+  }
+  const viaButton = async () => {
+    const batch = await makeBatch('botao')
+    if (batch) setResult(batch)
   }
 
   // captação automática: o servidor busca no Google e devolve as linhas prontas
@@ -279,6 +298,43 @@ function Nova({ data, preset, onImport, onAuto }) {
     }
     if (!all.length) return notify('O Google não devolveu nada para essas buscas.', 'err')
     onAuto(batch, all)
+  }
+
+  if (result && isBotao(result)) {
+    return (
+      <div className="cols">
+        <div className="card" style={{ flex: '2 1 560px', minWidth: 0, padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div className="row" style={{ justifyContent: 'space-between' }}>
+            <div className="stack-s" style={{ gap: 2 }}>
+              <h2>Lote <span className="num ok">{result.code}</span> · {result.niche} · {result.city} - {result.uf}</h2>
+              <span className="lbl">Abra cada busca no Maps e clique no botão <b>Captar Zinkra</b> da sua barra de favoritos.</span>
+            </div>
+            <button type="button" className="btn p" onClick={() => onImport(result)}><Icon name="upload" size={14} />Importar resultado</button>
+          </div>
+          <div className="stack-s" style={{ gap: 6 }}>
+            {result.terms.map((t, i) => (
+              <div key={t.id} className="li">
+                <span className="num lbl" style={{ width: 22 }}>{i + 1}</span>
+                <span className="grow ellipsis">{t.query}</span>
+                <a className="btn s" href={`https://www.google.com/maps/search/${encodeURIComponent(t.query)}`} target="_blank" rel="noreferrer"><Icon name="arrow" size={13} />Abrir no Maps</a>
+              </div>
+            ))}
+          </div>
+          <div className="row"><button type="button" className="btn g" onClick={() => setResult(null)}>Gerar outro lote</button></div>
+        </div>
+        <div className="card" style={{ flex: '1 1 280px', padding: '14px 16px' }}>
+          <h2 style={{ paddingBottom: 8 }}>Como usar</h2>
+          <ol className="lbl" style={{ lineHeight: 1.8, paddingLeft: 18 }}>
+            <li>Primeira vez: arraste o botão abaixo para a barra de favoritos do Chrome.</li>
+            <li>Clique em <b>Abrir no Maps</b> em cada busca.</li>
+            <li>Na página do Maps, clique no favorito <b>Captar Zinkra</b>. Ele rola a lista e guarda os resultados.</li>
+            <li>Depois da última busca, clique em <b>Copiar tudo</b> no quadro do botão.</li>
+            <li>Volte aqui, clique em <b>Importar resultado</b> e cole. Depois, no quadro do Maps, use <b>Limpar lista</b>.</li>
+          </ol>
+          <BookmarkletLink />
+        </div>
+      </div>
+    )
   }
 
   if (result) {
@@ -405,7 +461,8 @@ function Nova({ data, preset, onImport, onAuto }) {
           <span className="lbl">{chosen.length} local(is) no lote{source === 'instagram' ? ' · Instagram' : ''}{onlyNoSite ? ' · só sem site' : ''}</span>
           <div className="row" style={{ gap: 8 }}>
             {source === 'maps' && autoOn ? <AsyncButton className="btn p" disabled={Boolean(run)} onClick={autoCapture}><Icon name="search" size={14} />{!nicheName ? 'Escolha o nicho' : !cityName ? 'Escolha a cidade' : !chosen.length ? 'Marque um bairro' : 'Captar automático'}</AsyncButton> : null}
-            <AsyncButton className={`btn ${source === 'maps' && autoOn ? '' : 'p'}`} onClick={generate}><Icon name="spark" size={14} />{source === 'maps' && autoOn ? 'Gerar prompt' : !nicheName ? 'Escolha o nicho' : !cityName ? 'Escolha a cidade' : !chosen.length ? 'Marque um bairro' : 'Gerar prompt'}</AsyncButton>
+            {source === 'maps' ? <AsyncButton className={`btn ${autoOn ? '' : 'p'}`} onClick={viaButton} title="Grátis: você abre o Maps e o botão do Chrome lê a lista"><Icon name="search" size={14} />Captar pelo botão</AsyncButton> : null}
+            <AsyncButton className={`btn ${source === 'maps' ? '' : 'p'}`} onClick={generate}><Icon name="spark" size={14} />{source === 'maps' ? 'Prompt do Claude' : !nicheName ? 'Escolha o nicho' : !cityName ? 'Escolha a cidade' : !chosen.length ? 'Marque um bairro' : 'Gerar prompt'}</AsyncButton>
           </div>
         </div>
         {source === 'maps' ? (
@@ -437,6 +494,11 @@ function Nova({ data, preset, onImport, onAuto }) {
             </div>
           ))}
           {!batches.some((b) => b.status === 'aguardando') ? <p className="lbl">Nenhum. Todo lote gerado aparece aqui até você importar.</p> : null}
+        </div>
+        <div className="card" style={{ padding: '14px 16px' }}>
+          <h2 style={{ paddingBottom: 4 }}>Botão do Chrome (grátis)</h2>
+          <span className="lbl">Capta do Google Maps sem gastar token: escolha os bairros, clique em <b>Captar pelo botão</b> e siga os passos.</span>
+          <BookmarkletLink />
         </div>
         {nicheName && elsewhere.length ? (
           <div className="card" style={{ padding: '14px 16px' }}>
