@@ -8,7 +8,7 @@ import { today, waLink, igLink, igDm, igHandle, fillTemplate, relDay, MONTHS, st
 import { Loading, ErrorBox, Bar, Badge, Select, AsyncButton, Field, Empty, CountUp, Seg, Modal } from '../components/ui'
 import { Icon } from '../lib/icons'
 import { usePacer, mmss } from '../lib/pacer'
-import { nicheStats, rankNiches, reasons, LEVEL, MODES, MIN_DATA } from '../lib/nicheScore'
+import { nicheStats, rankNiches, reasons, fmtPct, LEVEL, MODES, MIN_DATA, MIN_REPLIES } from '../lib/nicheScore'
 import { nicheKey, KIND_LABEL } from '../lib/nichos'
 
 const CONTACT = new Set(['whatsapp', 'ligacao', 'email', 'visita'])
@@ -462,7 +462,7 @@ function NovaProspeccao({ data, onStart }) {
 
 // ---------- o sistema escolhe o público ----------
 const brl = (cents) => (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })
-const pctTx = (x) => (x == null ? '—' : `${Math.round(x * 100)}%`)
+const pctTx = fmtPct
 const PICK_KEY = 'zk.prospeccao.modo'
 
 function SystemPick({ leads, P, pool, channel, onUse }) {
@@ -543,7 +543,7 @@ function SystemPick({ leads, P, pool, channel, onUse }) {
 
 function RankingModal({ stats, avail, onClose }) {
   const [all, setAll] = useState(false)
-  const [sort, setSort] = useState('perContact')
+  const [sort, setSort] = useState(stats.global.ticket ? 'perContact' : 'contacted')
   const list = stats.list.filter((s) => all || s.leads || s.wonAll)
     .sort((a, b) => (b[sort] ?? -1) - (a[sort] ?? -1) || b.contacted - a.contacted)
   const g = stats.global
@@ -553,7 +553,8 @@ function RankingModal({ stats, avail, onClose }) {
       <div className="stack">
         <p className="lbl" style={{ margin: 0, lineHeight: 1.6 }}>
           Tudo calculado com o que você registrou: contatos, respostas, vendas e o valor dos contratos em 12 meses.
-          Média geral: {pctTx(g.reply)} de resposta{g.ticket ? ` · ticket ${brl(g.ticket)}` : ''}. O nível só aparece depois de {MIN_DATA} contatos no público.
+          Média geral: {pctTx(g.reply)} de resposta{g.ticket ? ` · ticket ${brl(g.ticket)}` : ''}. O nível só aparece depois de {MIN_DATA} contatos no público e {MIN_REPLIES} respostas registradas no total ({stats.global.replied} até agora).
+          Para o ranking ficar certo, marque <b>Respondeu</b> (tecla 2) sempre que alguém responder e cadastre o valor do contrato quando fechar.
         </p>
         <div className="pick-kinds">
           {stats.kinds.map((k) => (

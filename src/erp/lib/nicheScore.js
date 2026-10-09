@@ -5,6 +5,7 @@ import { CATALOG, nicheKey, nicheInfo } from './nichos'
 
 const CONTACT = new Set(['whatsapp', 'ligacao', 'email', 'visita'])
 export const MIN_DATA = 15 // contatos mínimos para o sistema dar um nível ao público
+export const MIN_REPLIES = 5 // respostas registradas no total antes de comparar públicos
 
 // valor de um contrato em 12 meses (mensalidade conta 12x)
 const contractValue = (c) => (c.kind === 'recurring' ? Number(c.monthly_cents || 0) * 12 : Number(c.total_cents || 0))
@@ -77,7 +78,7 @@ export function nicheStats({ leads, activities, clients, contracts, P }) {
     s.win = (s.won + 20 * g.win * (s.reply / g.reply)) / (s.contacted + 20)
     s.ticket = g.ticket ? (s.value + 2 * g.ticket) / (s.wonAll + 2) : s.wonAll ? s.value / s.wonAll : 0
     s.perContact = s.win * s.ticket
-    s.level = s.contacted < MIN_DATA ? 'aprendendo' : s.reply >= g.reply * 1.25 ? 'facil' : s.reply <= g.reply * 0.75 ? 'dificil' : 'medio'
+    s.level = s.contacted < MIN_DATA || g.replied < MIN_REPLIES ? 'aprendendo' : s.reply >= g.reply * 1.25 ? 'facil' : s.reply <= g.reply * 0.75 ? 'dificil' : 'medio'
   })
 
   const kinds = ['profissional', 'empresa'].map((k) => {
@@ -92,7 +93,7 @@ export const LEVEL = {
   facil: ['Fácil', 'g', 'Responde mais que a média'],
   medio: ['Médio', '', 'Responde perto da média'],
   dificil: ['Difícil', 'r', 'Responde menos que a média'],
-  aprendendo: ['Aprendendo', 'y', `Menos de ${MIN_DATA} contatos: o sistema ainda está medindo`],
+  aprendendo: ['Aprendendo', 'y', `Precisa de ${MIN_DATA} contatos no público e ${MIN_REPLIES} respostas registradas no total`],
 }
 
 export const MODES = [
@@ -138,7 +139,7 @@ export function rankNiches(stats, mode, avail, day) {
 // por que o sistema escolheu este público (frases curtas para a tela)
 export function reasons(s, g, mode) {
   const out = []
-  const pct = (x) => `${Math.round(x * 100)}%`
+  const pct = fmtPct
   if (s.contacted) out.push(`${s.contacted} contatado(s), ${s.replied} respondeu(ram) (${pct(s.replyRate)} · média geral ${pct(g.reply)})`)
   else out.push('Nenhum contato registrado ainda')
   if (s.wonAll) out.push(`${s.wonAll} venda(s) · ${brl(s.value)} em 12 meses${s.wonAll ? ` · ticket ${brl(s.value / s.wonAll)}` : ''}`)
@@ -148,3 +149,5 @@ export function reasons(s, g, mode) {
   return out
 }
 const brl = (cents) => (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })
+
+export const fmtPct = (x) => (x == null ? '—' : x > 0 && x < 0.1 ? `${(x * 100).toFixed(1).replace('.', ',')}%` : `${Math.round(x * 100)}%`)

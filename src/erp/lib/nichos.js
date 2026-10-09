@@ -176,5 +176,6 @@ export function nicheInfo(name) {
   const k = nicheKey(name)
   const c = BY_KEY.get(k)
   if (c) return c
-  return { name, kind: COMPANY_WORDS.test(k) ? 'empresa' : 'profissional', area: 'Outros', pair: '' }
+  const empresa = COMPANY_WORDS.test(k) || /^\S*(aria|eria)\b/.test(k)
+  return { name, kind: empresa ? 'empresa' : 'profissional', area: 'Outros', pair: '' }
 }
