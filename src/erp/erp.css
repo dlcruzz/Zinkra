@@ -644,3 +644,12 @@ body:has(.erp) { background: #0A0C0B; }
 .erp .prosp-ch.on { border-color: var(--green-ln); background: rgba(21, 196, 90, .08); }
 .erp .prosp-ch.on svg { color: var(--green-tx); }
 @media (max-width: 520px) { .erp .prosp-channel { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---------- o sistema escolhe o público ---------- */
+.erp .pick { padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; border-color: var(--green-ln); background: linear-gradient(135deg, rgba(21,196,90,.07), transparent 60%), var(--s1); }
+.erp .pick-body { display: flex; flex-direction: column; gap: 10px; animation: erp-fade-up .35s var(--ease, ease) both; }
+.erp .pick-name { font-size: 20px; font-weight: 600; line-height: 1.2; }
+.erp .pick-why { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; font-size: 13px; color: var(--tx-2); }
+.erp .pick-kinds { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.erp .pick .seg { flex-wrap: wrap; }
+@media (max-width: 620px) { .erp .pick-kinds { grid-template-columns: minmax(0, 1fr); } }

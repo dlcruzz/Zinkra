@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { CATALOG_NAMES } from '../lib/nichos'
 import { NavLink, Link, useNavigate, useLocation, Outlet } from 'react-router-dom'
 import { Icon } from '../lib/icons'
 import { useAuth, ROLES } from '../lib/auth'
@@ -364,7 +365,7 @@ export function QuickLead({ defaults = {}, onClose, onSaved }) {
       <div className="fields">
         <Field label="Empresa"><input className="in" autoFocus value={f.company} onChange={(e) => set('company')(e.target.value)} /></Field>
         <Field label="Contato"><input className="in" value={f.contact_name || ''} onChange={(e) => set('contact_name')(e.target.value)} /></Field>
-        <Field label="Nicho"><input className="in" list="erp-niches" value={f.niche} onChange={(e) => set('niche')(e.target.value)} /></Field>
+        <Field label="Nicho"><input className="in" list="erp-niches" value={f.niche} onChange={(e) => set('niche')(e.target.value)} /><datalist id="erp-niches">{CATALOG_NAMES.map((n) => <option key={n} value={n} />)}</datalist></Field>
         <Field label="Bairro"><input className="in" value={f.neighborhood} onChange={(e) => set('neighborhood')(e.target.value)} /></Field>
         <Field label="WhatsApp"><input className="in" inputMode="tel" value={f.phone} onChange={(e) => set('phone')(e.target.value)} /></Field>
         <Field label="Instagram"><input className="in" value={f.instagram} onChange={(e) => set('instagram')(e.target.value)} placeholder="@perfil" /></Field>

@@ -5,9 +5,11 @@ import { useAuth } from '../lib/auth'
 import { useData, fetchRows, update, notify, emitChange } from '../lib/data'
 import { getPipelines, registerActivity, defaultLeadStage } from '../lib/automations'
 import { today, waLink, igLink, igDm, igHandle, fillTemplate, relDay, MONTHS, startOfMonth, endOfMonth, businessDays, inRange, localDay } from '../lib/format'
-import { Loading, ErrorBox, Bar, Badge, Select, AsyncButton, Field, Empty, CountUp } from '../components/ui'
+import { Loading, ErrorBox, Bar, Badge, Select, AsyncButton, Field, Empty, CountUp, Seg, Modal } from '../components/ui'
 import { Icon } from '../lib/icons'
 import { usePacer, mmss } from '../lib/pacer'
+import { nicheStats, rankNiches, reasons, LEVEL, MODES, MIN_DATA } from '../lib/nicheScore'
+import { nicheKey, KIND_LABEL } from '../lib/nichos'
 
 const CONTACT = new Set(['whatsapp', 'ligacao', 'email', 'visita'])
 const COL_KEY = 'zk.prospeccao.playbook'
@@ -409,6 +411,7 @@ function NovaProspeccao({ data, onStart }) {
       <div className="page-head"><div className="t"><h1>Nova prospecção</h1><span className="lbl">Escolha o canal, o público e o local. Só esses leads entram na fila.</span></div></div>
       <div className="prosp-start">
         <section className="card pad stack">
+          <SystemPick leads={leads} P={P} pool={pool} channel={channel} onUse={(label) => setNiche(label)} />
           <div className="prosp-channel" role="radiogroup" aria-label="Canal">
             {[['whatsapp', 'wa', 'WhatsApp', 'Abre o app com a mensagem escrita'], ['instagram', 'ig', 'Instagram', 'Copia a mensagem e abre o Direct · só leads com @']].map(([k, ic, l, d]) => (
               <button key={k} type="button" role="radio" aria-checked={channel === k} className={`prosp-ch ${channel === k ? 'on' : ''}`} onClick={() => { setChannel(k); saveCh(k) }}>
@@ -454,6 +457,137 @@ function NovaProspeccao({ data, onStart }) {
         </div>
       </div>
     </div>
+  )
+}
+
+// ---------- o sistema escolhe o público ----------
+const brl = (cents) => (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })
+const pctTx = (x) => (x == null ? '—' : `${Math.round(x * 100)}%`)
+const PICK_KEY = 'zk.prospeccao.modo'
+
+function SystemPick({ leads, P, pool, channel, onUse }) {
+  const [mode, setModeState] = useState(() => { try { return localStorage.getItem(PICK_KEY) || 'vender' } catch { return 'vender' } })
+  const setMode = (m) => { setModeState(m); setIdx(0); try { localStorage.setItem(PICK_KEY, m) } catch { /* sem storage */ } }
+  const [idx, setIdx] = useState(0)
+  const [table, setTable] = useState(false)
+  const { data, error } = useData(async () => {
+    const [activities, clients, contracts] = await Promise.all([
+      fetchRows('activities', { select: 'lead_id, type, result', order: null }),
+      fetchRows('clients', { select: 'id, lead_id, niche', order: null }).catch(() => []),
+      fetchRows('contracts', { select: 'client_id, kind, total_cents, monthly_cents', order: null }).catch(() => []),
+    ])
+    return { activities, clients, contracts }
+  }, ['activities', 'clients', 'contracts'], [])
+
+  const stats = useMemo(() => (data ? nicheStats({ leads, P, ...data }) : null), [data, leads, P])
+  const avail = useMemo(() => {
+    const m = new Map()
+    pool.forEach((l) => { const k = nicheKey(l.niche); if (k) m.set(k, (m.get(k) || 0) + 1) })
+    return m
+  }, [pool])
+  const ranked = useMemo(() => (stats ? rankNiches(stats, mode, avail, today()) : []), [stats, mode, avail])
+  // cidade onde você mais trabalha, para sugerir a captação
+  const home = useMemo(() => {
+    const m = new Map()
+    leads.forEach((l) => { if (!l.city) return; const k = l.city + '|' + (l.uf || ''); m.set(k, (m.get(k) || 0) + 1) })
+    const top = [...m.entries()].sort((a, b) => b[1] - a[1])[0]
+    return top ? { city: top[0].split('|')[0], uf: top[0].split('|')[1] } : { city: '', uf: '' }
+  }, [leads])
+
+  if (error) return null
+  if (!stats) return <div className="card pick"><span className="lbl">Calculando o desempenho de cada público…</span></div>
+  const s = ranked.length ? ranked[idx % ranked.length] : null
+  const n = s ? avail.get(s.key) || 0 : 0
+  const label = s && n ? (pool.find((l) => nicheKey(l.niche) === s.key)?.niche || s.name) : ''
+  const lv = s ? LEVEL[s.level] : null
+  const capUrl = s ? `/erp/captacao?${new URLSearchParams({ niche: s.name, city: home.city, uf: home.uf || 'SP' })}` : ''
+
+  return (
+    <div className="card pick">
+      <div className="row" style={{ justifyContent: 'space-between', gap: 10 }}>
+        <div className="stack-s" style={{ gap: 2 }}>
+          <span className="lbl"><Icon name="spark" size={12} /> Deixar o sistema escolher</span>
+          <span className="lbl">{MODES.find((m) => m[0] === mode)?.[2]}</span>
+        </div>
+        <Seg value={mode} onChange={setMode} options={MODES.map(([k, l]) => [k, l])} />
+      </div>
+      {s ? (
+        <div className="pick-body" key={s.key + mode}>
+          <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+            <div className="stack-s" style={{ gap: 4, minWidth: 0 }}>
+              <span className="lbl">{idx === 0 ? 'Sugestão de hoje' : `Opção ${(idx % ranked.length) + 1} de ${ranked.length}`} · {s.area}</span>
+              <strong className="pick-name">{s.name}</strong>
+              <div className="row" style={{ gap: 6 }}>
+                <Badge>{KIND_LABEL[s.kind]}</Badge>
+                <Badge kind={lv[1]} title={lv[2]}>{lv[0]}</Badge>
+                {n ? <Badge kind="g">{n} lead(s) prontos{channel === 'instagram' ? ' com @' : ''}</Badge> : <Badge kind="y">sem leads na base</Badge>}
+              </div>
+            </div>
+          </div>
+          <ul className="pick-why">{reasons(s, stats.global, mode).map((r) => <li key={r}>{r}</li>)}</ul>
+          {s.pair ? <span className="lbl">Compare com <b style={{ fontWeight: 500, color: 'var(--tx)' }}>{s.pair}</b> ({KIND_LABEL[s.kind === 'empresa' ? 'profissional' : 'empresa'].toLowerCase()}): o sistema mostra qual dos dois responde e compra mais.</span> : null}
+          <div className="row" style={{ gap: 8 }}>
+            {n ? <button type="button" className="btn p" onClick={() => onUse(label)}><Icon name="check" size={14} />Usar este público</button>
+              : <Link className="btn p" to={capUrl}><Icon name="search" size={14} />Captar {s.name}{home.city ? ` em ${home.city}` : ''}</Link>}
+            <button type="button" className="btn" onClick={() => setIdx((i) => i + 1)}>Outra opção</button>
+            <button type="button" className="btn g" onClick={() => setTable(true)}>Ranking dos públicos</button>
+          </div>
+        </div>
+      ) : (
+        <p className="lbl" style={{ margin: 0 }}>{mode === 'dificil' ? `Ainda nenhum público tem ${MIN_DATA} contatos registrados. Prospecte mais e o sistema descobre quem é difícil.` : 'Nenhum público para sugerir.'}</p>
+      )}
+      {table ? <RankingModal stats={stats} avail={avail} onClose={() => setTable(false)} /> : null}
+    </div>
+  )
+}
+
+function RankingModal({ stats, avail, onClose }) {
+  const [all, setAll] = useState(false)
+  const [sort, setSort] = useState('perContact')
+  const list = stats.list.filter((s) => all || s.leads || s.wonAll)
+    .sort((a, b) => (b[sort] ?? -1) - (a[sort] ?? -1) || b.contacted - a.contacted)
+  const g = stats.global
+  const th = (k, l) => <th className="r" style={{ cursor: 'pointer', color: sort === k ? 'var(--tx)' : undefined }} onClick={() => setSort(k)}>{l}{sort === k ? ' ↓' : ''}</th>
+  return (
+    <Modal size="lg" title="Ranking dos públicos" onClose={onClose} footer={<button type="button" className="btn" onClick={onClose}>Fechar</button>}>
+      <div className="stack">
+        <p className="lbl" style={{ margin: 0, lineHeight: 1.6 }}>
+          Tudo calculado com o que você registrou: contatos, respostas, vendas e o valor dos contratos em 12 meses.
+          Média geral: {pctTx(g.reply)} de resposta{g.ticket ? ` · ticket ${brl(g.ticket)}` : ''}. O nível só aparece depois de {MIN_DATA} contatos no público.
+        </p>
+        <div className="pick-kinds">
+          {stats.kinds.map((k) => (
+            <div key={k.kind} className="card" style={{ padding: '10px 14px' }}>
+              <span className="lbl">{k.kind === 'profissional' ? 'Profissionais (quem decide)' : 'Empresas (clínicas, escritórios)'}</span>
+              <div className="row" style={{ gap: 14 }}>
+                <span><b className="num">{pctTx(k.reply)}</b> <span className="lbl">resposta · {k.contacted} contatos</span></span>
+                <span><b className="num">{k.won}</b> <span className="lbl">venda(s) · {brl(k.value)}</span></span>
+              </div>
+            </div>
+          ))}
+        </div>
+        <label className="check"><input type="checkbox" checked={all} onChange={(e) => setAll(e.target.checked)} />Mostrar o catálogo inteiro ({stats.list.length} públicos)</label>
+        <div className="tbl-wrap" style={{ maxHeight: 420 }}><table className="tbl">
+          <thead><tr><th>Público</th><th>Tipo</th><th>Nível</th>{th('leads', 'Leads')}<th className="r">Prontos</th>{th('contacted', 'Contatados')}{th('replyRate', 'Resposta')}{th('wonAll', 'Vendas')}{th('value', 'Valor 12m')}{th('perContact', 'R$/contato')}</tr></thead>
+          <tbody>
+            {list.map((s) => (
+              <tr key={s.key}>
+                <td className="ellipsis" style={{ maxWidth: 220 }}>{s.name}</td>
+                <td className="lbl">{KIND_LABEL[s.kind]}</td>
+                <td><Badge kind={LEVEL[s.level][1]} title={LEVEL[s.level][2]}>{LEVEL[s.level][0]}</Badge></td>
+                <td className="num r">{s.leads}</td>
+                <td className="num r">{avail.get(s.key) || 0}</td>
+                <td className="num r">{s.contacted}</td>
+                <td className="num r">{pctTx(s.replyRate)}</td>
+                <td className="num r">{s.wonAll}</td>
+                <td className="num r">{s.value ? brl(s.value) : '—'}</td>
+                <td className="num r">{s.contacted && g.ticket ? brl(s.perContact) : '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table></div>
+      </div>
+    </Modal>
   )
 }
 

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import { CATALOG_NAMES } from '../lib/nichos'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useMeta } from '../components/Shell'
 import { useAuth } from '../lib/auth'
@@ -155,7 +156,7 @@ function Nova({ data, preset, onImport }) {
 
   const niches = useMemo(() => {
     const m = new Map()
-    ;[...(settings.niches || []), ...terms.map((t) => t.niche), ...leads.map((l) => l.niche)].filter(Boolean).forEach((n) => { if (!m.has(fold(n))) m.set(fold(n), n) })
+    ;[...(settings.niches || []), ...CATALOG_NAMES, ...terms.map((t) => t.niche), ...leads.map((l) => l.niche)].filter(Boolean).forEach((n) => { if (!m.has(fold(n))) m.set(fold(n), n) })
     return Array.from(m.values()).sort((a, b) => a.localeCompare(b, 'pt-BR'))
   }, [settings, terms, leads])
   const nicheName = niches.find((n) => fold(n) === fold(niche)) || niche.trim()
