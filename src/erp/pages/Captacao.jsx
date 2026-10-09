@@ -44,17 +44,23 @@ export default function Captacao() {
   const [importing, setImporting] = useState(null)
 
   const { data, loading, error, reload } = useData(async () => {
-    const [terms, batches, leads, acts, P, clients, contracts] = await Promise.all([
+    const [terms, batches, leads] = await Promise.all([
       fetchTerms(),
       fetchRows('capture_batches', { order: 'created_at', ascending: false, limit: 300 }),
       fetchRows('leads', { select: 'id, company, phone, instagram, niche, city, uf, neighborhood, search_term_id, last_contact_at, won_at, client_id, stage_id, estimated_value_cents', order: null }),
+    ])
+    return { terms, batches, leads }
+  }, ['search_terms', 'capture_batches', 'leads'])
+  // dados das sugestões e do painel: carregam depois, sem travar a página se demorarem
+  const { data: extra } = useData(async () => {
+    const [acts, P, clients, contracts] = await Promise.all([
       fetchRows('activities', { select: 'lead_id, type, result', order: null }).catch(() => []),
       getPipelines(),
       fetchRows('clients', { select: 'id, lead_id, niche', order: null }).catch(() => []),
       fetchRows('contracts', { select: 'client_id, kind, total_cents, monthly_cents', order: null }).catch(() => []),
     ])
-    return { terms, batches, leads, acts, P, clients, contracts }
-  }, ['search_terms', 'capture_batches', 'leads', 'activities'])
+    return { acts, P, clients, contracts }
+  }, ['activities', 'clients', 'contracts'])
 
   if (error) {
     const m = String(error.message || error)
@@ -79,12 +85,12 @@ export default function Captacao() {
         <Stat label="Lotes aguardando importação" value={waiting.length} valueClass={waiting.length ? 'ok' : ''} />
       </div>
 
-      <Potencial terms={terms} leads={leads} acts={data.acts} />
+      {extra ? <Potencial terms={terms} leads={leads} acts={extra.acts} /> : null}
 
       <Tabs value={tab} onChange={(t) => setTab(t)} options={[['nova', 'Nova captação'], ['cobertura', 'Cobertura'], ['lotes', 'Lotes', batches.length || null]]} />
 
       {tab === 'nova' ? (
-        <Nova key={`${sp.get('niche') || ''}|${sp.get('city') || ''}|${sp.get('uf') || ''}`} data={data}
+        <Nova key={`${sp.get('niche') || ''}|${sp.get('city') || ''}|${sp.get('uf') || ''}`} data={extra ? { ...data, ...extra } : data}
           preset={{ niche: sp.get('niche') || '', city: sp.get('city') || '', uf: sp.get('uf') || '' }}
           onImport={(b) => setImporting(b)} />
       ) : tab === 'cobertura' ? (
@@ -278,7 +284,7 @@ function Nova({ data, preset, onImport }) {
           </Field>
           <Field label="Buscas por lote" hint="5 a 8 rende bem numa conversa"><input type="number" min={1} max={30} className="in num" value={size} onChange={(e) => { setSize(Math.max(1, Number(e.target.value) || 1)); setSel(null) }} /></Field>
         </div>
-        <NichePick data={data} current={nicheName} onUse={(n) => setNiche(n)} />
+        {data.P ? <NichePick data={data} current={nicheName} onUse={(n) => setNiche(n)} /> : null}
         <PlacePick data={data} niche={nicheName} current={cityName ? { city: cityName, uf } : null}
           onUse={(p) => { setUf(p.uf); setCity(p.city) }} />
         <div className="row" style={{ gap: 18, flexWrap: 'wrap' }}>
