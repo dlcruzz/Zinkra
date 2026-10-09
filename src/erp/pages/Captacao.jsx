@@ -327,9 +327,8 @@ function Nova({ data, preset, onImport, onAuto }) {
           <ol className="lbl" style={{ lineHeight: 1.8, paddingLeft: 18 }}>
             <li>Primeira vez: arraste o botão abaixo para a barra de favoritos do Chrome.</li>
             <li>Clique em <b>Abrir no Maps</b> em cada busca.</li>
-            <li>Na página do Maps, clique no favorito <b>Captar Zinkra</b>. Ele rola a lista e guarda os resultados.</li>
-            <li>Depois da última busca, clique em <b>Copiar tudo</b> no quadro do botão.</li>
-            <li>Volte aqui, clique em <b>Importar resultado</b> e cole. Depois, no quadro do Maps, use <b>Limpar lista</b>.</li>
+            <li>Na página do Maps, clique no favorito <b>Captar Zinkra</b>. Ele lê só a busca que está aberta e clique em <b>Copiar</b>.</li>
+            <li>Aqui, clique em <b>Importar resultado</b> e cole. Para outro bairro, abra no Maps, capte e cole no campo <b>Colar mais resultados</b>: vai somando.</li>
           </ol>
           <BookmarkletLink />
         </div>
@@ -752,10 +751,17 @@ function ImportModal({ batch, data, preload, onClose }) {
   const bTerms = batch.terms || []
   const ig = isIgBatch(batch)
 
+  // cada colagem soma às anteriores (uma busca do botão por vez), sem repetir linha
   const load = (text, name) => {
     const p = parseResult(text)
     if (!p.rows.length) return notify('Não encontrei linhas no resultado. Confira se copiou o bloco com o cabeçalho.', 'err')
-    setParsed(p); setFileName(name)
+    setParsed((prev) => {
+      if (!prev) return p
+      const key = (r) => `${fold(r.company)}|${normalizePhone(r.phone).slice(-8)}|${fold(r.where)}`
+      const have = new Set(prev.rows.map(key))
+      return { missing: p.missing, rows: [...prev.rows, ...p.rows.filter((r) => !have.has(key(r)))] }
+    })
+    setFileName((f) => (f && f !== name ? 'várias colagens' : name))
   }
 
   const analysis = useMemo(() => {
@@ -856,6 +862,8 @@ function ImportModal({ batch, data, preload, onClose }) {
         </div>
       ) : (
         <div className="stack">
+          <textarea className="ta num" rows={2} placeholder="Colar mais resultados (outra busca do botão)…" aria-label="Colar mais resultados"
+            onPaste={(e) => { const tx = e.clipboardData.getData('text'); if (tx) { e.preventDefault(); load(tx, 'texto colado'); notify('Resultados somados.', 'ok') } }} />
           {parsed.missing.length ? <div className="note y">Não achei a(s) coluna(s): {parsed.missing.map((m) => ({ company: 'Empresa', phone: 'Telefone', where: 'Onde achei' }[m])).join(', ')}. Confira o cabeçalho.</div> : null}
           <div className="row lbl" style={{ gap: 14, flexWrap: 'wrap' }}>
             <span>{fileName} · <b className="num">{parsed.rows.length}</b> linhas</span>

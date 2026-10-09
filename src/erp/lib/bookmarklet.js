@@ -1,6 +1,6 @@
 // Botão "Captar Zinkra" para a barra de favoritos do Chrome.
-// Roda na página de resultados do Google Maps aberta por você: rola a lista, lê o que está na tela
-// e junta tudo (de várias buscas) no formato da importação. Nada vai para servidor nenhum.
+// Roda na página de resultados do Google Maps aberta agora: rola a lista, lê só o que está nessa
+// busca e entrega no formato da importação. Não guarda nada de buscas anteriores.
 function captar() {
   const KEY = 'zkCaptacao'
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
@@ -25,9 +25,12 @@ function captar() {
       if (/final da lista|end of the list/i.test(feed.innerText) || (n === last && i > 2)) break
       last = n
     }
-    const where = (document.querySelector('#searchboxinput') || {}).value || decodeURIComponent((location.pathname.split('/search/')[1] || '').split('/')[0]).replace(/\+/g, ' ')
-    const stored = JSON.parse(localStorage.getItem(KEY) || '[]')
-    const seen = new Set(stored.map((r) => (r.company + '|' + r.phone).toLowerCase()))
+    // a busca é a da página aberta agora (endereço da página), não a de antes
+    const fromUrl = decodeURIComponent((location.pathname.split('/search/')[1] || '').split('/')[0].replace(/\+/g, ' '))
+    const where = fromUrl || (document.querySelector('#searchboxinput') || {}).value || ''
+    localStorage.removeItem(KEY) // limpa a lista acumulada da versão antiga do botão
+    const stored = []
+    const seen = new Set()
     let added = 0
     feed.querySelectorAll('div[role="article"]').forEach((a) => {
       const link = a.querySelector('a[href*="/maps/place/"]')
@@ -45,19 +48,17 @@ function captar() {
       stored.push({ company, phone, instagram: ig ? '@' + ig : '', site: site && !NOT_SITE.test(site) ? 'Sim' : 'Não', where })
       added++
     })
-    if (!added && !stored.some((r) => r.where === where)) stored.push({ company: 'SEM RESULTADOS', phone: '', instagram: '', site: '', where })
-    localStorage.setItem(KEY, JSON.stringify(stored))
+    if (!added) stored.push({ company: 'SEM RESULTADOS', phone: '', instagram: '', site: '', where })
     const tsv = ['Empresa\tTelefone/WhatsApp\tInstagram\tSite atual?\tBairro\tOnde achei']
       .concat(stored.map((r) => [r.company, r.phone, r.instagram, r.site, '', r.where].map(clean).join('\t'))).join('\n')
-    const searches = new Set(stored.map((r) => r.where)).size
     const d = box(`<b>Captar Zinkra</b>
-      <p style="margin:8px 0 4px"><b style="color:#15C45A">+${added}</b> nesta busca · <b>${stored.filter((r) => r.company !== 'SEM RESULTADOS').length}</b> no total (${searches} busca${searches === 1 ? '' : 's'})</p>
-      <p style="margin:0 0 10px;color:#8A938E;font-size:12.5px">Faça as outras buscas e clique de novo. No fim, copie tudo e cole em Captação → Importar.</p>
+      <p style="margin:8px 0 2px"><b style="color:#15C45A">${added}</b> resultado(s) desta busca</p>
+      <p style="margin:0 0 10px;color:#8A938E;font-size:12.5px">${where.replace(/</g, '&lt;')}</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button id="zk-c" style="background:#15C45A;color:#04130A;border:0;border-radius:8px;padding:8px 12px;font-weight:600;cursor:pointer">Copiar tudo</button>
-        <button id="zk-l" style="background:transparent;color:#E8ECE9;border:1px solid #333;border-radius:8px;padding:8px 12px;cursor:pointer">Limpar lista</button>
+        <button id="zk-c" style="background:#15C45A;color:#04130A;border:0;border-radius:8px;padding:8px 12px;font-weight:600;cursor:pointer">Copiar</button>
         <button id="zk-x" style="background:transparent;color:#8A938E;border:0;padding:8px;cursor:pointer">Fechar</button>
       </div>
+      <p style="margin:10px 0 0;color:#8A938E;font-size:12.5px">Cole em Captação → Importar. Pode colar uma busca de cada vez: ele vai somando.</p>
       <textarea id="zk-t" readonly style="margin-top:10px;width:100%;height:90px;background:#111;color:#cfd;border:1px solid #222;border-radius:8px;font:11px monospace"></textarea>`)
     d.querySelector('#zk-t').value = tsv
     d.querySelector('#zk-c').onclick = async () => {
@@ -65,7 +66,6 @@ function captar() {
       try { await navigator.clipboard.writeText(tsv) } catch { t.select(); document.execCommand('copy') }
       d.querySelector('#zk-c').textContent = 'Copiado!'
     }
-    d.querySelector('#zk-l').onclick = () => { localStorage.removeItem(KEY); d.remove() }
     d.querySelector('#zk-x').onclick = () => d.remove()
   }
   run()
