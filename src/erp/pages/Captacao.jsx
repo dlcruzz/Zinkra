@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import { rankPlaces, placeReasons } from '../lib/locais'
 import { CATALOG_NAMES } from '../lib/nichos'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useMeta } from '../components/Shell'
@@ -41,13 +42,14 @@ export default function Captacao() {
   const [importing, setImporting] = useState(null)
 
   const { data, loading, error, reload } = useData(async () => {
-    const [terms, batches, leads] = await Promise.all([
+    const [terms, batches, leads, acts] = await Promise.all([
       fetchTerms(),
       fetchRows('capture_batches', { order: 'created_at', ascending: false, limit: 300 }),
-      fetchRows('leads', { select: 'id, company, phone, instagram, niche, city, uf, neighborhood, search_term_id', order: null }),
+      fetchRows('leads', { select: 'id, company, phone, instagram, niche, city, uf, neighborhood, search_term_id, last_contact_at, won_at, client_id', order: null }),
+      fetchRows('activities', { select: 'lead_id, type, result', order: null }).catch(() => []),
     ])
-    return { terms, batches, leads }
-  }, ['search_terms', 'capture_batches', 'leads'])
+    return { terms, batches, leads, acts }
+  }, ['search_terms', 'capture_batches', 'leads', 'activities'])
 
   if (error) {
     const m = String(error.message || error)
@@ -269,6 +271,8 @@ function Nova({ data, preset, onImport }) {
           </Field>
           <Field label="Buscas por lote" hint="5 a 8 rende bem numa conversa"><input type="number" min={1} max={30} className="in num" value={size} onChange={(e) => { setSize(Math.max(1, Number(e.target.value) || 1)); setSel(null) }} /></Field>
         </div>
+        <PlacePick data={data} niche={nicheName} current={cityName ? { city: cityName, uf } : null}
+          onUse={(p) => { setUf(p.uf); setCity(p.city) }} />
         <div className="row" style={{ gap: 18, flexWrap: 'wrap' }}>
           <div className="row" style={{ gap: 6 }} role="radiogroup" aria-label="Onde captar">
             <span className="lbl">Onde captar</span>
@@ -371,6 +375,46 @@ function Nova({ data, preset, onImport }) {
           </div>
         ) : null}
       </div>
+    </div>
+  )
+}
+
+// ------------------------------------------------------------------ Sugestão de local
+const CONTACT_T = new Set(['whatsapp', 'ligacao', 'email', 'visita'])
+function PlacePick({ data, niche, current, onUse }) {
+  const [idx, setIdx] = useState(0)
+  const [open, setOpen] = useState(false)
+  const { replied, contacted } = useMemo(() => {
+    const r = new Set(), c = new Set()
+    ;(data.acts || []).forEach((a) => { if (!a.lead_id) return; if (a.result === 'respondeu') r.add(a.lead_id); if (CONTACT_T.has(a.type)) c.add(a.lead_id) })
+    return { replied: r, contacted: c }
+  }, [data.acts])
+  const rk = useMemo(() => rankPlaces({ leads: data.leads, replied, contacted, niche, day: today() }), [data.leads, replied, contacted, niche])
+  useEffect(() => setIdx(0), [niche])
+  const p = rk.list[idx % rk.list.length]
+  if (!p) return null
+  const isCur = current && fold(current.city) === fold(p.city) && current.uf === p.uf
+  return (
+    <div className="card pick">
+      <div className="row" style={{ justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
+        <div className="stack-s" style={{ gap: 3, minWidth: 0 }}>
+          <span className="lbl"><Icon name="spark" size={12} /> Sugestão de local{niche ? ` para ${niche}` : ''} · {idx === 0 ? 'hoje' : `opção ${(idx % rk.list.length) + 1}`}</span>
+          <strong className="pick-name">{p.city} - {p.uf}</strong>
+        </div>
+        <div className="row" style={{ gap: 6 }}>
+          <button type="button" className="btn s p" disabled={isCur} onClick={() => onUse(p)}><Icon name="check" size={13} />{isCur ? 'Selecionada' : 'Usar este local'}</button>
+          <button type="button" className="btn s" onClick={() => setIdx((i) => i + 1)}>Outro local</button>
+          <button type="button" className="btn s g" onClick={() => setOpen((o) => !o)}>{open ? 'Fechar lista' : 'Ver mais'}</button>
+        </div>
+      </div>
+      <ul className="pick-why">{placeReasons(p, rk.gReply, niche).map((r) => <li key={r}>{r}</li>)}</ul>
+      {open ? (
+        <div className="row" style={{ flexWrap: 'wrap', gap: 6 }}>
+          {rk.list.slice(0, 18).map((x, i) => (
+            <button key={x.key} type="button" className={`chip ${i === idx % rk.list.length ? 'on' : ''}`} onClick={() => setIdx(i)} title={placeReasons(x, rk.gReply, niche).join(' · ')}>{x.city} - {x.uf}</button>
+          ))}
+        </div>
+      ) : null}
     </div>
   )
 }

@@ -91,6 +91,11 @@ Buscar no Google Maps os estabelecimentos de cada termo de busca abaixo, para eu
 TERMOS DE BUSCA (faça todos, um por vez, nesta ordem):
 ${list}
 
+PRIORIDADE: O PROFISSIONAL QUE DECIDE
+- Dê prioridade aos profissionais individuais: o próprio dentista, advogado, contador, nutricionista… com consultório ou escritório próprio, perfil com nome de pessoa, "Dr.", "Dra.". Com eles a conversa chega direto em quem decide.
+- Clínicas, escritórios grandes e empresas TAMBÉM entram, não descarte. Só venha depois: em cada busca, liste primeiro os profissionais individuais e depois as empresas.
+- Se aparecer o nome do profissional responsável pela empresa, coloque junto na Empresa. Ex.: "Clínica Sorriso (Dra. Ana Lima)".
+
 FILTRO
 ${filtro}
 
@@ -155,6 +160,11 @@ CUIDADO COM A CONTA (muito importante)
 - Vá devagar: espere de 5 a 10 segundos entre um perfil e outro. Abra no máximo 40 perfis por lote.
 - NÃO siga, NÃO curta, NÃO comente, NÃO mande Direct, NÃO clique em "Seguir" nem em botões de contato. Só leia.
 - Se o Instagram mostrar aviso de "tente novamente mais tarde", limite de ações, verificação ou CAPTCHA, PARE na hora e me entregue o que já tiver.
+
+PRIORIDADE: O PROFISSIONAL QUE DECIDE
+- Dê prioridade aos profissionais individuais: o próprio dentista, advogado, contador, nutricionista… com consultório ou escritório próprio, perfil com nome de pessoa, "Dr.", "Dra.". Com eles a conversa chega direto em quem decide.
+- Clínicas, escritórios grandes e empresas TAMBÉM entram, não descarte. Só venha depois: em cada busca, liste primeiro os profissionais individuais e depois as empresas.
+- Se aparecer o nome do profissional responsável pela empresa, coloque junto na Empresa. Ex.: "Clínica Sorriso (Dra. Ana Lima)".
 
 FILTRO
 ${filtro}

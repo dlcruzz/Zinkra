@@ -10,6 +10,7 @@ import { Icon } from '../lib/icons'
 import { usePacer, mmss } from '../lib/pacer'
 import { nicheStats, rankNiches, reasons, fmtPct, LEVEL, MODES, MIN_DATA, MIN_REPLIES } from '../lib/nicheScore'
 import { nicheKey, KIND_LABEL } from '../lib/nichos'
+import { rankPlaces } from '../lib/locais'
 
 const CONTACT = new Set(['whatsapp', 'ligacao', 'email', 'visita'])
 const COL_KEY = 'zk.prospeccao.playbook'
@@ -486,13 +487,11 @@ function SystemPick({ leads, P, pool, channel, onUse }) {
     return m
   }, [pool])
   const ranked = useMemo(() => (stats ? rankNiches(stats, mode, avail, today()) : []), [stats, mode, avail])
-  // cidade onde você mais trabalha, para sugerir a captação
-  const home = useMemo(() => {
-    const m = new Map()
-    leads.forEach((l) => { if (!l.city) return; const k = l.city + '|' + (l.uf || ''); m.set(k, (m.get(k) || 0) + 1) })
-    const top = [...m.entries()].sort((a, b) => b[1] - a[1])[0]
-    return top ? { city: top[0].split('|')[0], uf: top[0].split('|')[1] } : { city: '', uf: '' }
-  }, [leads])
+  const sets = useMemo(() => {
+    const r = new Set(), c = new Set()
+    ;(data?.activities || []).forEach((a) => { if (!a.lead_id) return; if (a.result === 'respondeu') r.add(a.lead_id); if (['whatsapp', 'ligacao', 'email', 'visita'].includes(a.type)) c.add(a.lead_id) })
+    return { replied: r, contacted: c }
+  }, [data])
 
   if (error) return null
   if (!stats) return <div className="card pick"><span className="lbl">Calculando o desempenho de cada público…</span></div>
@@ -500,6 +499,8 @@ function SystemPick({ leads, P, pool, channel, onUse }) {
   const n = s ? avail.get(s.key) || 0 : 0
   const label = s && n ? (pool.find((l) => nicheKey(l.niche) === s.key)?.niche || s.name) : ''
   const lv = s ? LEVEL[s.level] : null
+  // onde captar esse público: sugestão de local (espalha para fora de um polo só)
+  const home = s && !n ? rankPlaces({ leads, ...sets, niche: s.name, day: today() }).list[0] || { city: '', uf: '' } : { city: '', uf: '' }
   const capUrl = s ? `/erp/captacao?${new URLSearchParams({ niche: s.name, city: home.city, uf: home.uf || 'SP' })}` : ''
 
   return (
@@ -528,7 +529,7 @@ function SystemPick({ leads, P, pool, channel, onUse }) {
           {s.pair ? <span className="lbl">Compare com <b style={{ fontWeight: 500, color: 'var(--tx)' }}>{s.pair}</b> ({KIND_LABEL[s.kind === 'empresa' ? 'profissional' : 'empresa'].toLowerCase()}): o sistema mostra qual dos dois responde e compra mais.</span> : null}
           <div className="row" style={{ gap: 8 }}>
             {n ? <button type="button" className="btn p" onClick={() => onUse(label)}><Icon name="check" size={14} />Usar este público</button>
-              : <Link className="btn p" to={capUrl}><Icon name="search" size={14} />Captar {s.name}{home.city ? ` em ${home.city}` : ''}</Link>}
+              : <Link className="btn p" to={capUrl}><Icon name="search" size={14} />Captar {s.name}{home.city ? ` em ${home.city} - ${home.uf}` : ''}</Link>}
             <button type="button" className="btn" onClick={() => setIdx((i) => i + 1)}>Outra opção</button>
             <button type="button" className="btn g" onClick={() => setTable(true)}>Ranking dos públicos</button>
           </div>
