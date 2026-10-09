@@ -19,12 +19,22 @@ export function potential({ terms, leads, acts = [] }) {
   })
   const states = [...byUf.values()].map((s) => ({ ...s, cities: s.cities.size, left: s.total - s.done, pct: s.total ? s.done / s.total : 0, est: Math.round((s.total - s.done) * yieldPer) }))
     .sort((a, b) => b.est - a.est)
-  const toCapture = states.reduce((a, s) => a + s.est, 0)
+  const toCapture = states.reduce((a, s) => a + s.est, 0) // só bairros cadastrados (antes das sugestões)
 
   // cidades sugeridas que ainda não têm nenhuma busca cadastrada
   const open = new Set(terms.map((t) => `${fold(t.city)}|${t.uf}`))
   const newCities = CITY_POOL.filter((c) => !open.has(`${fold(c.city)}|${c.uf}`))
-  const newEst = Math.round(newCities.length * CATALOG.length * yieldPer * 0.25) // cidade inteira, 1 busca por público, só 1/4 dos públicos
+  const perCity = Math.round(CATALOG.length * yieldPer * 0.25) // cidade inteira, 1 busca por público, só 1/4 dos públicos
+  const newEst = newCities.length * perCity
+  // as cidades sugeridas entram no gráfico do estado delas, para mostrar que há mercado fora de um polo só
+  const idx = new Map(states.map((x) => [x.uf, x]))
+  newCities.forEach((c) => {
+    let x = idx.get(c.uf)
+    if (!x) { x = { uf: c.uf, name: UF_NAME[c.uf] || c.uf, total: 0, done: 0, cities: 0, left: 0, pct: 0, est: 0, suggested: 0 }; idx.set(c.uf, x); states.push(x) }
+    x.suggested = (x.suggested || 0) + 1
+    x.est += perCity
+  })
+  states.sort((a2, b2) => b2.est - a2.est)
 
   const contactedIds = new Set(acts.filter((a) => a.lead_id && ['whatsapp', 'ligacao', 'email', 'visita'].includes(a.type)).map((a) => a.lead_id))
   const isContacted = (l) => Boolean(l.last_contact_at) || contactedIds.has(l.id)

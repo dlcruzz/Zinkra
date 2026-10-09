@@ -6,10 +6,11 @@ import { potential, short } from '../lib/potencial'
 // Painel positivo: quanto mercado ainda tem pela frente, para não desanimar com os "nãos" do dia.
 export default function Potencial({ terms, leads, acts, compact = false }) {
   const [all, setAll] = useState(false)
+  const top = compact ? 5 : 10
   const p = useMemo(() => potential({ terms, leads, acts }), [terms, leads, acts])
   const total = p.toCapture + p.newEst + p.notContacted
-  const rows = (all ? p.states : p.states.slice(0, compact ? 4 : 8)).map((s) => ({
-    label: `${s.name} (${s.cities} cidade${s.cities === 1 ? '' : 's'})`,
+  const rows = (all ? p.states : p.states.slice(0, top)).map((s) => ({
+    label: `${s.name} (${s.cities ? `${s.cities} cidade${s.cities === 1 ? '' : 's'}` : ''}${s.cities && s.suggested ? ' + ' : ''}${s.suggested ? `${s.suggested} sugerida${s.suggested === 1 ? '' : 's'}` : ''})`,
     value: s.est,
     display: `~${short(s.est)}`,
     sub: `${Math.round(s.pct * 100)}% feito`,
@@ -35,9 +36,9 @@ export default function Potencial({ terms, leads, acts, compact = false }) {
       </p>
       {rows.length ? (
         <>
-          <span className="lbl">Por estado: leads ainda a captar e quanto das buscas você já fez</span>
+          <span className="lbl">Por estado: quanto ainda dá para captar (bairros cadastrados + cidades sugeridas) e quanto você já fez</span>
           <HBars rows={rows} />
-          {!compact && p.states.length > 8 ? <button type="button" className="btn s g" style={{ alignSelf: 'flex-start' }} onClick={() => setAll((a) => !a)}>{all ? 'Mostrar menos' : `Ver os ${p.states.length} estados`}</button> : null}
+          {p.states.length > top ? <button type="button" className="btn s g" style={{ alignSelf: 'flex-start' }} onClick={() => setAll((a) => !a)}>{all ? 'Mostrar menos' : `Ver os ${p.states.length} estados`}</button> : null}
         </>
       ) : null}
       <span className="lbl" style={{ fontSize: 11.5 }}>Conta feita com a sua média de {p.yieldPer.toFixed(1).replace('.', ',')} lead(s) por busca. Quanto mais você capta, mais exata fica.</span>
