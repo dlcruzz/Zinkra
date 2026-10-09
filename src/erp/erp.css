@@ -653,3 +653,13 @@ body:has(.erp) { background: #0A0C0B; }
 .erp .pick-kinds { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .erp .pick .seg { flex-wrap: wrap; }
 @media (max-width: 620px) { .erp .pick-kinds { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---------- potencial (ainda pela frente) ---------- */
+.erp .pot { padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; }
+.erp .pot-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); gap: 18px; align-items: center; }
+.erp .pot-big { font-size: 40px; font-weight: 600; line-height: 1; color: var(--green-tx); letter-spacing: -0.02em; }
+.erp .pot-split { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.erp .pot-split > div { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r2, 12px); }
+.erp .pot-split b { font-size: 20px; font-weight: 600; }
+.erp .pot-msg { margin: 0; font-size: 13.5px; line-height: 1.55; padding: 10px 12px; border-radius: var(--r2, 12px); background: rgba(21, 196, 90, .07); border: 1px solid var(--green-ln); }
+@media (max-width: 860px) { .erp .pot-head { grid-template-columns: minmax(0, 1fr); } .erp .pot-split { grid-template-columns: minmax(0, 1fr); } .erp .pot-big { font-size: 34px; } }

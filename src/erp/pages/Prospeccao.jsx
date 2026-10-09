@@ -11,6 +11,7 @@ import { usePacer, mmss } from '../lib/pacer'
 import { nicheStats, rankNiches, reasons, fmtPct, LEVEL, MODES, MIN_DATA, MIN_REPLIES } from '../lib/nicheScore'
 import { nicheKey, KIND_LABEL } from '../lib/nichos'
 import { rankPlaces } from '../lib/locais'
+import Potencial from '../components/Potencial'
 
 const CONTACT = new Set(['whatsapp', 'ligacao', 'email', 'visita'])
 const COL_KEY = 'zk.prospeccao.playbook'
@@ -433,6 +434,7 @@ function NovaProspeccao({ data, onStart }) {
         </section>
 
         <div className="stack">
+          <PotencialProsp leads={leads} />
           {returns.length ? (
             <section className="card pad stack-s">
               <h2>Retornos para hoje</h2>
@@ -459,6 +461,19 @@ function NovaProspeccao({ data, onStart }) {
       </div>
     </div>
   )
+}
+
+// ---------- ainda pela frente ----------
+function PotencialProsp({ leads }) {
+  const { data } = useData(async () => {
+    const [terms, acts] = await Promise.all([
+      fetchRows('search_terms', { select: 'id, uf, city, done, leads_found', order: null }).catch(() => []),
+      fetchRows('activities', { select: 'lead_id, type, result', order: null }).catch(() => []),
+    ])
+    return { terms, acts }
+  }, ['search_terms', 'activities'], [])
+  if (!data) return null
+  return <Potencial terms={data.terms} leads={leads} acts={data.acts} compact />
 }
 
 // ---------- o sistema escolhe o público ----------

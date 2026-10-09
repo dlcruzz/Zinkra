@@ -1,18 +1,20 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { rankPlaces, placeReasons } from '../lib/locais'
-import { CATALOG_NAMES } from '../lib/nichos'
+import { nicheStats, rankNiches, reasons, LEVEL } from '../lib/nicheScore'
+import { nicheKey, KIND_LABEL, CATALOG_NAMES } from '../lib/nichos'
+import Potencial from '../components/Potencial'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useMeta } from '../components/Shell'
 import { useAuth } from '../lib/auth'
 import { useData, fetchRows, insert, upsert, update, updateWhere, notify, emitChange, useSettings } from '../lib/data'
-import { defaultLeadStage } from '../lib/automations'
+import { defaultLeadStage, getPipelines } from '../lib/automations'
 import { today, dm, igHandle, normalizePhone, pct } from '../lib/format'
 import { yes } from '../lib/csv'
 import {
   UFS, UF_NAME, knownHoods, regionOf, fetchCities, fold, locKey, termQuery, batchCode, buildPrompt, buildInstagramPrompt, hoodsPrompt,
   readResultFile, parseResult, matchTerm, NO_RESULT, COLS,
 } from '../lib/captacao'
-import { PageHead, Loading, ErrorBox, Bar, Badge, Select, AsyncButton, Field, Empty, Tabs, Modal, Stat } from '../components/ui'
+import { PageHead, Loading, ErrorBox, Bar, Badge, Select, AsyncButton, Field, Empty, Tabs, Modal, Stat, Seg } from '../components/ui'
 import { Icon } from '../lib/icons'
 import { supabase } from '../lib/supabase'
 
@@ -42,13 +44,16 @@ export default function Captacao() {
   const [importing, setImporting] = useState(null)
 
   const { data, loading, error, reload } = useData(async () => {
-    const [terms, batches, leads, acts] = await Promise.all([
+    const [terms, batches, leads, acts, P, clients, contracts] = await Promise.all([
       fetchTerms(),
       fetchRows('capture_batches', { order: 'created_at', ascending: false, limit: 300 }),
-      fetchRows('leads', { select: 'id, company, phone, instagram, niche, city, uf, neighborhood, search_term_id, last_contact_at, won_at, client_id', order: null }),
+      fetchRows('leads', { select: 'id, company, phone, instagram, niche, city, uf, neighborhood, search_term_id, last_contact_at, won_at, client_id, stage_id, estimated_value_cents', order: null }),
       fetchRows('activities', { select: 'lead_id, type, result', order: null }).catch(() => []),
+      getPipelines(),
+      fetchRows('clients', { select: 'id, lead_id, niche', order: null }).catch(() => []),
+      fetchRows('contracts', { select: 'client_id, kind, total_cents, monthly_cents', order: null }).catch(() => []),
     ])
-    return { terms, batches, leads, acts }
+    return { terms, batches, leads, acts, P, clients, contracts }
   }, ['search_terms', 'capture_batches', 'leads', 'activities'])
 
   if (error) {
@@ -73,6 +78,8 @@ export default function Captacao() {
         <Stat label="Leads vindos de busca" value={captured.toLocaleString('pt-BR')} />
         <Stat label="Lotes aguardando importação" value={waiting.length} valueClass={waiting.length ? 'ok' : ''} />
       </div>
+
+      <Potencial terms={terms} leads={leads} acts={data.acts} />
 
       <Tabs value={tab} onChange={(t) => setTab(t)} options={[['nova', 'Nova captação'], ['cobertura', 'Cobertura'], ['lotes', 'Lotes', batches.length || null]]} />
 
@@ -271,6 +278,7 @@ function Nova({ data, preset, onImport }) {
           </Field>
           <Field label="Buscas por lote" hint="5 a 8 rende bem numa conversa"><input type="number" min={1} max={30} className="in num" value={size} onChange={(e) => { setSize(Math.max(1, Number(e.target.value) || 1)); setSel(null) }} /></Field>
         </div>
+        <NichePick data={data} current={nicheName} onUse={(n) => setNiche(n)} />
         <PlacePick data={data} niche={nicheName} current={cityName ? { city: cityName, uf } : null}
           onUse={(p) => { setUf(p.uf); setCity(p.city) }} />
         <div className="row" style={{ gap: 18, flexWrap: 'wrap' }}>
@@ -375,6 +383,35 @@ function Nova({ data, preset, onImport }) {
           </div>
         ) : null}
       </div>
+    </div>
+  )
+}
+
+// ------------------------------------------------------------------ Sugestão de público
+function NichePick({ data, current, onUse }) {
+  const [mode, setMode] = useState('vender')
+  const [idx, setIdx] = useState(0)
+  const stats = useMemo(() => nicheStats({ leads: data.leads, activities: data.acts || [], clients: data.clients || [], contracts: data.contracts || [], P: data.P }), [data])
+  const ranked = useMemo(() => rankNiches(stats, mode, new Map(), today()), [stats, mode])
+  const s = ranked[idx % (ranked.length || 1)]
+  if (!s) return null
+  const isCur = current && nicheKey(current) === s.key
+  const lv = LEVEL[s.level]
+  return (
+    <div className="card pick">
+      <div className="row" style={{ justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
+        <div className="stack-s" style={{ gap: 3, minWidth: 0 }}>
+          <span className="lbl"><Icon name="spark" size={12} /> Sugestão de público · {idx === 0 ? 'hoje' : `opção ${(idx % ranked.length) + 1}`}</span>
+          <strong className="pick-name">{s.name}</strong>
+          <div className="row" style={{ gap: 6 }}><Badge>{KIND_LABEL[s.kind]}</Badge><Badge kind={lv[1]} title={lv[2]}>{lv[0]}</Badge><span className="lbl">{s.leads} lead(s) na base</span></div>
+        </div>
+        <div className="row" style={{ gap: 6 }}>
+          <Seg value={mode} onChange={(m) => { setMode(m); setIdx(0) }} options={[['vender', 'Para vender'], ['testar', 'Testar novo']]} />
+          <button type="button" className="btn s p" disabled={isCur} onClick={() => onUse(s.name)}><Icon name="check" size={13} />{isCur ? 'Selecionado' : 'Usar este público'}</button>
+          <button type="button" className="btn s" onClick={() => setIdx((i) => i + 1)}>Outro público</button>
+        </div>
+      </div>
+      <ul className="pick-why">{reasons(s, stats.global, mode).map((r) => <li key={r}>{r}</li>)}</ul>
     </div>
   )
 }
