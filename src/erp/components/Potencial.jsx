@@ -19,7 +19,7 @@ export default function Potencial({ terms, leads, acts, compact = false }) {
       <div className="pot-head">
         <div className="stack-s" style={{ gap: 4 }}>
           <span className="lbl">Ainda pela frente (estimativa)</span>
-          <span className="pot-big num">~<CountUp value={total} /></span>
+          <span className="pot-big num">~<CountUp value={total.toLocaleString('pt-BR')} /></span>
           <span className="lbl">pessoas e empresas para você prospectar</span>
         </div>
         <div className="pot-split">
