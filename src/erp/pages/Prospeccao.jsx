@@ -17,15 +17,28 @@ const CONTACT = new Set(['whatsapp', 'ligacao', 'email', 'visita'])
 const COL_KEY = 'zk.prospeccao.playbook'
 const GENERIC = new Set(['Cobrança', 'Objeções', 'Prospecção'])
 
+// uma lista por canal: dá para rodar WhatsApp e Instagram ao mesmo tempo
 const SES_KEY = 'zk.prospeccao.sessao'
-const readSes = () => { try { return JSON.parse(localStorage.getItem(SES_KEY) || 'null') } catch { return null } }
-const saveSes = (v) => { try { v ? localStorage.setItem(SES_KEY, JSON.stringify(v)) : localStorage.removeItem(SES_KEY) } catch { /* sem storage */ } }
+const sesKey = (ch) => `${SES_KEY}.${ch}`
+const readSes = (ch) => {
+  try {
+    const v = JSON.parse(localStorage.getItem(sesKey(ch)) || 'null')
+    if (v) return v
+    // lista antiga (de antes de ter os dois canais): vai para o canal dela
+    const old = JSON.parse(localStorage.getItem(SES_KEY) || 'null')
+    if (old && (old.channel === 'instagram' ? 'instagram' : 'whatsapp') === ch) { localStorage.setItem(sesKey(ch), JSON.stringify({ ...old, channel: ch })); localStorage.removeItem(SES_KEY); return { ...old, channel: ch } }
+  } catch { /* sem storage */ }
+  return null
+}
+const saveSes = (ch, v) => { try { v ? localStorage.setItem(sesKey(ch), JSON.stringify(v)) : localStorage.removeItem(sesKey(ch)) } catch { /* sem storage */ } }
+const CH_NAME = { whatsapp: 'WhatsApp', instagram: 'Instagram' }
 const fold = (s) => String(s || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
 const FIRST = new Set(['M1', 'M2'])
 // o lead entra nesta prospecção? (público + local escolhidos, ou retornos de quem já foi contatado)
 function inSession(l, ses) {
   if (!ses) return false
   if (ses.channel === 'instagram' && !l.instagram) return false
+  if (ses.channel !== 'instagram' && !l.phone) return false
   if (ses.kind === 'retornos') return Boolean(l.last_contact_at)
   if (ses.kind === 'lista') return (ses.ids || []).includes(l.id)
   if (ses.niche && fold(l.niche) !== fold(ses.niche)) return false
@@ -33,7 +46,7 @@ function inSession(l, ses) {
   if (ses.neighborhood && fold(l.neighborhood) !== fold(ses.neighborhood)) return false
   return true
 }
-const sesLabel = (ses) => (ses?.channel === 'instagram' ? 'Instagram · ' : '') + (ses?.kind === 'lista' ? ses.label || 'Leads selecionados' : ses?.kind === 'retornos' ? 'Retornos e follow-ups' : [ses?.niche, ses?.neighborhood, ses?.city].filter(Boolean).join(' · ') || 'Todos os leads')
+const sesLabel = (ses) => (ses?.kind === 'lista' ? ses.label || 'Leads selecionados' : ses?.kind === 'retornos' ? 'Retornos e follow-ups' : [ses?.niche, ses?.neighborhood, ses?.city].filter(Boolean).join(' · ') || 'Todos os leads')
 const CH_KEY = 'zk.prospeccao.canal'
 const readCh = () => { try { return localStorage.getItem(CH_KEY) || 'whatsapp' } catch { return 'whatsapp' } }
 const saveCh = (c) => { try { localStorage.setItem(CH_KEY, c) } catch { /* sem storage */ } }
@@ -71,7 +84,7 @@ function codeForLead(lead, items) {
 export default function Prospeccao() {
   useMeta('Comercial', 'Prospecção')
   const auth = useAuth()
-  const [skipped, setSkipped] = useState([])
+  const [skippedBy, setSkippedBy] = useState({ whatsapp: [], instagram: [] })
   const [col, setColState] = useState(readCol)
   const [code, setCode] = useState('')
   const [copied, setCopied] = useState('')
@@ -80,12 +93,18 @@ export default function Prospeccao() {
   const [, tick] = useState(0)
   const [pull, setPull] = useState(false)
   const [editing, setEditing] = useState(null) // { id, body }
-  const [ses, setSesState] = useState(readSes)
-  const channel = ses?.channel === 'instagram' ? 'instagram' : 'whatsapp'
+  const [channel, setChannelState] = useState(readCh)
+  const setChannel = (c) => { setChannelState(c); saveCh(c) }
+  const [sesBy, setSesBy] = useState(() => ({ whatsapp: readSes('whatsapp'), instagram: readSes('instagram') }))
+  const ses = sesBy[channel]
   const isIg = channel === 'instagram'
-  const pacer = usePacer(channel)
+  // os dois ritmos rodam juntos: o alarme de um toca mesmo vendo o outro
+  const pacers = { whatsapp: usePacer('whatsapp'), instagram: usePacer('instagram') }
+  const pacer = pacers[channel]
   const [ending, setEnding] = useState(false)
-  const setSes = (v) => { setSesState(v); saveSes(v); setSkipped([]) }
+  const skipped = skippedBy[channel]
+  const setSkipped = (f) => setSkippedBy((m) => ({ ...m, [channel]: typeof f === 'function' ? f(m[channel]) : f }))
+  const setSes = (v) => { const nv = v ? { ...v, channel } : null; setSesBy((m) => ({ ...m, [channel]: nv })); saveSes(channel, nv); setSkipped([]) }
 
   const setCol = (c) => { setColState(c); saveCol(c) }
 
@@ -103,20 +122,31 @@ export default function Prospeccao() {
     return { P, leads, playbooks, acts, goals }
   }, ['leads', 'activities', 'goals', 'playbooks'], [auth.uid])
 
-  const queue = useMemo(() => {
-    if (!data) return []
+  const queues = useMemo(() => {
+    const out = { whatsapp: [], instagram: [] }
+    if (!data) return out
     const t = today()
-    return data.leads.filter((l) => {
+    const build = (s) => data.leads.filter((l) => {
       const st = data.P.stage(l.stage_id)
-      return st && st.kind === 'open' && l.next_step_at && l.next_step_at <= t && (l.owner_id === auth.uid || !l.owner_id) && inSession(l, ses)
+      return st && st.kind === 'open' && l.next_step_at && l.next_step_at <= t && (l.owner_id === auth.uid || !l.owner_id) && inSession(l, s)
     }).sort((a, b) => {
       // respondeu primeiro, depois atrasados, depois novos
       const ra = data.P.stage(a.stage_id)?.name.toLowerCase().startsWith('respond') ? 0 : 1
       const rb = data.P.stage(b.stage_id)?.name.toLowerCase().startsWith('respond') ? 0 : 1
       if (ra !== rb) return ra - rb
+      // no Instagram vem primeiro quem não tem telefone (só dá para falar por lá)
+      if (s.channel === 'instagram' && Boolean(a.phone) !== Boolean(b.phone)) return a.phone ? 1 : -1
       return (a.next_step_at || '').localeCompare(b.next_step_at || '')
     })
-  }, [data, auth, ses])
+    if (sesBy.whatsapp) out.whatsapp = build(sesBy.whatsapp)
+    if (sesBy.instagram) out.instagram = build(sesBy.instagram)
+    return out
+  }, [data, auth, sesBy])
+  // o mesmo lead não aparece ao mesmo tempo nas duas listas
+  const firstOf = (ch) => queues[ch].find((l) => !skippedBy[ch].includes(l.id))
+  const otherCh = channel === 'instagram' ? 'whatsapp' : 'instagram'
+  const otherFirst = firstOf(otherCh)
+  const queue = queues[channel].filter((l) => !(otherFirst && l.id === otherFirst.id && otherCh === 'whatsapp'))
 
   const cols = useMemo(() => (data ? Array.from(new Set(data.playbooks.map((p) => p.collection))).sort() : []), [data])
   const active = queue.filter((l) => !skipped.includes(l.id))
@@ -146,7 +176,8 @@ export default function Prospeccao() {
 
   if (error) return <div className="page"><ErrorBox error={error} onRetry={reload} /></div>
   if (loading || !data) return <div className="page"><Loading rows={6} /></div>
-  if (!ses) return <NovaProspeccao data={data} onStart={(v) => { saveCh(v.channel); setSes(v) }} />
+  const bar = <ChannelBar channel={channel} onChange={setChannel} sesBy={sesBy} pacers={pacers} left={{ whatsapp: queues.whatsapp.filter((l) => !skippedBy.whatsapp.includes(l.id)).length, instagram: queues.instagram.filter((l) => !skippedBy.instagram.includes(l.id)).length }} />
+  if (!ses) return <NovaProspeccao data={data} channel={channel} bar={bar} onStart={setSes} />
 
   const { P, playbooks, acts, goals } = data
   const contactsToday = acts.filter((a) => CONTACT.has(a.type)).length
@@ -185,6 +216,8 @@ export default function Prospeccao() {
 
   return (
     <div className="page prosp">
+      {bar}
+      <PauseTip channel={channel} pacer={pacer} other={pacers[otherCh]} otherHasList={Boolean(sesBy[otherCh])} onGo={() => setChannel(otherCh)} />
       <div className="prosp-split">
         {/* ESQUERDA: sessão, lead atual e fila */}
         <div className="prosp-left">
@@ -356,14 +389,13 @@ export default function Prospeccao() {
 }
 
 // ---------- início: escolher público e local ----------
-function NovaProspeccao({ data, onStart }) {
+function NovaProspeccao({ data, channel, bar, onStart }) {
   const auth = useAuth()
   const t = today()
   const { P, leads } = data
-  const [channel, setChannel] = useState(readCh)
   const ig = channel === 'instagram'
   const mineOrFree = (l) => !l.owner_id || l.owner_id === auth.uid
-  const isOpen = (l) => P.stage(l.stage_id)?.kind === 'open' && (!ig || Boolean(l.instagram))
+  const isOpen = (l) => P.stage(l.stage_id)?.kind === 'open' && (ig ? Boolean(l.instagram) : Boolean(l.phone))
   const pool = useMemo(() => leads.filter((l) => isOpen(l) && !l.next_step_at && mineOrFree(l)), [leads, ig]) // eslint-disable-line react-hooks/exhaustive-deps
   const due = useMemo(() => leads.filter((l) => isOpen(l) && l.next_step_at && l.next_step_at <= t && mineOrFree(l)), [leads, ig]) // eslint-disable-line react-hooks/exhaustive-deps
   const returns = due.filter((l) => l.last_contact_at)
@@ -410,17 +442,11 @@ function NovaProspeccao({ data, onStart }) {
 
   return (
     <div className="page">
-      <div className="page-head"><div className="t"><h1>Nova prospecção</h1><span className="lbl">Escolha o canal, o público e o local. Só esses leads entram na fila.</span></div></div>
+      {bar}
+      <div className="page-head"><div className="t"><h1>Nova lista no {CH_NAME[channel]}</h1><span className="lbl">Escolha o público e o local. Só esses leads entram na fila{ig ? ' (só quem tem @ do Instagram)' : ' (só quem tem telefone)'}.</span></div></div>
       <div className="prosp-start">
         <section className="card pad stack">
           <SystemPick leads={leads} P={P} pool={pool} channel={channel} onUse={(label) => setNiche(label)} />
-          <div className="prosp-channel" role="radiogroup" aria-label="Canal">
-            {[['whatsapp', 'wa', 'WhatsApp', 'Abre o app com a mensagem escrita'], ['instagram', 'ig', 'Instagram', 'Copia a mensagem e abre o Direct · só leads com @']].map(([k, ic, l, d]) => (
-              <button key={k} type="button" role="radio" aria-checked={channel === k} className={`prosp-ch ${channel === k ? 'on' : ''}`} onClick={() => { setChannel(k); saveCh(k) }}>
-                <Icon name={ic} size={18} /><span className="stack-s" style={{ gap: 1, textAlign: 'left' }}><strong>{l}</strong><span className="lbl">{d}</span></span>
-              </button>
-            ))}
-          </div>
           <div className="fields">
             <Field label="Público"><Select value={niche} onChange={(v) => setNiche(v || '')} placeholder="Escolha o público" options={niches.map((x) => [x.label, `${x.label} (${x.n})`])} /></Field>
             <Field label="Cidade"><Select value={city} onChange={(v) => setCity(v || '')} placeholder="Todas as cidades" options={cities.map((x) => [x.label, `${x.label} (${x.n})`])} /></Field>
@@ -459,6 +485,49 @@ function NovaProspeccao({ data, onStart }) {
           ) : null}
         </div>
       </div>
+    </div>
+  )
+}
+
+// ---------- os dois canais lado a lado ----------
+function chStatus(p, hasList, left) {
+  if (!hasList) return ['Sem lista', 'off']
+  if (p.status === 'dia') return ['Limite do dia', 'off']
+  if (p.status === 'livre') return [left ? 'Pode enviar' : 'Lista concluída', left ? 'ok' : 'off']
+  return [`${p.status === 'intervalo' ? 'Próxima em' : 'Pausa'} ${mmss(p.waiting)}`, 'wait']
+}
+function ChannelBar({ channel, onChange, sesBy, pacers, left }) {
+  return (
+    <div className="ch-bar" role="tablist" aria-label="Canal de prospecção">
+      {['whatsapp', 'instagram'].map((ch) => {
+        const [txt, kind] = chStatus(pacers[ch], Boolean(sesBy[ch]), left[ch])
+        return (
+          <button key={ch} type="button" role="tab" aria-selected={channel === ch} className={`ch-tab ${channel === ch ? 'on' : ''}`} onClick={() => onChange(ch)}>
+            <Icon name={ch === 'instagram' ? 'ig' : 'wa'} size={18} />
+            <span className="stack-s" style={{ gap: 1, minWidth: 0, textAlign: 'left' }}>
+              <strong>{CH_NAME[ch]}</strong>
+              <span className="lbl ellipsis">{sesBy[ch] ? `${sesLabel(sesBy[ch])} · ${left[ch]} na fila` : 'Toque para começar uma lista'}</span>
+            </span>
+            <span className={`ch-pill ${kind}`}>{txt}</span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+// enquanto um canal está em pausa, convida para usar o outro
+function PauseTip({ channel, pacer, other, otherHasList, onGo }) {
+  if (!['pausa', 'hora', 'dia'].includes(pacer.status)) return null
+  const otherName = CH_NAME[channel === 'instagram' ? 'whatsapp' : 'instagram']
+  const free = other.status === 'livre'
+  return (
+    <div className="pause-tip">
+      <Icon name="clock" size={16} />
+      <span className="grow">
+        <b>{CH_NAME[channel]} {pacer.status === 'dia' ? 'chegou ao limite de hoje' : `em pausa por ${mmss(pacer.waiting)}`}.</b>{' '}
+        {free ? (otherHasList ? `Aproveite e mande no ${otherName} enquanto isso. Quando a pausa acabar, o alarme toca.` : `Que tal começar uma lista no ${otherName} enquanto isso?`) : `O ${otherName} também está esperando: aproveite para responder quem falou com você.`}
+      </span>
+      {free ? <button type="button" className="btn s p" onClick={onGo}>Ir para o {otherName}<Icon name="arrow" size={13} /></button> : null}
     </div>
   )
 }
@@ -654,21 +723,20 @@ function PacerCard({ pacer, isIg }) {
         </div>
         {status !== 'livre' && status !== 'dia' ? <span className={`num pacer-clock ${big ? 'big' : ''}`}>{mmss(waiting)}</span> : null}
       </div>
-      {big ? <p className="lbl" style={{ margin: 0 }}>Volte a enviar quando o cronômetro zerar. Vai tocar um alarme, pode deixar esta aba aberta e fazer outra coisa.</p> : null}
+      {big ? <p className="lbl" style={{ margin: 0 }}>Quando o cronômetro zerar, toca um alarme. Pode usar o outro canal enquanto isso.</p> : null}
       {status === 'dia' ? <p className="lbl" style={{ margin: 0 }}>Você chegou a {cfg.perDay} primeiros contatos hoje. Respostas de quem já falou com você continuam liberadas.</p> : null}
-      <div className="pacer-stats">
-        <span>Bloco <b className="num">{pacer.blockCount}/{cfg.perBlock}</b></span>
-        <span>Última hora <b className="num">{pacer.lastHour}/{cfg.perHour}</b></span>
-        <span>Hoje <b className="num">{pacer.today}/{cfg.perDay}</b></span>
-      </div>
-      <div className="row" style={{ gap: 6 }}>
-        <button type="button" className="btn s g" onClick={() => setOpen((o) => !o)}><Icon name="sliders" size={13} />Ajustar ritmo</button>
-        <button type="button" className="btn s g" onClick={pacer.testPing} title="Toca quando acaba o intervalo entre uma mensagem e outra">Testar pim</button>
-        <button type="button" className="btn s g" onClick={pacer.testAlarm} title="Toca quando acaba a pausa do bloco"><Icon name="bell" size={13} />Testar alarme</button>
-        {status !== 'livre' && status !== 'dia' ? <button type="button" className="btn s g" onClick={pacer.skipWait}>Liberar agora</button> : null}
+      <div className="row" style={{ justifyContent: 'space-between', gap: 8 }}>
+        <span className="lbl">Hoje <b className="num" style={{ color: 'var(--tx)' }}>{pacer.today} de {cfg.perDay}</b> · pausa a cada {cfg.perBlock} ({pacer.blockCount} feitas)</span>
+        <button type="button" className="btn s g" onClick={() => setOpen((o) => !o)}><Icon name="sliders" size={13} />{open ? 'Fechar' : 'Ajustes'}</button>
       </div>
       {open ? (
         <div className="stack-s pacer-presets">
+          <div className="row" style={{ gap: 6 }}>
+            <button type="button" className="btn s g" onClick={pacer.testPing} title="Toca quando acaba o intervalo entre uma mensagem e outra">Testar pim</button>
+            <button type="button" className="btn s g" onClick={pacer.testAlarm} title="Toca quando acaba a pausa do bloco"><Icon name="bell" size={13} />Testar alarme</button>
+            {status !== 'livre' && status !== 'dia' ? <button type="button" className="btn s g" onClick={pacer.skipWait}>Liberar agora</button> : null}
+          </div>
+          <span className="lbl">Última hora: {pacer.lastHour} de {cfg.perHour}</span>
           {Object.entries(PRESETS).map(([k, p]) => (
             <label key={k} className="check" style={{ alignItems: 'flex-start' }}>
               <input type="radio" name={`pacer-${pacer.channel}`} checked={pacer.preset === k} onChange={() => pacer.setPreset(k)} />

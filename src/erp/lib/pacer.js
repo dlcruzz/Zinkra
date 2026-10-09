@@ -37,9 +37,11 @@ export function unlockAudio() {
   try { ctx = ctx || new (window.AudioContext || window.webkitAudioContext)(); if (ctx.state === 'suspended') ctx.resume() } catch { /* sem áudio */ }
 }
 // agenda o alarme no relógio de áudio: toca na hora certa mesmo com a aba em segundo plano
-let scheduled = []
-export function cancelAlarm() { scheduled.forEach((o) => { try { o.stop() } catch { /* já parou */ } }); scheduled = [] }
-export function alarm(times = 3, delaySec = 0) {
+// cada canal tem os seus alarmes agendados: pausar um não cancela o do outro
+const buckets = {}
+const bucket = (ch = 'whatsapp') => (buckets[ch] = buckets[ch] || [])
+export function cancelAlarm(ch = 'whatsapp') { bucket(ch).forEach((o) => { try { o.stop() } catch { /* já parou */ } }); buckets[ch] = [] }
+export function alarm(times = 3, delaySec = 0, ch = 'whatsapp') {
   unlockAudio(); if (!ctx) return
   const t0 = ctx.currentTime + 0.05 + delaySec
   for (let r = 0; r < times; r++) {
@@ -49,19 +51,19 @@ export function alarm(times = 3, delaySec = 0) {
       o.type = 'square'; o.frequency.setValueAtTime(i % 2 ? 880 : 1175, t)
       g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.6, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18)
       o.connect(g).connect(ctx.destination); o.start(t); o.stop(t + 0.2)
-      if (delaySec) scheduled.push(o)
+      if (delaySec) bucket(ch).push(o)
     }
   }
 }
 // um "pim" só: avisa que acabou o intervalo entre uma mensagem e outra
-export function ping(delaySec = 0) {
+export function ping(delaySec = 0, ch = 'whatsapp') {
   unlockAudio(); if (!ctx) return
   const t = ctx.currentTime + 0.05 + delaySec
   const o = ctx.createOscillator(); const g = ctx.createGain()
   o.type = 'sine'; o.frequency.setValueAtTime(1320, t)
   g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.7, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.45)
   o.connect(g).connect(ctx.destination); o.start(t); o.stop(t + 0.5)
-  if (delaySec) scheduled.push(o)
+  if (delaySec) bucket(ch).push(o)
 }
 function notifyDesktop(text) {
   try {
@@ -79,7 +81,7 @@ export function usePacer(channel = 'whatsapp') {
   // trocou de canal: carrega a contagem daquele canal (cada um tem seus limites)
   useEffect(() => {
     if (st.channel === channel) return
-    cancelAlarm()
+    cancelAlarm(st.channel)
     const n = initial(channel)
     rang.current = !(n.until > Date.now())
     setSt(n)
@@ -105,13 +107,13 @@ export function usePacer(channel = 'whatsapp') {
     if (st.until && waiting === 0 && !rang.current) {
       rang.current = true
       if (st.reason === 'pausa' || st.reason === 'hora') {
-        if (!scheduled.length) alarm(3) // pausa iniciada antes de recarregar a página
-        scheduled = []
-        notifyDesktop('Pausa encerrada. Pode voltar a enviar mensagens.')
+        if (!bucket(channel).length) alarm(3) // pausa iniciada antes de recarregar a página
+        buckets[channel] = []
+        notifyDesktop(`${channel === 'instagram' ? 'Instagram' : 'WhatsApp'}: pausa encerrada. Pode voltar a enviar.`)
       } else if (st.reason === 'intervalo') {
-        if (!scheduled.length) ping()
-        scheduled = []
-        notifyDesktop('Pode mandar a próxima mensagem.')
+        if (!bucket(channel).length) ping()
+        buckets[channel] = []
+        notifyDesktop(`${channel === 'instagram' ? 'Instagram' : 'WhatsApp'}: pode mandar a próxima mensagem.`)
       }
       const t = document.title; document.title = '🔔 Pode enviar! · ' + t.replace(/^🔔 Pode enviar! · /, '')
       setTimeout(() => { document.title = document.title.replace(/^🔔 Pode enviar! · /, '') }, 15000)
@@ -135,15 +137,15 @@ export function usePacer(channel = 'whatsapp') {
       else if (inHour >= c.perHour) { const first = sends.filter((x) => t - x < 3600e3)[0]; until = first + 3600e3; reason = 'hora'; blockCount = 0 }
       else { const gap = c.gapMin + Math.random() * (c.gapMax - c.gapMin); until = t + gap * 1000; reason = 'intervalo' }
       rang.current = false
-      cancelAlarm()
-      if (reason === 'pausa' || reason === 'hora') alarm(3, (until - t) / 1000)
-      else if (reason === 'intervalo') ping((until - t) / 1000)
+      cancelAlarm(channel)
+      if (reason === 'pausa' || reason === 'hora') alarm(3, (until - t) / 1000, channel)
+      else if (reason === 'intervalo') ping((until - t) / 1000, channel)
       return { ...s, sends, blockCount, until, reason }
     })
-  }, [])
+  }, [channel])
 
   const setPreset = (p) => setSt((s) => ({ ...s, preset: p, cfg: ch.presets[p] }))
-  const skipWait = () => { cancelAlarm(); rang.current = true; setSt((s) => ({ ...s, until: 0, reason: '' })) }
+  const skipWait = () => { cancelAlarm(channel); rang.current = true; setSt((s) => ({ ...s, until: 0, reason: '' })) }
   const resetDay = () => setSt((s) => ({ ...s, sends: [], blockCount: 0, until: 0, reason: '' }))
 
   return { channel, presets: ch.presets, cfg, preset: st.preset, today, lastHour, blockCount: st.blockCount, waiting, status, registerSend, setPreset, skipWait, resetDay, testAlarm: () => alarm(1), testPing: () => ping() }

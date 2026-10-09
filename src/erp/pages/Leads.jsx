@@ -109,7 +109,12 @@ export default function Leads() {
     emitChange('leads')
     const niches = Array.from(new Set(chosen.map((l) => l.niche).filter(Boolean)))
     const label = `${niches.slice(0, 2).join(', ') || 'Leads selecionados'}${niches.length > 2 ? ' e outros' : ''} · ${chosen.length} lead(s)`
-    try { localStorage.setItem('zk.prospeccao.sessao', JSON.stringify({ kind: 'lista', ids: chosen.map((l) => l.id), label, at: Date.now() })) } catch { /* sem storage */ }
+    // vai para o WhatsApp se a maioria tem telefone; senão, para o Instagram
+    const ch = chosen.filter((l) => l.phone).length >= chosen.filter((l) => l.instagram && !l.phone).length ? 'whatsapp' : 'instagram'
+    try {
+      localStorage.setItem(`zk.prospeccao.sessao.${ch}`, JSON.stringify({ kind: 'lista', channel: ch, ids: chosen.map((l) => l.id), label, at: Date.now() }))
+      localStorage.setItem('zk.prospeccao.canal', ch)
+    } catch { /* sem storage */ }
     setSel(new Set())
     nav('/erp/prospeccao')
   }

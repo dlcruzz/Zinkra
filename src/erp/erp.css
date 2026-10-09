@@ -663,3 +663,17 @@ body:has(.erp) { background: #0A0C0B; }
 .erp .pot-split b { font-size: 20px; font-weight: 600; }
 .erp .pot-msg { margin: 0; font-size: 13.5px; line-height: 1.55; padding: 10px 12px; border-radius: var(--r2, 12px); background: rgba(21, 196, 90, .07); border: 1px solid var(--green-ln); }
 @media (max-width: 860px) { .erp .pot-head { grid-template-columns: minmax(0, 1fr); } .erp .pot-split { grid-template-columns: minmax(0, 1fr); } .erp .pot-big { font-size: 34px; } }
+
+/* ---------- dois canais ao mesmo tempo ---------- */
+.erp .ch-bar { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
+.erp .ch-tab { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--r2, 12px); background: var(--s1); color: var(--tx); cursor: pointer; min-width: 0; transition: border-color .2s var(--ease, ease), background .2s var(--ease, ease); }
+.erp .ch-tab:hover { border-color: var(--tx-3); }
+.erp .ch-tab.on { border-color: var(--green-ln); background: linear-gradient(90deg, rgba(21,196,90,.10), transparent 75%), var(--s1); }
+.erp .ch-tab.on > svg { color: var(--green-tx); }
+.erp .ch-tab > .stack-s { flex: 1; }
+.erp .ch-pill { flex: none; font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--tx-2); font-variant-numeric: tabular-nums; }
+.erp .ch-pill.ok { color: var(--green-tx); border-color: var(--green-ln); background: rgba(21,196,90,.08); }
+.erp .ch-pill.wait { color: #E5A23A; border-color: #5A4A22; background: rgba(229,162,58,.08); }
+.erp .pause-tip { display: flex; align-items: center; gap: 10px; padding: 10px 14px; margin-bottom: 14px; border-radius: var(--r2, 12px); border: 1px solid #5A4A22; background: rgba(229,162,58,.07); font-size: 13.5px; line-height: 1.45; animation: erp-fade-up .35s var(--ease, ease) both; }
+.erp .pause-tip > svg { color: #E5A23A; flex: none; }
+@media (max-width: 620px) { .erp .ch-bar { grid-template-columns: minmax(0, 1fr); } .erp .pause-tip { flex-wrap: wrap; } }
