@@ -58,9 +58,12 @@ const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-
 
 // coleção que combina com o nicho do lead (ex.: nicho "Arquiteto" → coleção "Arquitetos")
 function collectionForNiche(niche, cols) {
-  const n = norm(niche)
+  const n = nicheKey(niche)
   if (!n) return null
-  return cols.find((c) => { const k = norm(c); return k.startsWith(n.slice(0, 5)) || n.startsWith(k.slice(0, 5)) }) || null
+  // mesmo nome (singular/plural) ou mesma primeira palavra: "Contador" → "Contadores",
+  // "Estética automotiva" → "Estética automotiva", mas "Esteticista" não cai em "Estética automotiva"
+  const first = (x) => x.split(' ')[0]
+  return cols.find((c) => nicheKey(c) === n) || cols.find((c) => first(nicheKey(c)) === first(n)) || null
 }
 
 // prefixo dos códigos da coleção (AR1, ARF1… → "AR")
