@@ -169,7 +169,7 @@ function Nova({ data, preset, onImport, onAuto }) {
   const [uf, setUf] = useState(preset.uf || 'SP')
   const [city, setCity] = useState(preset.city || 'São Paulo')
   const [size, setSize] = useState(5)
-  const [onlyNoSite, setOnlyNoSite] = useState(true)
+  const [onlyNoSite, setOnlyNoSite] = useState(false)
   const [source, setSource] = useState('maps') // maps | instagram
   const [extra, setExtra] = useState([])
   const [newHoods, setNewHoods] = useState('')
@@ -392,7 +392,7 @@ function Nova({ data, preset, onImport, onAuto }) {
             <button type="button" className={`chip ${source === 'maps' ? 'on' : ''}`} onClick={() => setSource('maps')}><Icon name="search" size={12} />Google Maps</button>
             <button type="button" className={`chip ${source === 'instagram' ? 'on' : ''}`} onClick={() => setSource('instagram')}><Icon name="ig" size={12} />Instagram</button>
           </div>
-          <label className="check"><input type="checkbox" checked={onlyNoSite} onChange={(e) => setOnlyNoSite(e.target.checked)} />Captar só quem não tem site próprio</label>
+          <label className="check"><input type="checkbox" checked={onlyNoSite} onChange={(e) => setOnlyNoSite(e.target.checked)} />Pegar só quem não tem site próprio (desmarcado = pega todo mundo e só avisa quem tem site)</label>
         </div>
         {source === 'instagram' ? <div className="note y">O Claude abre os perfis no Instagram logado neste Chrome, devagar e só lendo (sem seguir nem mandar Direct). Os leads entram com o @ para você prospectar pelo canal Instagram.</div> : null}
 
@@ -871,7 +871,17 @@ function ImportModal({ batch, data, preload, onClose }) {
             <span>já no CRM ou repetidos <b className="num">{cnt('dup')}</b></span>
             {cnt('site') ? <span>com site (ignorados) <b className="num">{cnt('site')}</b></span> : null}
             {cnt('semcontato') ? <span>sem telefone nem Instagram <b className="num">{cnt('semcontato')}</b></span> : null}
+            {(() => {
+              const semTel = analysis.out.filter((x) => x.kind !== 'vazio' && !normalizePhone(x.r.phone)).length
+              const tot = analysis.out.filter((x) => x.kind !== 'vazio').length
+              return tot && semTel / tot > 0.5 ? <span className="b" style={{ color: 'var(--atencao, #c57a00)' }}>⚠ {semTel} sem telefone</span> : null
+            })()}
           </div>
+          {(() => {
+            const semTel = analysis.out.filter((x) => x.kind !== 'vazio' && !normalizePhone(x.r.phone)).length
+            const tot = analysis.out.filter((x) => x.kind !== 'vazio').length
+            return tot && semTel / tot > 0.5 ? <div className="note y">Vieram {semTel} de {tot} leads sem telefone. Isso quer dizer que o Google Maps não tem o número cadastrado para essas empresas. Dá para prospectar pelo Instagram quando houver, ou abrir o Maps e ligar manualmente.</div> : null
+          })()}
           {unmatched ? <div className="note y">{unmatched} linha(s) não bateram com nenhuma busca do lote pelo "Onde achei". Elas entram mesmo assim, sem marcar busca.</div> : null}
           <div className="tbl-wrap"><table className="tbl">
             <thead><tr><th>Busca</th><th className="r">Linhas</th><th className="r">Novos</th><th className="r">Repetidos</th>{ig ? null : <th>Marcar como feita</th>}</tr></thead>
@@ -887,13 +897,14 @@ function ImportModal({ batch, data, preload, onClose }) {
             </tbody>
           </table></div>
           <div className="tbl-wrap" style={{ maxHeight: 240 }}><table className="tbl">
-            <thead><tr><th>Empresa</th><th>Telefone</th><th>Instagram</th><th>Bairro</th><th>Situação</th></tr></thead>
+            <thead><tr><th>Empresa</th><th>Telefone</th><th>Instagram</th><th>Site?</th><th>Bairro</th><th>Situação</th></tr></thead>
             <tbody>
               {analysis.out.filter((x) => x.kind !== 'vazio').slice(0, 200).map((x, i) => (
                 <tr key={i}>
                   <td className="ellipsis" style={{ maxWidth: 220 }}>{x.r.company}</td>
                   <td className="num">{x.r.phone || '—'}</td>
                   <td>{x.r.instagram ? igHandle(x.r.instagram) : '—'}</td>
+                  <td className="lbl">{yes(x.r.site) ? 'Sim' : 'Não'}</td>
                   <td className="lbl">{x.r.neighborhood || x.term?.neighborhood || '—'}</td>
                   <td>{x.kind === 'novo' ? <Badge kind="g">novo</Badge> : x.kind === 'dup' ? (x.dupOf ? <Link to={`/erp/leads/${x.dupOf.id}`} target="_blank" className="b">já no CRM</Link> : <span className="b">repetido</span>)
                     : x.kind === 'site' ? <span className="b">tem site</span> : <span className="b">sem contato</span>}</td>
