@@ -7,6 +7,7 @@ export const useAuth = () => useContext(AuthCtx)
 
 export const ROLES = {
   diretor: 'Diretor geral',
+  socio: 'Sócio (dados próprios)',
   prospector: 'Prospector',
   dev: 'Desenvolvedor',
   social: 'Social media',
