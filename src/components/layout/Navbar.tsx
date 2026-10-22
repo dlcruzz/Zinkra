@@ -16,7 +16,7 @@ type MenuId = 'solucoes' | 'tecnologia' | null;
  * Soluções e Tecnologia abrem painéis grandes (mouse, teclado e toque).
  */
 export default function Navbar() {
-  const pathname = usePathname();
+  const pathname = usePathname() ?? '';
   const [hidden, setHidden] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [overHero, setOverHero] = useState(pathname === '/');

@@ -5,6 +5,13 @@ const nextConfig = {
   images: { formats: ['image/avif', 'image/webp'] },
   // Pacotes 3D são grandes: o Next gera só o que cada rota usa.
   experimental: { optimizePackageImports: ['framer-motion', 'three', '@react-three/drei'], inlineCss: true },
+  // ERP (app Vite em public/erp): qualquer rota /erp/... que não seja arquivo cai no index.html dele
+  async rewrites() {
+    return [
+      { source: '/erp', destination: '/erp/index.html' },
+      { source: '/erp/:path((?!assets/).*)', destination: '/erp/index.html' },
+    ];
+  },
   async headers() {
     return [
       {

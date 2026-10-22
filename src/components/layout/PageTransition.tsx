@@ -13,7 +13,7 @@ export const usePageTransition = () => useContext(TransitionContext);
  */
 export function PageTransitionProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const pathname = usePathname();
+  const pathname = usePathname() ?? '';
   const [phase, setPhase] = useState<'idle' | 'in' | 'out'>('idle');
   const target = useRef<string | null>(null);
   const busy = useRef(false);

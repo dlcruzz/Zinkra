@@ -7,7 +7,7 @@ import { usePathname } from 'next/navigation';
  * ganha a classe "is-in" e o CSS (globals.css) faz a animação. Roda de novo a cada troca de página.
  */
 export default function RevealObserver() {
-  const pathname = usePathname();
+  const pathname = usePathname() ?? '';
 
   useEffect(() => {
     const io = new IntersectionObserver(

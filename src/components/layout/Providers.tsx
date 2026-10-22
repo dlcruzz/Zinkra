@@ -21,7 +21,7 @@ gsap.registerPlugin(ScrollTrigger);
  * transição de página, cursor, barra de progresso, tela de carregamento e o easter egg.
  */
 export default function Providers({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
+  const pathname = usePathname() ?? '';
 
   useEffect(() => {
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
