@@ -20,6 +20,11 @@ export default function Marquee({ items, className = '' }: { items: string[]; cl
     let boost = 0;
     let dir = 1;
     let raf = 0;
+    // largura medida uma vez (ler scrollWidth a cada quadro forçaria o navegador a recalcular o layout)
+    let half = el.scrollWidth / 2;
+    const measure = () => (half = el.scrollWidth / 2);
+    window.addEventListener('resize', measure);
+    document.fonts?.ready.then(measure);
 
     const tick = (now: number) => {
       const dt = Math.min(now - last, 50);
@@ -30,7 +35,6 @@ export default function Marquee({ items, className = '' }: { items: string[]; cl
       // aceleração suave que decai quando o usuário para de rolar
       boost += (Math.min(Math.abs(delta), 80) * 0.12 - boost) * 0.1;
       if (delta !== 0) dir = delta > 0 ? 1 : -1;
-      const half = el.scrollWidth / 2;
       x -= (0.045 + boost * 0.06) * dt * dir;
       if (x <= -half) x += half;
       if (x > 0) x -= half;
@@ -38,7 +42,10 @@ export default function Marquee({ items, className = '' }: { items: string[]; cl
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('resize', measure);
+    };
   }, []);
 
   const row = (suffix: string) =>

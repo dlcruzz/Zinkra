@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, m } from 'framer-motion';
 import Logo from '@/components/ui/Logo';
 import Button from '@/components/ui/Button';
 import ThemeToggle from './ThemeToggle';
@@ -66,11 +66,11 @@ export default function Navbar() {
   const isActive = (href: string) => (href === '/' ? pathname === '/' : pathname.startsWith(href.split('#')[0]) && href !== '/#tecnologia');
 
   // Sobre a abertura escura, o tema do cabeçalho é sempre escuro (mesmo no tema claro)
-  const theme = overHero ? 'dark' : undefined;
+  const theme = overHero || mobileOpen ? 'dark' : undefined;
 
   return (
     <>
-      <motion.header
+      <m.header
         data-theme={theme}
         className={`fixed inset-x-0 top-0 z-50 transition-[background-color,backdrop-filter,border-color] duration-500 ${
           scrolled || open ? 'border-b border-line/60 bg-bg/60 backdrop-blur-xl' : 'border-b border-transparent'
@@ -145,7 +145,7 @@ export default function Navbar() {
         {/* Painéis grandes (computador) */}
         <AnimatePresence>
           {open === 'solucoes' && (
-            <motion.div
+            <m.div
               id="menu-solucoes"
               key="sol"
               initial={{ opacity: 0, y: -12 }}
@@ -153,7 +153,7 @@ export default function Navbar() {
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
               onMouseEnter={() => openMenu('solucoes')}
-              className="absolute inset-x-0 top-full hidden border-t border-line/60 bg-bg/95 backdrop-blur-2xl lg:block"
+              className="absolute inset-x-0 top-full hidden border-t border-line/60 bg-bg/[0.98] backdrop-blur-2xl lg:block"
             >
               <div className="container-x grid grid-cols-4 gap-10 py-12 text-fg">
                 {MENU_SOLUCOES.map((col, ci) => (
@@ -161,7 +161,7 @@ export default function Navbar() {
                     <p className="eyebrow mb-5">{col.titulo}</p>
                     <ul className="space-y-1">
                       {col.itens.map((it, i) => (
-                        <motion.li
+                        <m.li
                           key={it.rotulo}
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
@@ -171,16 +171,16 @@ export default function Navbar() {
                             <span aria-hidden className="h-[2px] w-0 bg-brand transition-all duration-500 ease-out group-hover:w-6" />
                             <span className="transition-transform duration-500 ease-out group-hover:translate-x-1">{it.rotulo}</span>
                           </Link>
-                        </motion.li>
+                        </m.li>
                       ))}
                     </ul>
                   </div>
                 ))}
               </div>
-            </motion.div>
+            </m.div>
           )}
           {open === 'tecnologia' && (
-            <motion.div
+            <m.div
               id="menu-tecnologia"
               key="tec"
               initial={{ opacity: 0, y: -12 }}
@@ -188,11 +188,11 @@ export default function Navbar() {
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
               onMouseEnter={() => openMenu('tecnologia')}
-              className="absolute inset-x-0 top-full hidden border-t border-line/60 bg-bg/95 backdrop-blur-2xl lg:block"
+              className="absolute inset-x-0 top-full hidden border-t border-line/60 bg-bg/[0.98] backdrop-blur-2xl lg:block"
             >
               <div className="container-x grid grid-cols-3 gap-x-10 gap-y-2 py-12 text-fg">
                 {MENU_TECNOLOGIA.map((t, i) => (
-                  <motion.div key={t.rotulo} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.04 * i }}>
+                  <m.div key={t.rotulo} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.04 * i }}>
                     <Link href="/#tecnologia" className="group flex flex-col gap-1 py-3">
                       <span className="flex items-center gap-3 text-xl font-semibold tracking-tight text-fg/80 transition-colors group-hover:text-fg">
                         <span aria-hidden className="h-[2px] w-0 bg-brand transition-all duration-500 ease-out group-hover:w-6" />
@@ -200,13 +200,13 @@ export default function Navbar() {
                       </span>
                       <span className="pl-0 text-sm text-muted">{t.desc}</span>
                     </Link>
-                  </motion.div>
+                  </m.div>
                 ))}
               </div>
-            </motion.div>
+            </m.div>
           )}
         </AnimatePresence>
-      </motion.header>
+      </m.header>
 
       <MobileMenu open={mobileOpen} onClose={() => setMobileOpen(false)} />
     </>

@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, m } from 'framer-motion';
 import { getLenis } from '@/lib/lenis';
 import { solucoes } from '@/data/solucoes';
 import { NAV_ITENS, SITE, whatsappLink } from '@/data/site';
@@ -27,17 +27,17 @@ export default function MobileMenu({ open, onClose }: { open: boolean; onClose: 
     };
   }, [open, onClose]);
 
-  const itens = NAV_ITENS.filter((i) => i.rotulo !== 'Tecnologia');
+  const itens = NAV_ITENS;
 
   return (
     <AnimatePresence>
       {open && (
-        <motion.div
+        <m.div
           data-theme="dark"
           role="dialog"
           aria-modal="true"
           aria-label="Menu"
-          className="fixed inset-0 z-[55] flex flex-col bg-bg px-6 pb-8 pt-24 text-fg lg:hidden"
+          className="fixed inset-0 z-[45] flex flex-col bg-bg px-6 pb-8 pt-24 text-fg lg:hidden"
           initial={{ clipPath: 'inset(0 0 100% 0)' }}
           animate={{ clipPath: 'inset(0 0 0% 0)' }}
           exit={{ clipPath: 'inset(0 0 100% 0)' }}
@@ -46,7 +46,7 @@ export default function MobileMenu({ open, onClose }: { open: boolean; onClose: 
           <nav aria-label="Menu móvel" className="flex-1 overflow-y-auto">
             <ul>
               {itens.map((item, i) => (
-                <motion.li
+                <m.li
                   key={item.rotulo}
                   initial={{ opacity: 0, y: 40 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -81,21 +81,11 @@ export default function MobileMenu({ open, onClose }: { open: boolean; onClose: 
                       {item.rotulo}
                     </Link>
                   )}
-                </motion.li>
+                </m.li>
               ))}
-              <motion.li
-                initial={{ opacity: 0, y: 40 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.25 + itens.length * 0.07, duration: 0.6 }}
-                className="border-b border-line"
-              >
-                <Link href="/#tecnologia" onClick={onClose} className="display block py-4 text-4xl">
-                  Tecnologia
-                </Link>
-              </motion.li>
             </ul>
           </nav>
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.8 }}
@@ -107,8 +97,8 @@ export default function MobileMenu({ open, onClose }: { open: boolean; onClose: 
             <p className="text-center text-sm text-muted">
               {SITE.whatsappTexto} · {SITE.instagram}
             </p>
-          </motion.div>
-        </motion.div>
+          </m.div>
+        </m.div>
       )}
     </AnimatePresence>
   );

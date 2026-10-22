@@ -1,12 +1,15 @@
+import dynamic from 'next/dynamic';
 import Hero from '@/components/sections/Hero';
 import Marquee from '@/components/ui/Marquee';
-import FeaturedProjects from '@/components/sections/FeaturedProjects';
-import Intro from '@/components/sections/Intro';
-import Solutions from '@/components/sections/Solutions';
-import Process from '@/components/sections/Process';
-import TechGrid from '@/components/sections/TechGrid';
-import News from '@/components/sections/News';
-import FinalCTA from '@/components/sections/FinalCTA';
+
+// Seções abaixo da primeira tela: o HTML já vem pronto, mas o JavaScript delas carrega à parte.
+const FeaturedProjects = dynamic(() => import('@/components/sections/FeaturedProjects'));
+const Intro = dynamic(() => import('@/components/sections/Intro'));
+const Solutions = dynamic(() => import('@/components/sections/Solutions'));
+const Process = dynamic(() => import('@/components/sections/Process'));
+const TechGrid = dynamic(() => import('@/components/sections/TechGrid'));
+const News = dynamic(() => import('@/components/sections/News'));
+const FinalCTA = dynamic(() => import('@/components/sections/FinalCTA'));
 
 const PALAVRAS = ['Sites', 'Landing pages', 'Sistemas', 'ERP', 'PDV', 'Financeiro', 'SaaS', 'Automação', 'Tráfego pago'];
 

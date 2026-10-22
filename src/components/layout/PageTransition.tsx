@@ -1,7 +1,7 @@
 'use client';
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, m } from 'framer-motion';
 
 type Ctx = { go: (href: string) => void };
 const TransitionContext = createContext<Ctx>({ go: () => undefined });
@@ -86,7 +86,7 @@ export function PageTransitionProvider({ children }: { children: React.ReactNode
         }}
       >
         {phase !== 'idle' && (
-          <motion.div
+          <m.div
             key="curtain"
             aria-hidden
             className="fixed inset-0 z-[90] flex items-center justify-center bg-[#07150d]"
@@ -107,7 +107,7 @@ export function PageTransitionProvider({ children }: { children: React.ReactNode
             <span className="font-brand text-4xl font-bold tracking-tightest text-white">
               <span className="text-brand">Z</span>inkra<span className="text-brand">.</span>
             </span>
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
     </TransitionContext.Provider>

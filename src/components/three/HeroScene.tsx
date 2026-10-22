@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 
 const GREEN = new THREE.Color('#15C45A');
@@ -166,6 +166,10 @@ function HollowCube({ size = 2 }: { size?: number }) {
 
 /** Formas geométricas luminosas que giram devagar e seguem o mouse com paralaxe. */
 function Shapes() {
+  // as formas ficam no lado direito e encolhem em telas mais estreitas, para não cobrir o texto
+  const { viewport } = useThree();
+  const baseX = viewport.width * 0.27;
+  const scale = Math.min(1, Math.max(0.55, viewport.width / 15));
   const group = useRef<THREE.Group>(null);
   const cube = useRef<THREE.Group>(null);
   const ring = useRef<THREE.Mesh>(null);
@@ -191,12 +195,12 @@ function Shapes() {
       // paralaxe: o conjunto inclina de leve acompanhando o mouse
       group.current.rotation.y += (state.pointer.x * 0.35 - group.current.rotation.y) * Math.min(1, dt * 2.5);
       group.current.rotation.x += (-state.pointer.y * 0.2 - group.current.rotation.x) * Math.min(1, dt * 2.5);
-      group.current.position.x += (state.pointer.x * 0.4 - group.current.position.x) * Math.min(1, dt * 2.5);
+      group.current.position.x += (baseX + state.pointer.x * 0.4 - group.current.position.x) * Math.min(1, dt * 2.5);
     }
   });
 
   return (
-    <group ref={group} position={[4.1, 0, 0]}>
+    <group ref={group} position={[baseX, 0, 0]} scale={scale}>
       <group ref={cube} position={[0.2, 1.2, 0]}>
         <HollowCube size={2.1} />
         <group scale={0.45}>

@@ -7,7 +7,7 @@ import { novidades } from '@/data/novidades';
 export default function News() {
   const lista = [...novidades].sort((a, b) => b.iso.localeCompare(a.iso));
   return (
-    <section id="novidades" className="py-24 md:py-40">
+    <section id="novidades" className="cv-auto py-24 md:py-40">
       <div className="container-x">
         <div className="mb-14 md:mb-20">
           <Reveal><p className="eyebrow mb-5">Novidades</p></Reveal>

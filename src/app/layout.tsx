@@ -9,7 +9,7 @@ import { listarMidias } from '@/lib/media-server';
 import { SITE } from '@/data/site';
 import { media } from '@/data/media';
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'optional' });
 // Substituta de "DT Getai Grotesk" (fonte da marca, arquivo não está no projeto).
 const brand = Space_Grotesk({ subsets: ['latin'], variable: '--font-brand', display: 'swap', weight: ['500', '700'] });
 
@@ -73,6 +73,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: bootScript }} />
+        <noscript>
+          <style>{`html[data-loader] #zk-loader{display:none!important}html[data-loader] *{animation-play-state:running!important}`}</style>
+        </noscript>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationLd) }} />
       </head>
       <body>

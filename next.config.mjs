@@ -4,7 +4,7 @@ const nextConfig = {
   poweredByHeader: false,
   images: { formats: ['image/avif', 'image/webp'] },
   // Pacotes 3D são grandes: o Next gera só o que cada rota usa.
-  experimental: { optimizePackageImports: ['framer-motion', 'three', '@react-three/drei'] },
+  experimental: { optimizePackageImports: ['framer-motion', 'three', '@react-three/drei'], inlineCss: true },
   async headers() {
     return [
       {

@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import gsap from 'gsap';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, m } from 'framer-motion';
 import { MediaImage } from '@/components/ui/Media';
 import Reveal from '@/components/ui/Reveal';
 import type { Projeto } from '@/data/projetos';
@@ -72,7 +72,7 @@ export default function ProjectList({ itens }: { itens: Projeto[] }) {
       <div ref={floater} aria-hidden className="pointer-events-none fixed left-0 top-0 z-40 hidden md:block">
         <AnimatePresence>
           {ativo && (
-            <motion.div
+            <m.div
               key={ativo.slug}
               initial={{ opacity: 0, scale: 0.7 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -81,7 +81,7 @@ export default function ProjectList({ itens }: { itens: Projeto[] }) {
               className="relative h-[260px] w-[380px] overflow-hidden rounded-2xl border border-line shadow-2xl shadow-black/50"
             >
               <MediaImage src={ativo.imagem} alt="" sizes="380px" label={ativo.nome} />
-            </motion.div>
+            </m.div>
           )}
         </AnimatePresence>
       </div>

@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, m } from 'framer-motion';
 import Button from '@/components/ui/Button';
 import { whatsappLink } from '@/data/site';
 
@@ -42,7 +42,7 @@ export default function ContactForm() {
     <div className="relative">
       <AnimatePresence mode="wait">
         {status === 'ok' ? (
-          <motion.div
+          <m.div
             key="ok"
             role="status"
             initial={{ opacity: 0, scale: 0.96 }}
@@ -51,17 +51,17 @@ export default function ContactForm() {
             className="flex min-h-[420px] flex-col items-center justify-center rounded-3xl border border-brand/40 bg-surface/70 p-10 text-center"
           >
             <svg width="84" height="84" viewBox="0 0 84 84" fill="none" aria-hidden>
-              <motion.circle cx="42" cy="42" r="38" stroke="rgb(var(--brand))" strokeWidth="3" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 0.8 }} />
-              <motion.path d="M26 43l11 11 21-23" stroke="rgb(var(--brand))" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 0.6, delay: 0.7 }} />
+              <m.circle cx="42" cy="42" r="38" stroke="rgb(var(--brand))" strokeWidth="3" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 0.8 }} />
+              <m.path d="M26 43l11 11 21-23" stroke="rgb(var(--brand))" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 0.6, delay: 0.7 }} />
             </svg>
             <h3 className="display mt-8 text-4xl">Mensagem enviada.</h3>
             <p className="mt-3 max-w-sm text-muted">Recebemos o seu pedido e respondemos em breve. Se for urgente, chame no WhatsApp.</p>
             <div className="mt-8">
               <Button href={whatsappLink()} external variant="outline">Falar no WhatsApp</Button>
             </div>
-          </motion.div>
+          </m.div>
         ) : (
-          <motion.form
+          <m.form
             key="form"
             onSubmit={onSubmit}
             exit={{ opacity: 0, y: -20 }}
@@ -104,7 +104,7 @@ export default function ContactForm() {
                 </p>
               )}
             </div>
-          </motion.form>
+          </m.form>
         )}
       </AnimatePresence>
     </div>

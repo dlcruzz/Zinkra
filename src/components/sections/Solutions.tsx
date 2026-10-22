@@ -63,7 +63,7 @@ function Card({ s, className }: { s: Solucao; className: string }) {
       <div className="relative translate-y-3 transition-transform duration-500 ease-out group-hover:translate-y-0 group-focus-visible:translate-y-0">
         <h3 className="display text-[clamp(1.9rem,3vw,2.8rem)] text-white">{s.titulo}</h3>
         <p className="mt-3 max-w-md text-white/75">{s.frase}</p>
-        <span className="mt-5 flex h-11 w-11 items-center justify-center rounded-full bg-brand text-[#0A0C0B] opacity-0 transition-all duration-500 ease-out group-hover:translate-x-0 group-hover:opacity-100 group-focus-visible:opacity-100 -translate-x-3">
+        <span className="mt-5 flex h-11 w-11 items-center justify-center rounded-full bg-brand text-[#0A0C0B] opacity-0 -translate-x-3 transition-all duration-500 ease-out group-hover:translate-x-0 group-hover:opacity-100 group-focus-visible:opacity-100 max-md:translate-x-0 max-md:opacity-100">
           <ArrowIcon />
           <span className="sr-only">Ver {s.titulo}</span>
         </span>

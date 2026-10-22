@@ -29,7 +29,7 @@ function PalavraGirando() {
             opacity: idx === i ? 1 : 0,
           }}
         >
-          {p}
+          {p}.
         </span>
       ))}
     </span>
@@ -38,7 +38,7 @@ function PalavraGirando() {
 
 export default function FinalCTA() {
   return (
-    <section id="contato" data-theme="dark" className="relative isolate overflow-hidden bg-bg py-28 text-fg md:py-44">
+    <section id="contato" data-theme="dark" className="cv-auto relative isolate overflow-hidden bg-bg py-28 text-fg md:py-44">
       <div aria-hidden className="media-fallback absolute inset-0 -z-20 opacity-70" />
       <LoopVideo src={media.video.ctaLoop} opacity={0.3} />
       <div aria-hidden className="absolute inset-0 -z-10 bg-[radial-gradient(60%_50%_at_50%_0%,rgb(var(--brand)/0.28),transparent_70%)]" />
@@ -47,7 +47,7 @@ export default function FinalCTA() {
       <div className="container-x">
         <Reveal>
           <h2 className="display text-[clamp(3rem,10.5vw,10.5rem)]">
-            Vamos criar algo <PalavraGirando />.
+            Vamos criar algo <PalavraGirando />
           </h2>
         </Reveal>
 

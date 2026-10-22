@@ -57,7 +57,7 @@ export default function Intro() {
     const ctx = gsap.context(() => {
       gsap.fromTo(
         words,
-        { opacity: 0.18 },
+        { opacity: 0.45 },
         {
           opacity: 1,
           stagger: 0.1,
@@ -79,9 +79,9 @@ export default function Intro() {
           </h2>
         </Reveal>
 
-        <p ref={ref} className="mt-14 max-w-5xl text-[clamp(1.5rem,3.4vw,3rem)] font-medium leading-[1.2] tracking-tight" aria-label={TEXTO}>
+        <p ref={ref} className="mt-14 max-w-5xl text-[clamp(1.5rem,3.4vw,3rem)] font-medium leading-[1.2] tracking-tight">
           {TEXTO.split(' ').map((w, i) => (
-            <span key={i} data-w aria-hidden className="inline-block pr-[0.28em]">
+            <span key={i} data-w className="inline-block pr-[0.28em]">
               {w}
             </span>
           ))}

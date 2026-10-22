@@ -1,8 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { motion } from 'framer-motion';
-import SplitText from '@/components/ui/SplitText';
+import { m } from 'framer-motion';
 import Button from '@/components/ui/Button';
 import { LoopVideo } from '@/components/ui/Media';
 import { useVideoModal } from '@/components/layout/VideoModal';
@@ -10,8 +9,38 @@ import { useIsMobile, usePrefersReducedMotion } from '@/hooks/useEnv';
 import { media } from '@/data/media';
 import { whatsappLink } from '@/data/site';
 
-// A cena 3D é carregada à parte, só no navegador e depois da primeira pintura.
+// A cena 3D é carregada à parte, só no navegador e bem depois da primeira pintura.
 const HeroScene = dynamic(() => import('@/components/three/HeroScene'), { ssr: false });
+
+const TITULO = 'Tecnologia que faz o seu negócio vender mais.';
+const DESTAQUE = ['vender', 'mais.'];
+
+const LINHAS_MOBILE = ['Tecnologia que', 'faz o seu', 'negócio vender', 'mais.'];
+const LINHAS_DESKTOP = ['Tecnologia que', 'faz o seu negócio', 'vender mais.'];
+
+/** Cada linha é um bloco sem quebra; cada palavra sobe de dentro de uma máscara (animação em CSS). */
+function Linhas({ linhas, className }: { linhas: string[]; className: string }) {
+  let n = 0;
+  return (
+    <span aria-hidden className={className}>
+      {linhas.map((linha) => (
+        <span key={linha} className="block whitespace-nowrap">
+          {linha.split(' ').map((w, i, arr) => {
+            const idx = n++;
+            return (
+              <span key={i} className="inline-block overflow-hidden pb-[0.12em] -mb-[0.12em] align-bottom">
+                <span className={`rise ${DESTAQUE.includes(w.toLowerCase()) ? 'text-brand' : ''}`} style={{ ['--d' as string]: '0.15s', ['--i' as string]: idx }}>
+                  {w}
+                  {i < arr.length - 1 ? ' ' : ''}
+                </span>
+              </span>
+            );
+          })}
+        </span>
+      ))}
+    </span>
+  );
+}
 
 function hasWebGL() {
   try {
@@ -22,27 +51,34 @@ function hasWebGL() {
   }
 }
 
-/** Abertura: cena 3D ao fundo, frase gigante, subtítulo, dois botões e indicador de rolagem. */
+/**
+ * Abertura: cena 3D ao fundo, frase gigante, subtítulo, dois botões e indicador de rolagem.
+ * O texto usa animações em CSS puro (classes .rise e .fade-up) para aparecer sem esperar o JavaScript.
+ */
 export default function Hero() {
   const { open } = useVideoModal();
   const videoBtn = useRef<HTMLButtonElement>(null);
   const mobile = useIsMobile();
   const reduced = usePrefersReducedMotion();
   const [scene, setScene] = useState(false);
-  const [delay, setDelay] = useState(0.15);
 
   useEffect(() => {
-    // Espera a tela de carregamento (se estiver ativa) antes de animar o texto
-    setDelay(document.documentElement.dataset.loader === 'on' ? 1.0 : 0.1);
     if (reduced || !hasWebGL()) return;
-    const start = () => setScene(true);
-    // Carrega a cena quando o navegador está ocioso, para não atrasar o texto
-    if ('requestIdleCallback' in window) {
-      const id = (window as unknown as { requestIdleCallback: (cb: () => void, o?: object) => number }).requestIdleCallback(start, { timeout: 1500 });
-      return () => (window as unknown as { cancelIdleCallback: (n: number) => void }).cancelIdleCallback(id);
-    }
-    const t = setTimeout(start, 400);
-    return () => clearTimeout(t);
+    let done = false;
+    const start = () => {
+      if (done) return;
+      done = true;
+      setScene(true);
+    };
+    // A cena entra na primeira interação (mouse, toque, rolagem ou tecla) ou depois de 5 s.
+    // Assim o texto e a rolagem carregam leves, e a cena aparece quando já dá para aproveitá-la.
+    const events = ['pointermove', 'pointerdown', 'touchstart', 'scroll', 'keydown'] as const;
+    events.forEach((e) => window.addEventListener(e, start, { once: true, passive: true }));
+    const timer = setTimeout(start, 5000);
+    return () => {
+      clearTimeout(timer);
+      events.forEach((e) => window.removeEventListener(e, start));
+    };
   }, [reduced]);
 
   return (
@@ -51,47 +87,29 @@ export default function Hero() {
       <div aria-hidden className="absolute inset-0 bg-[radial-gradient(70%_60%_at_75%_40%,rgb(var(--brand)/0.16),transparent_70%),radial-gradient(50%_50%_at_10%_90%,rgb(var(--brand-dark)/0.35),transparent_70%)]" />
       <LoopVideo src={media.video.heroLoop} poster={media.image.heroPoster} opacity={0.22} className="mix-blend-screen" />
       {scene && (
-        <motion.div className="absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1.6, delay: 0.3 }}>
+        <m.div className="absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1.6 }}>
           <HeroScene mobile={mobile} />
-        </motion.div>
+        </m.div>
       )}
       <div aria-hidden className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-bg to-transparent" />
       <div aria-hidden className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgb(var(--bg)/0.85)_0%,rgb(var(--bg)/0.35)_55%,transparent_80%)]" />
 
       <div className="container-x relative z-10 pb-24 pt-36 md:pb-20">
-        <motion.p
-          className="eyebrow mb-6"
-          initial={{ opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: delay, duration: 0.8 }}
-        >
+        <p className="eyebrow fade-up mb-6" style={{ ['--d' as string]: '0.1s' }}>
           Software house · São Paulo
-        </motion.p>
+        </p>
 
-        <SplitText
-          as="h1"
-          inView={false}
-          delay={delay + 0.1}
-          highlight={['vender', 'mais']}
-          text="Tecnologia que faz o seu negócio vender mais."
-          className="display max-w-[16ch] text-[clamp(2.9rem,9.2vw,9rem)] md:max-w-[13ch]"
-        />
+        {/* Linhas fixas por tamanho de tela: o texto nunca re-quebra quando a fonte carrega (evita salto de layout) */}
+        <h1 aria-label={TITULO} className="display text-[clamp(2rem,9vw,5.5rem)] md:text-[clamp(3.4rem,8vw,9rem)]">
+          <Linhas linhas={LINHAS_MOBILE} className="md:hidden" />
+          <Linhas linhas={LINHAS_DESKTOP} className="hidden md:block" />
+        </h1>
 
-        <motion.p
-          className="mt-8 max-w-xl text-lg leading-relaxed text-fg/70 md:text-xl"
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: delay + 0.9, duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
-        >
+        <p className="mt-8 max-w-xl text-lg leading-relaxed text-fg/70 md:text-xl">
           Criamos sites, landing pages, sistemas, PDV, sistemas financeiros e SaaS sob medida para empresas que querem crescer.
-        </motion.p>
+        </p>
 
-        <motion.div
-          className="mt-10 flex flex-wrap items-center gap-4"
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: delay + 1.1, duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
-        >
+        <div className="fade-up mt-10 flex flex-wrap items-center gap-4" style={{ ['--d' as string]: '0.5s' }}>
           <span data-cursor="play" className="inline-block">
             <button
               ref={videoBtn}
@@ -108,22 +126,16 @@ export default function Hero() {
           <Button href={whatsappLink('Olá! Vim pelo site da Zinkra e quero conversar sobre um projeto.')} external variant="outline" size="lg">
             Falar com a gente
           </Button>
-        </motion.div>
+        </div>
       </div>
 
       {/* indicador de rolagem */}
-      <motion.div
-        aria-hidden
-        className="absolute bottom-8 right-6 z-10 hidden items-center gap-4 md:flex md:right-14"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: delay + 1.6 }}
-      >
+      <div aria-hidden className="fade-up absolute bottom-8 right-6 z-10 hidden items-center gap-4 md:flex md:right-14" style={{ ['--d' as string]: '1.5s' }}>
         <span className="text-xs uppercase tracking-[0.2em] text-fg/60 [writing-mode:vertical-rl]">Role para explorar</span>
         <span className="relative h-16 w-px overflow-hidden bg-fg/20">
           <span className="absolute inset-x-0 top-0 h-full bg-brand" style={{ animation: 'scroll-hint 2.2s cubic-bezier(.65,0,.35,1) infinite' }} />
         </span>
-      </motion.div>
+      </div>
     </section>
   );
 }

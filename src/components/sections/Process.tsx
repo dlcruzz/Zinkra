@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Reveal from '@/components/ui/Reveal';
@@ -20,7 +20,8 @@ export default function Process() {
   const bar = useRef<HTMLDivElement>(null);
   const [ativa, setAtiva] = useState(0);
 
-  useEffect(() => {
+  // useLayoutEffect: a limpeza precisa rodar ANTES do React remover o DOM, senão o pin-spacer do GSAP quebra a troca de página
+  useLayoutEffect(() => {
     const mm = gsap.matchMedia();
     mm.add('(min-width: 1024px) and (prefers-reduced-motion: no-preference)', () => {
       const el = track.current!;

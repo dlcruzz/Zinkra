@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 
 /**
  * Tela de carregamento rápida (menos de 1 s), só na primeira visita.
@@ -23,7 +23,7 @@ export default function Loader() {
     }
     const t = setTimeout(() => {
       setShow(false);
-      delete document.documentElement.dataset.loader;
+      document.documentElement.dataset.loader = 'done';
     }, 900);
     return () => clearTimeout(t);
   }, []);
@@ -31,22 +31,22 @@ export default function Loader() {
   return (
     <AnimatePresence>
       {show && (
-        <motion.div
+        <m.div
           id="zk-loader"
           aria-hidden
           className="fixed inset-0 z-[95] items-center justify-center bg-bg"
           exit={{ clipPath: 'inset(0 0 100% 0)' }}
           transition={{ duration: 0.6, ease: [0.76, 0, 0.24, 1] }}
         >
-          <motion.span
+          <m.span
             className="font-brand text-5xl font-bold tracking-tightest md:text-7xl"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
             <span className="text-brand">Z</span>inkra<span className="text-brand">.</span>
-          </motion.span>
-        </motion.div>
+          </m.span>
+        </m.div>
       )}
     </AnimatePresence>
   );

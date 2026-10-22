@@ -2,6 +2,7 @@
 import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import Lenis from 'lenis';
+import { LazyMotion, domAnimation } from 'framer-motion';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { setLenis } from '@/lib/lenis';
@@ -11,6 +12,7 @@ import Cursor from './Cursor';
 import ScrollProgress from './ScrollProgress';
 import Loader from './Loader';
 import EasterEgg from './EasterEgg';
+import RevealObserver from './RevealObserver';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -23,7 +25,9 @@ export default function Providers({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (reduce) return;
+    // Em telas de toque a rolagem nativa é melhor (e mais leve): Lenis só com mouse
+    const fine = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+    if (reduce || !fine) return;
 
     const lenis = new Lenis({ duration: 1.15, easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)) });
     setLenis(lenis);
@@ -47,8 +51,10 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   }, [pathname]);
 
   return (
+    <LazyMotion features={domAnimation}>
     <PageTransitionProvider>
       <VideoModalProvider>
+        <RevealObserver />
         <ScrollProgress />
         <Cursor />
         <Loader />
@@ -56,5 +62,6 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         {children}
       </VideoModalProvider>
     </PageTransitionProvider>
+    </LazyMotion>
   );
 }

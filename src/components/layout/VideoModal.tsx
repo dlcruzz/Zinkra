@@ -1,6 +1,6 @@
 'use client';
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, m } from 'framer-motion';
 import { getLenis } from '@/lib/lenis';
 import { media } from '@/data/media';
 import { useHasMedia } from '@/hooks/useMedia';
@@ -74,7 +74,7 @@ export function VideoModalProvider({ children }: { children: React.ReactNode }) 
       {children}
       <AnimatePresence>
         {isOpen && (
-          <motion.div
+          <m.div
             data-modal
             role="dialog"
             aria-modal="true"
@@ -115,7 +115,7 @@ export function VideoModalProvider({ children }: { children: React.ReactNode }) 
                 <path d="M6 6l12 12M18 6L6 18" />
               </svg>
             </button>
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
     </VideoContext.Provider>

@@ -1,13 +1,13 @@
 'use client';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 import { LINKS_RODAPE, SITE, whatsappLink } from '@/data/site';
 import { scrollToTop } from '@/lib/lenis';
 
 /** Rodapé limpo: marca grande, contatos, links rápidos, políticas e botão de voltar ao topo. */
 export default function Footer() {
   return (
-    <footer data-theme="dark" className="relative overflow-hidden border-t border-line bg-bg text-fg">
+    <footer data-theme="dark" className="cv-auto relative overflow-hidden border-t border-line bg-bg text-fg">
       <div className="container-x pb-10 pt-20 md:pt-28">
         <div className="grid gap-14 md:grid-cols-12">
           <div className="md:col-span-5">
@@ -45,16 +45,11 @@ export default function Footer() {
         </div>
 
         {/* Marca gigante */}
-        <p
-          aria-hidden
-          className="display mt-20 select-none whitespace-nowrap text-center text-[clamp(5rem,26vw,24rem)] leading-[0.8] tracking-tightest text-fg/[0.06]"
-        >
-          <span className="text-brand/30">Z</span>inkra<span className="text-brand/30">.</span>
-        </p>
+        <div aria-hidden className="giant-brand mt-20 select-none" />
 
         <div className="mt-10 flex flex-col items-start justify-between gap-6 border-t border-line pt-8 md:flex-row md:items-center">
           <p className="text-sm text-muted">© 2026 Zinkra. Todos os direitos reservados.</p>
-          <motion.button
+          <m.button
             type="button"
             onClick={scrollToTop}
             whileHover="hover"
@@ -64,14 +59,14 @@ export default function Footer() {
           >
             Voltar ao topo
             <span className="relative flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border border-fg/25 transition-colors group-hover:border-brand group-hover:bg-brand group-hover:text-[#0A0C0B]">
-              <motion.svg
+              <m.svg
                 width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden
                 variants={{ rest: { y: 0 }, hover: { y: [0, -26, 26, 0], transition: { duration: 0.6, times: [0, 0.45, 0.46, 1] } } }}
               >
                 <path d="M12 19V5M5 12l7-7 7 7" />
-              </motion.svg>
+              </m.svg>
             </span>
-          </motion.button>
+          </m.button>
         </div>
       </div>
     </footer>
