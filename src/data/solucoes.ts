@@ -104,7 +104,7 @@ export const solucoes: Solucao[] = [
     titulo: 'Sistema financeiro',
     tituloCurto: 'Sistema financeiro',
     frase: 'Contas, cobranças e fluxo de caixa sem planilha confusa.',
-    video: null,
+    video: media.video.solucoesFinanceiro,
     oQueE:
       'Um sistema para organizar o dinheiro da empresa: contas a pagar e a receber, cobranças, fluxo de caixa e relatórios. Você enxerga o que entrou, o que vai sair e o que sobra, sem depender de uma planilha que só uma pessoa entende.',
     paraQuem: [

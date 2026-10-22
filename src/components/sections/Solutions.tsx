@@ -46,9 +46,9 @@ function Card({ s, className }: { s: Solucao; className: string }) {
       {/* fundo: vídeo em loop (toca quando visível) ou reserva */}
       <div className="absolute inset-0 -z-20">
         <MediaFallback />
-        <LoopVideo src={s.video} opacity={0.55} play={hover ? true : undefined} />
+        <LoopVideo src={s.video} opacity={0.9} play={hover ? true : undefined} />
       </div>
-      <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-t from-bg via-bg/50 to-transparent" />
+      <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
       {/* brilho verde que segue o cursor */}
       <div
         aria-hidden

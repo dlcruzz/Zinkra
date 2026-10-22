@@ -16,6 +16,8 @@
   --brand: 21 196 90; /* #15C45A */
   --brand-dark: 11 107 49; /* sombras e brilho */
   --brand-glow: 74 222 128;
+  --logo-a: inline-block; /* logo para fundo escuro */
+  --logo-b: none;
   color-scheme: dark;
 }
 
@@ -28,6 +30,8 @@
   --brand: 10 150 66; /* verde um pouco mais escuro para dar contraste no claro */
   --brand-dark: 8 94 43;
   --brand-glow: 21 196 90;
+  --logo-a: none;
+  --logo-b: inline-block; /* logo para fundo claro */
   color-scheme: light;
 }
 
@@ -265,3 +269,7 @@ html[data-loader='on'] #zk-loader { display: flex; }
   color: rgb(var(--fg) / 0.06);
 }
 .giant-brand::before { content: 'Zinkra.'; }
+
+/* Logo: a variável vem do tema mais próximo (o cabeçalho sobre a abertura é sempre escuro) */
+.logo-dark-theme { display: var(--logo-a, inline-block); }
+.logo-light-theme { display: var(--logo-b, none); }

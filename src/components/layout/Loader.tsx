@@ -44,7 +44,7 @@ export default function Loader() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <span className="text-brand">Z</span>inkra<span className="text-brand">.</span>
+            <img src="/brand/zinkra-logo.png" alt="" width={804} height={155} className="h-10 w-auto md:h-14" />
           </m.span>
         </m.div>
       )}

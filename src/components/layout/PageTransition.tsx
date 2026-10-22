@@ -105,7 +105,7 @@ export function PageTransitionProvider({ children }: { children: React.ReactNode
             }}
           >
             <span className="font-brand text-4xl font-bold tracking-tightest text-white">
-              <span className="text-brand">Z</span>inkra<span className="text-brand">.</span>
+              <img src="/brand/zinkra-logo.png" alt="" width={804} height={155} className="h-10 w-auto md:h-14" />
             </span>
           </m.div>
         )}

@@ -25,7 +25,21 @@ export default function RevealObserver() {
     const raf = requestAnimationFrame(() => {
       document.querySelectorAll('.reveal:not(.is-in), .split:not(.split-now):not(.is-in)').forEach((el) => io.observe(el));
     });
+    // Reserva: depois de saltos de rolagem (âncoras), revela o que já está na tela
+    let t: ReturnType<typeof setTimeout>;
+    const sweep = () => {
+      clearTimeout(t);
+      t = setTimeout(() => {
+        document.querySelectorAll('.reveal:not(.is-in), .split:not(.split-now):not(.is-in)').forEach((el) => {
+          const r = el.getBoundingClientRect();
+          if (r.top < window.innerHeight && r.bottom > 0) el.classList.add('is-in');
+        });
+      }, 200);
+    };
+    window.addEventListener('scroll', sweep, { passive: true });
     return () => {
+      clearTimeout(t);
+      window.removeEventListener('scroll', sweep);
       cancelAnimationFrame(raf);
       io.disconnect();
     };

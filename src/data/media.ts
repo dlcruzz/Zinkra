@@ -13,6 +13,7 @@ export const media = {
     solucoesSistemas: `${MEDIA_DIR}/solucoes-sistemas.mp4`, // loops de 5 a 8 s para os cartões
     solucoesSites: `${MEDIA_DIR}/solucoes-sites.mp4`,
     solucoesPdv: `${MEDIA_DIR}/solucoes-pdv.mp4`,
+    solucoesFinanceiro: `${MEDIA_DIR}/solucoes-financeiro.mp4`,
     solucoesSaas: `${MEDIA_DIR}/solucoes-saas.mp4`,
     processoLoop: `${MEDIA_DIR}/processo-loop.mp4`,
     ctaLoop: `${MEDIA_DIR}/cta-loop.mp4`,
@@ -23,7 +24,7 @@ export const media = {
     caseKingmidia: `${MEDIA_DIR}/case-kingmidia.jpg`,
     caseDaniely: `${MEDIA_DIR}/case-daniely.jpg`,
     caseSantosferreira: `${MEDIA_DIR}/case-santosferreira.jpg`,
-    caseSistemaFinanceiro: `${MEDIA_DIR}/case-sistema-financeiro.jpg`,
+    caseSistemaFinanceiro: `${MEDIA_DIR}/case-sistema-financeiro.png`,
     casePdv: `${MEDIA_DIR}/case-pdv.jpg`,
     caseSaas: `${MEDIA_DIR}/case-saas.jpg`,
     ogImage: `${MEDIA_DIR}/og-image.jpg`, // 1200x630

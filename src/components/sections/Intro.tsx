@@ -3,7 +3,10 @@ import { useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { animate, useInView } from 'framer-motion';
+import Link from 'next/link';
 import Reveal from '@/components/ui/Reveal';
+import { MediaImage } from '@/components/ui/Media';
+import { media } from '@/data/media';
 import { numeros, type Numero } from '@/data/numeros';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -92,6 +95,23 @@ export default function Intro() {
             <Contador key={n.rotulo} n={n} />
           ))}
         </div>
+
+        {/* Fundador */}
+        <Reveal className="mt-24 grid items-center gap-10 border-t border-line pt-16 md:mt-32 md:grid-cols-12 md:gap-16">
+          <div className="md:col-span-4">
+            <div className="relative aspect-[4/5] overflow-hidden rounded-3xl border border-line">
+              <MediaImage src={media.image.fundador} alt="Danilo Lima Cruz, fundador da Zinkra" sizes="(min-width:768px) 30vw, 90vw" label="Danilo" />
+            </div>
+          </div>
+          <div className="md:col-span-8">
+            <p className="eyebrow mb-4">Quem está por trás</p>
+            <p className="display text-[clamp(2.2rem,5vw,4.5rem)]">Danilo Lima Cruz</p>
+            <p className="mt-3 max-w-xl text-lg text-muted">
+              Desenvolvedor e fundador da Zinkra. Você fala direto com quem projeta e constrói o seu sistema, do primeiro papo à publicação.
+            </p>
+            <Link href="/sobre" className="link-line mt-6 text-brand">Conhecer a história</Link>
+          </div>
+        </Reveal>
       </div>
     </section>
   );
