@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useMeta } from '../components/Shell'
 import { useAuth } from '../lib/auth'
-import { useData, fetchRows, update, notify, emitChange } from '../lib/data'
+import { useData, fetchRows, rpc, update, notify, emitChange } from '../lib/data'
 import { getPipelines, registerActivity, defaultLeadStage } from '../lib/automations'
 import { today, waLink, igLink, igDm, igHandle, fillTemplate, relDay, MONTHS, startOfMonth, endOfMonth, businessDays, inRange, localDay } from '../lib/format'
 import { Loading, ErrorBox, Bar, Badge, Select, AsyncButton, Field, Empty, CountUp, Seg, Modal } from '../components/ui'
@@ -465,7 +465,7 @@ function NovaProspeccao({ data, channel, bar, onStart }) {
         </section>
 
         <div className="stack">
-          <PotencialProsp leads={leads} />
+          <PotencialProsp />
           {returns.length ? (
             <section className="card pad stack-s">
               <h2>Retornos para hoje</h2>
@@ -538,16 +538,11 @@ function PauseTip({ channel, pacer, other, otherHasList, onGo }) {
 }
 
 // ---------- ainda pela frente ----------
-function PotencialProsp({ leads }) {
-  const { data } = useData(async () => {
-    const [terms, acts] = await Promise.all([
-      fetchRows('search_terms', { select: 'id, uf, city, done, leads_found', order: null }).catch(() => []),
-      fetchRows('activities', { select: 'lead_id, type, result', order: null }).catch(() => []),
-    ])
-    return { terms, acts }
-  }, ['search_terms', 'activities'], [])
+function PotencialProsp() {
+  // contas feitas no banco (captacao_resumo): sem baixar termos nem atividades inteiros
+  const { data } = useData(() => rpc('captacao_resumo', {}, { quiet: true }), ['search_terms', 'leads', 'activities'], [])
   if (!data) return null
-  return <Potencial terms={data.terms} leads={leads} acts={data.acts} compact />
+  return <Potencial summary={data} compact />
 }
 
 // ---------- o sistema escolhe o público ----------

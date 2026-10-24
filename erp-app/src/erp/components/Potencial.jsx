@@ -4,10 +4,10 @@ import { CountUp } from './ui'
 import { potential, short } from '../lib/potencial'
 
 // Painel positivo: quanto mercado ainda tem pela frente, para não desanimar com os "nãos" do dia.
-export default function Potencial({ terms, leads, acts, compact = false }) {
+export default function Potencial({ summary, compact = false }) {
   const [all, setAll] = useState(false)
   const top = compact ? 5 : 10
-  const p = useMemo(() => potential({ terms, leads, acts }), [terms, leads, acts])
+  const p = useMemo(() => potential({ summary }), [summary])
   const total = p.toCapture + p.newEst + p.notContacted
   const rows = (all ? p.states : p.states.slice(0, top)).map((s) => ({
     label: `${s.name} (${s.cities ? `${s.cities} cidade${s.cities === 1 ? '' : 's'}` : ''}${s.cities && s.suggested ? ' + ' : ''}${s.suggested ? `${s.suggested} sugerida${s.suggested === 1 ? '' : 's'}` : ''})`,

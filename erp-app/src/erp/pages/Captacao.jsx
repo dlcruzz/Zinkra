@@ -7,7 +7,7 @@ import Potencial from '../components/Potencial'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useMeta } from '../components/Shell'
 import { useAuth } from '../lib/auth'
-import { useData, fetchRows, insert, upsert, update, updateWhere, notify, emitChange, useSettings, saveSetting } from '../lib/data'
+import { useData, fetchRows, rpc, insert, upsert, update, updateWhere, notify, emitChange, useSettings, saveSetting } from '../lib/data'
 import { defaultLeadStage, getPipelines } from '../lib/automations'
 import { today, dm, igHandle, normalizePhone, pct } from '../lib/format'
 import { yes } from '../lib/csv'
@@ -19,9 +19,10 @@ import { PageHead, Loading, ErrorBox, Bar, Badge, Select, AsyncButton, Field, Em
 import { Icon } from '../lib/icons'
 import { supabase } from '../lib/supabase'
 
-const TERM_COLS = 'id, niche, neighborhood, city, uf, region, done, done_at, leads_found, batch_id, reserved_at'
+// lotes sem o texto do prompt (pesado): o prompt só é buscado quando alguém pede para copiar
+const BATCH_COLS = 'id, code, niche, city, uf, terms, only_no_site, status, leads_created, leads_dup, imported_at, owner_id, created_at'
+const LEAD_COLS = 'id, company, phone, instagram, niche, city, uf, neighborhood, search_term_id, last_contact_at, won_at, client_id, stage_id, estimated_value_cents'
 
-// termos são milhares: busca as páginas de 1000 em paralelo
 const isBotao = (b) => String(b?.prompt || '').startsWith('Botão do Chrome')
 function BookmarkletLink() {
   const ref = React.useRef(null)
@@ -38,16 +39,6 @@ function BookmarkletLink() {
 }
 const isIgBatch = (b) => (b?.terms || []).some((t) => t.source === 'instagram')
 
-async function fetchTerms() {
-  const base = () => supabase.from('search_terms').select(TERM_COLS).is('archived_at', null)
-  const { count, error } = await supabase.from('search_terms').select('id', { count: 'exact', head: true }).is('archived_at', null)
-  if (error) throw error
-  const pages = Math.max(1, Math.ceil((count || 0) / 1000))
-  const res = await Promise.all(Array.from({ length: pages }, (_, i) => base().order('id').range(i * 1000, i * 1000 + 999)))
-  const bad = res.find((r) => r.error)
-  if (bad) throw bad.error
-  return res.flatMap((r) => r.data || [])
-}
 const CITY_WHOLE = '(cidade inteira)'
 const hoodLabel = (h) => h || CITY_WHOLE
 
@@ -59,14 +50,17 @@ export default function Captacao() {
   const [importing, setImporting] = useState(null)
   const [preload, setPreload] = useState(null) // linhas vindas da captação automática
 
+  // Só o que o topo da página precisa: resumo contado no banco + lotes. Termos e leads
+  // NÃO são mais baixados inteiros aqui (era isso que estourava o tempo do banco).
   const { data, loading, error, reload } = useData(async () => {
-    const [terms, batches, leads] = await Promise.all([
-      fetchTerms(),
-      fetchRows('capture_batches', { order: 'created_at', ascending: false, limit: 300 }),
-      fetchRows('leads', { select: 'id, company, phone, instagram, niche, city, uf, neighborhood, search_term_id, last_contact_at, won_at, client_id, stage_id, estimated_value_cents', order: null }),
+    const [resumo, batches] = await Promise.all([
+      rpc('captacao_resumo', {}, { quiet: true }),
+      fetchRows('capture_batches', { select: BATCH_COLS, order: 'created_at', ascending: false, limit: 300 }),
     ])
-    return { terms, batches, leads }
+    return { resumo, batches }
   }, ['search_terms', 'capture_batches', 'leads'])
+  // base de leads (dedupe da importação e sugestões): carrega em segundo plano
+  const { data: leads } = useData(() => fetchRows('leads', { select: LEAD_COLS, order: null }), ['leads'])
   // dados das sugestões e do painel: carregam depois, sem travar a página se demorarem
   const { data: extra } = useData(async () => {
     const [acts, P, clients, contracts] = await Promise.all([
@@ -78,44 +72,65 @@ export default function Captacao() {
     return { acts, P, clients, contracts }
   }, ['activities', 'clients', 'contracts'])
 
-  if (error) {
+  if (error && !data) {
     const m = String(error.message || error)
+    if (/captacao_(resumo|locais|cobertura)|captacao_fold/i.test(m)) return <div className="page"><SetupPerf /></div>
     if (/capture_batches|column .*(city|uf)|search_terms\.(city|uf)/i.test(m)) return <div className="page"><Setup /></div>
     return <div className="page"><ErrorBox error={error} onRetry={reload} /></div>
   }
   if (loading || !data) return <div className="page"><Loading rows={8} /></div>
 
-  const { terms, batches, leads } = data
-  const done = terms.filter((t) => t.done).length
-  const cities = new Set(terms.filter((t) => t.done).map((t) => locKey(t.city, t.uf))).size
-  const captured = leads.filter((l) => l.search_term_id).length
+  const { resumo, batches } = data
+  const done = resumo.terms_done
+  const cities = resumo.cities_done
+  const captured = resumo.leads_captured
   const waiting = batches.filter((b) => b.status === 'aguardando')
+  // importar precisa da base inteira de leads para não duplicar
+  const openImport = (b) => { if (!leads) notify('Carregando a base de leads, aguarde um instante.', 'info'); setImporting(b) }
+  const novaData = extra && leads ? { resumo, batches, leads, ...extra } : { resumo, batches, leads: leads || [] }
 
   return (
     <div className="page">
       <PageHead title="Captação de clientes" sub="Escolha nicho e local, copie o prompt para o Claude, importe a planilha que ele devolver. O sistema lembra o que já foi buscado." />
       <div className="card stats">
-        <Stat label="Buscas feitas" value={`${done.toLocaleString('pt-BR')} / ${terms.length.toLocaleString('pt-BR')}`} sub={`${pct(done, terms.length)}% dos termos cadastrados`} />
+        <Stat label="Buscas feitas" value={`${done.toLocaleString('pt-BR')} / ${resumo.terms_total.toLocaleString('pt-BR')}`} sub={`${pct(done, resumo.terms_total)}% dos termos cadastrados`} />
         <Stat label="Cidades trabalhadas" value={cities} />
         <Stat label="Leads vindos de busca" value={captured.toLocaleString('pt-BR')} />
         <Stat label="Lotes aguardando importação" value={waiting.length} valueClass={waiting.length ? 'ok' : ''} />
       </div>
 
-      {extra ? <Potencial terms={terms} leads={leads} acts={extra.acts} /> : null}
+      <Potencial summary={resumo} />
 
       <Tabs value={tab} onChange={(t) => setTab(t)} options={[['nova', 'Nova captação'], ['cobertura', 'Cobertura'], ['lotes', 'Lotes', batches.length || null]]} />
 
       {tab === 'nova' ? (
-        <Nova key={`${sp.get('niche') || ''}|${sp.get('city') || ''}|${sp.get('uf') || ''}`} data={extra ? { ...data, ...extra } : data}
+        <Nova key={`${sp.get('niche') || ''}|${sp.get('city') || ''}|${sp.get('uf') || ''}`} data={novaData}
           preset={{ niche: sp.get('niche') || '', city: sp.get('city') || '', uf: sp.get('uf') || '' }}
-          onImport={(b) => setImporting(b)} onAuto={(b, rows) => { setPreload(rows); setImporting(b) }} />
+          onImport={openImport} onAuto={(b, rows) => { setPreload(rows); setImporting(b) }} />
       ) : tab === 'cobertura' ? (
-        <Cobertura data={data} onCapture={(p) => setTab('nova', p)} />
+        <Cobertura onCapture={(p) => setTab('nova', p)} />
       ) : (
-        <Lotes data={data} onImport={(b) => setImporting(b)} />
+        <Lotes data={data} onImport={openImport} />
       )}
 
-      {importing ? <ImportModal batch={importing} data={data} preload={preload} onClose={() => { setImporting(null); setPreload(null) }} /> : null}
+      {importing && leads ? <ImportModal batch={importing} data={{ leads }} preload={preload} onClose={() => { setImporting(null); setPreload(null) }} /> : null}
+    </div>
+  )
+}
+
+function SetupPerf() {
+  return (
+    <div className="card" style={{ padding: 22, maxWidth: 720 }}>
+      <h2>Falta uma atualização no Supabase</h2>
+      <div className="stack-s" style={{ gap: 12, paddingTop: 10 }}>
+        <p style={{ lineHeight: 1.6 }}>A Captação agora faz as contas dentro do banco, e essas funções ainda não existem.</p>
+        <ol style={{ lineHeight: 1.8, paddingLeft: 20 }}>
+          <li>Abra o Supabase do projeto, menu <b>SQL Editor</b>.</li>
+          <li>Cole o conteúdo do arquivo <span className="num">supabase/erp-captacao-performance.sql</span> e clique em <b>Run</b>.</li>
+          <li>Volte aqui e recarregue a página.</li>
+        </ol>
+        <p className="lbl">Não apaga nada. Só cria índices e funções.</p>
+      </div>
     </div>
   )
 }
@@ -138,33 +153,37 @@ function Setup() {
 }
 
 // ------------------------------------------------------------------ status de cada local para um nicho
-function useLocations(terms, batches, niche, city, uf, extra) {
+function useLocations(loc, batches, niche, city, uf, extra) {
   return useMemo(() => {
     const open = new Set(batches.filter((b) => b.status === 'aguardando').map((b) => b.id))
-    const lk = locKey(city, uf)
-    const here = terms.filter((t) => locKey(t.city, t.uf) === lk)
-    const mine = new Map(here.filter((t) => fold(t.niche) === fold(niche)).map((t) => [fold(t.neighborhood), t]))
+    const mine = new Map((loc.mine || []).map((t) => [fold(t.neighborhood), t]))
     const map = new Map()
     const add = (hood, region) => {
       const k = fold(hood)
       if (!map.has(k)) map.set(k, { neighborhood: hood, region: region || regionOf(city, uf, hood) || (hood ? 'Bairros' : 'Cidade'), term: mine.get(k) || null })
     }
     knownHoods(city, uf).forEach((h) => add(h.neighborhood, h.region))
-    here.forEach((t) => add(t.neighborhood, t.region))
+    ;(loc.hoods || []).forEach((h) => add(h.neighborhood, h.region))
     extra.forEach((h) => add(h))
     if (!map.size || mine.has('')) add('')
     return Array.from(map.values()).map((l) => ({
       ...l,
       status: l.term?.done ? 'feito' : l.term?.batch_id && open.has(l.term.batch_id) ? 'lote' : 'falta',
     }))
-  }, [terms, batches, niche, city, uf, extra])
+  }, [loc, batches, niche, city, uf, extra])
+}
+
+function useDebounced(value, ms) {
+  const [v, setV] = useState(value)
+  useEffect(() => { const t = setTimeout(() => setV(value), ms); return () => clearTimeout(t) }, [value, ms])
+  return v
 }
 
 // ------------------------------------------------------------------ Nova captação
 function Nova({ data, preset, onImport, onAuto }) {
   const auth = useAuth()
   const settings = useSettings()
-  const { terms, batches, leads } = data
+  const { resumo, batches } = data
   const [niche, setNiche] = useState(preset.niche)
   const [uf, setUf] = useState(preset.uf || 'SP')
   const [city, setCity] = useState(preset.city || 'São Paulo')
@@ -187,13 +206,22 @@ function Nova({ data, preset, onImport, onAuto }) {
 
   const niches = useMemo(() => {
     const m = new Map()
-    ;[...(settings.niches || []), ...CATALOG_NAMES, ...terms.map((t) => t.niche), ...leads.map((l) => l.niche)].filter(Boolean).forEach((n) => { if (!m.has(fold(n))) m.set(fold(n), n) })
+    ;[...(settings.niches || []), ...CATALOG_NAMES, ...(resumo.niches || [])].filter(Boolean).forEach((n) => { if (!m.has(fold(n))) m.set(fold(n), n) })
     return Array.from(m.values()).sort((a, b) => a.localeCompare(b, 'pt-BR'))
-  }, [settings, terms, leads])
+  }, [settings, resumo])
   const nicheName = niches.find((n) => fold(n) === fold(niche)) || niche.trim()
   const cityName = cities.find((c) => fold(c) === fold(city)) || city.trim()
 
-  const locs = useLocations(terms, batches, nicheName, cityName, uf, extra)
+  // locais da cidade/nicho escolhidos: vêm do banco já filtrados (nada de baixar todos os termos)
+  const dNiche = useDebounced(nicheName, 350)
+  const dCity = useDebounced(cityName, 350)
+  const { data: locRaw } = useData(async () => {
+    const k = `${uf}|${dCity}|${dNiche}`
+    if (!dCity) return { hoods: [], mine: [], elsewhere: [], _k: k }
+    return { ...(await rpc('captacao_locais', { p_uf: uf, p_city: dCity, p_niche: dNiche }, { quiet: true })), _k: k }
+  }, ['search_terms'], [uf, dCity, dNiche])
+  const locReady = locRaw?._k === `${uf}|${cityName}|${nicheName}`
+  const locs = useLocations(locReady ? locRaw : {}, batches, nicheName, cityName, uf, extra)
   const auto = useMemo(() => locs.filter((l) => l.status === 'falta').slice(0, size).map((l) => fold(l.neighborhood)), [locs, size])
   const chosen = nicheName && cityName ? sel || auto : []
   const isSel = (l) => chosen.includes(fold(l.neighborhood))
@@ -211,17 +239,7 @@ function Nova({ data, preset, onImport, onAuto }) {
   const noHoods = !locs.some((l) => l.neighborhood)
 
   // outras cidades da UF onde esse nicho ainda tem busca pendente
-  const elsewhere = useMemo(() => {
-    if (!nicheName) return []
-    const m = new Map()
-    terms.filter((t) => t.uf === uf && fold(t.niche) === fold(nicheName) && locKey(t.city, t.uf) !== locKey(cityName, uf)).forEach((t) => {
-      const k = t.city
-      const v = m.get(k) || { city: k, done: 0, total: 0 }
-      v.total++; if (t.done) v.done++
-      m.set(k, v)
-    })
-    return Array.from(m.values()).filter((v) => v.done < v.total).sort((a, b) => b.done - a.done || a.city.localeCompare(b.city)).slice(0, 12)
-  }, [terms, nicheName, cityName, uf])
+  const elsewhere = locReady && nicheName ? locRaw.elsewhere || [] : []
 
   const copy = async (txt, what) => {
     try { await navigator.clipboard.writeText(txt); setCopied(what); setTimeout(() => setCopied(''), 1800) } catch { notify('Não consegui copiar. Selecione o texto.', 'err') }
@@ -231,6 +249,7 @@ function Nova({ data, preset, onImport, onAuto }) {
   const makeBatch = async (mode) => {
     if (!nicheName) { document.getElementById('cap-niche')?.focus(); notify('Falta escolher o nicho (ex.: Dentista).', 'err'); return null }
     if (!cityName) { notify('Escolha a cidade.', 'err'); return null }
+    if (!locReady) { notify('Ainda carregando os locais, tente de novo em um instante.', 'info'); return null }
     const pick = locs.filter(isSel)
     if (!pick.length) { notify('Selecione pelo menos um local.', 'err'); return null }
     const owner = auth.isTotal('prospeccao') ? null : auth.uid
@@ -396,7 +415,7 @@ function Nova({ data, preset, onImport, onAuto }) {
         </div>
         {source === 'instagram' ? <div className="note y">O Claude abre os perfis no Instagram logado neste Chrome, devagar e só lendo (sem seguir nem mandar Direct). Os leads entram com o @ para você prospectar pelo canal Instagram.</div> : null}
 
-        {nicheName && cityName ? (
+        {nicheName && cityName && !locReady ? <Loading rows={4} /> : nicheName && cityName ? (
           <>
             <div className="stack-s" style={{ gap: 8 }}>
               <div className="row" style={{ justifyContent: 'space-between' }}>
@@ -585,8 +604,7 @@ function PlacePick({ data, niche, current, onUse }) {
 }
 
 // ------------------------------------------------------------------ Cobertura
-function Cobertura({ data, onCapture }) {
-  const { terms, leads } = data
+function Cobertura({ onCapture }) {
   const [uf, setUf] = useState('SP')
   const [city, setCity] = useState('')
   const [niche, setNiche] = useState('')
@@ -598,40 +616,26 @@ function Cobertura({ data, onCapture }) {
     return () => { alive = false }
   }, [uf])
 
-  const inUf = useMemo(() => terms.filter((t) => !uf || t.uf === uf), [terms, uf])
-  const cityOpts = useMemo(() => Array.from(new Set(inUf.map((t) => t.city))).sort((a, b) => a.localeCompare(b, 'pt-BR')), [inUf])
-  const nicheOpts = useMemo(() => Array.from(new Set(inUf.map((t) => t.niche))).sort((a, b) => a.localeCompare(b, 'pt-BR')), [inUf])
-  const leadsByTerm = useMemo(() => {
-    const m = new Map()
-    leads.forEach((l) => { if (l.search_term_id) m.set(l.search_term_id, (m.get(l.search_term_id) || 0) + 1) })
-    return m
-  }, [leads])
+  // o banco já agrupa (por nicho, cidade ou bairro, conforme os filtros)
+  const { data: cob, error: cobErr, reload: cobReload } = useData(
+    () => rpc('captacao_cobertura', { p_uf: uf, p_city: city, p_niche: niche }, { quiet: true }),
+    ['search_terms', 'leads'], [uf, city, niche])
+  const cityOpts = useMemo(() => (cob?.cities || []).slice().sort((a, b) => a.localeCompare(b, 'pt-BR')), [cob])
+  const nicheOpts = useMemo(() => (cob?.niches || []).slice().sort((a, b) => a.localeCompare(b, 'pt-BR')), [cob])
 
   // agrupa: sem nicho → por nicho; com nicho → por cidade (ou por bairro, se tiver cidade)
   const by = !niche ? 'niche' : !city ? 'city' : 'hood'
   const rows = useMemo(() => {
-    const scope = inUf.filter((t) => (!city || t.city === city) && (!niche || t.niche === niche))
-    const m = new Map()
-    scope.forEach((t) => {
-      const k = by === 'niche' ? t.niche : by === 'city' ? t.city : hoodLabel(t.neighborhood)
-      const v = m.get(k) || { key: k, total: 0, done: 0, leads: 0, cities: new Set(), next: [], term: t }
-      v.total++
-      if (t.done) v.done++
-      v.leads += leadsByTerm.get(t.id) || t.leads_found || 0
-      v.cities.add(t.city)
-      if (!t.done && v.next.length < 3) v.next.push(by === 'niche' ? `${hoodLabel(t.neighborhood)}${city ? '' : ` (${t.city})`}` : hoodLabel(t.neighborhood))
-      m.set(k, v)
-    })
     const f = fold(q)
-    return Array.from(m.values()).filter((r) => !f || fold(r.key).includes(f))
+    return (cob?.rows || []).map((r) => ({ ...r, next: r.next || [], leads: r.leads || 0 })).filter((r) => !f || fold(r.key).includes(f))
       .sort((a, b) => (b.done > 0) - (a.done > 0) || (a.done / a.total < 1) - (b.done / b.total < 1) || b.done - a.done || a.key.localeCompare(b.key, 'pt-BR'))
-  }, [inUf, city, niche, by, leadsByTerm, q])
+  }, [cob, q])
 
   const untouched = useMemo(() => {
     if (!niche || city) return []
-    const has = new Set(inUf.filter((t) => t.niche === niche).map((t) => fold(t.city)))
+    const has = new Set((cob?.rows || []).map((r) => fold(r.key)))
     return ibge.filter((c) => !has.has(fold(c)))
-  }, [ibge, inUf, niche, city])
+  }, [ibge, cob, niche, city])
 
   const SHOW = 300
   return (
@@ -648,7 +652,7 @@ function Cobertura({ data, onCapture }) {
           <input className="in" style={{ width: 150 }} placeholder="Filtrar…" value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
       </div>
-      {rows.length ? (
+      {cobErr && !cob ? <div style={{ padding: 16 }}><ErrorBox error={cobErr} onRetry={cobReload} /></div> : !cob ? <Loading rows={6} /> : rows.length ? (
         <div className="tbl-wrap" style={{ maxHeight: 600 }}><table className="tbl">
           <thead><tr>
             <th>{by === 'niche' ? 'Nicho' : by === 'city' ? 'Cidade' : 'Bairro'}</th>
@@ -658,18 +662,18 @@ function Cobertura({ data, onCapture }) {
           <tbody>
             {rows.slice(0, SHOW).map((r) => (
               <tr key={r.key}>
-                <td>{r.key}{by === 'niche' && r.cities.size > 1 ? <span className="lbl"> · {r.cities.size} cidades</span> : null}</td>
+                <td>{r.key}{by === 'niche' && r.cities > 1 ? <span className="lbl"> · {r.cities} cidades</span> : null}</td>
                 <td className="num r">{r.done}/{r.total}</td>
                 <td><Bar value={pct(r.done, r.total)} /></td>
                 <td className="num r">{r.leads || '—'}</td>
                 {by !== 'hood' ? <td className="lbl ellipsis" style={{ maxWidth: 320 }}>{r.done === r.total ? 'tudo feito' : r.next.join(', ')}</td>
-                  : <td>{r.done ? <Badge kind="g">feito{r.term.done_at ? ` ${dm(r.term.done_at.slice(0, 10))}` : ''}</Badge> : r.term.batch_id ? <Badge kind="y">em lote</Badge> : <span className="b">falta</span>}</td>}
+                  : <td>{r.done ? <Badge kind="g">feito{r.done_at ? ` ${dm(r.done_at.slice(0, 10))}` : ''}</Badge> : r.batch_id ? <Badge kind="y">em lote</Badge> : <span className="b">falta</span>}</td>}
                 <td className="r">
                   {r.done < r.total ? (
                     <button type="button" className="btn s" onClick={() => onCapture({
                       niche: by === 'niche' ? r.key : niche,
-                      city: by === 'city' ? r.key : city || (r.cities.size === 1 ? Array.from(r.cities)[0] : 'São Paulo'),
-                      uf: r.term.uf,
+                      city: by === 'city' ? r.key : city || (r.cities === 1 ? r.one_city : 'São Paulo'),
+                      uf: r.uf,
                     })}>Captar</button>
                   ) : null}
                 </td>
@@ -716,7 +720,10 @@ function Lotes({ data, onImport }) {
               <td className="r">
                 <div className="row" style={{ justifyContent: 'flex-end', gap: 6 }}>
                   <button type="button" className="btn s g" onClick={async () => {
-                    try { await navigator.clipboard.writeText(b.prompt || ''); setCopied(b.id); setTimeout(() => setCopied(''), 1500) } catch { notify('Não consegui copiar.', 'err') }
+                    try {
+                      const { data: pr, error: pe } = await supabase.from('capture_batches').select('prompt').eq('id', b.id).single()
+                      if (pe) throw pe
+                      await navigator.clipboard.writeText(pr?.prompt || ''); setCopied(b.id); setTimeout(() => setCopied(''), 1500) } catch { notify('Não consegui copiar.', 'err') }
                   }}>{copied === b.id ? 'Copiado' : 'Copiar prompt'}</button>
                   {b.status === 'aguardando' ? (
                     <>

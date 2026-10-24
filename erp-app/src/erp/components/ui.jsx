@@ -171,11 +171,20 @@ export function Loading({ rows = 4 }) {
 }
 
 export function ErrorBox({ error, onRetry }) {
+  const [busy, setBusy] = useState(false)
   if (!error) return null
+  const raw = error.message || String(error)
+  const msg = /statement timeout|canceling statement/i.test(raw)
+    ? 'O banco demorou mais do que o permitido para responder. Tente de novo em instantes.'
+    : /Failed to fetch|NetworkError/i.test(raw) ? 'Sem conexão com o servidor. Confira a internet e tente de novo.' : raw
+  const retry = async () => {
+    setBusy(true)
+    try { await onRetry() } catch { /* o erro volta pelo próprio carregamento */ } finally { setBusy(false) }
+  }
   return (
     <div className="note r row" style={{ justifyContent: 'space-between' }}>
-      <span>Não foi possível carregar: {error.message || String(error)}</span>
-      {onRetry ? <button type="button" className="btn s" onClick={onRetry}>Tentar de novo</button> : null}
+      <span>Não foi possível carregar: {msg}</span>
+      {onRetry ? <button type="button" className="btn s" disabled={busy} onClick={retry}>{busy ? 'Tentando…' : 'Tentar de novo'}</button> : null}
     </div>
   )
 }

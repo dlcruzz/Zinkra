@@ -45,6 +45,7 @@ export function friendlyError(error) {
   if (/row-level security|permission denied|violates row-level/i.test(m)) return 'Você não tem permissão para isso.'
   if (/duplicate key/i.test(m)) return 'Esse registro já existe.'
   if (/Failed to fetch|NetworkError/i.test(m)) return 'Sem conexão com o servidor. Tente de novo.'
+  if (/statement timeout|canceling statement/i.test(m)) return 'O banco demorou demais para responder. Tente de novo.'
   if (/JWT|not authenticated/i.test(m)) return 'Sua sessão expirou. Entre de novo.'
   return m
 }

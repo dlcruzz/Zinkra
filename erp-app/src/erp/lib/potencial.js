@@ -6,23 +6,17 @@ import { CATALOG } from './nichos'
 
 const fold = (s) => String(s || '').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
 
-export function potential({ terms, leads, acts = [] }) {
-  const done = terms.filter((t) => t.done)
-  const measured = done.filter((t) => t.leads_found != null)
-  const yieldPer = measured.length >= 5 ? measured.reduce((a, t) => a + Number(t.leads_found || 0), 0) / measured.length : 8
-  const byUf = new Map()
-  terms.forEach((t) => {
-    const u = t.uf || 'SP'
-    const s = byUf.get(u) || { uf: u, name: UF_NAME[u] || u, total: 0, done: 0, cities: new Set() }
-    s.total++; if (t.done) s.done++; s.cities.add(fold(t.city))
-    byUf.set(u, s)
-  })
-  const states = [...byUf.values()].map((s) => ({ ...s, cities: s.cities.size, left: s.total - s.done, pct: s.total ? s.done / s.total : 0, est: Math.round((s.total - s.done) * yieldPer) }))
-    .sort((a, b) => b.est - a.est)
+// summary vem da função captacao_resumo() do banco: a conta é feita lá, o navegador não baixa as tabelas
+export function potential({ summary }) {
+  const yieldPer = summary.yield_n >= 5 ? summary.yield_sum / summary.yield_n : 8
+  const states = (summary.by_uf || []).map((x) => {
+    const u = x.uf || 'SP'
+    return { uf: u, name: UF_NAME[u] || u, total: x.total, done: x.done, cities: x.cities, left: x.total - x.done, pct: x.total ? x.done / x.total : 0, est: Math.round((x.total - x.done) * yieldPer) }
+  }).sort((a, b) => b.est - a.est)
   const toCapture = states.reduce((a, s) => a + s.est, 0) // só bairros cadastrados (antes das sugestões)
 
   // cidades sugeridas que ainda não têm nenhuma busca cadastrada
-  const open = new Set(terms.map((t) => `${fold(t.city)}|${t.uf}`))
+  const open = new Set((summary.open_cities || []).map(([city, uf]) => `${fold(city)}|${uf}`))
   const newCities = CITY_POOL.filter((c) => !open.has(`${fold(c.city)}|${c.uf}`))
   const perCity = Math.round(CATALOG.length * yieldPer * 0.25) // cidade inteira, 1 busca por público, só 1/4 dos públicos
   const newEst = newCities.length * perCity
@@ -36,13 +30,11 @@ export function potential({ terms, leads, acts = [] }) {
   })
   states.sort((a2, b2) => b2.est - a2.est)
 
-  const contactedIds = new Set(acts.filter((a) => a.lead_id && ['whatsapp', 'ligacao', 'email', 'visita'].includes(a.type)).map((a) => a.lead_id))
-  const isContacted = (l) => Boolean(l.last_contact_at) || contactedIds.has(l.id)
-  const contacted = leads.filter(isContacted).length
-  const notContacted = leads.length - contacted
-  const wins = leads.filter((l) => l.won_at || l.client_id).length
+  const contacted = summary.leads_contacted || 0
+  const notContacted = (summary.leads_total || 0) - contacted
+  const wins = summary.leads_wins || 0
   const perSale = wins ? Math.max(1, Math.round(contacted / wins)) : null
-  return { yieldPer, states, toCapture, newCities, newEst, contacted, notContacted, wins, perSale, leads: leads.length }
+  return { yieldPer, states, toCapture, newCities, newEst, contacted, notContacted, wins, perSale, leads: summary.leads_total || 0 }
 }
 
 export const short = (n) => (n >= 10000 ? `${Math.round(n / 1000).toLocaleString('pt-BR')} mil` : n >= 1000 ? `${(n / 1000).toFixed(1).replace('.', ',')} mil` : n.toLocaleString('pt-BR'))
