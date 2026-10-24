@@ -2,7 +2,7 @@
 // Só o Diretor geral pode chamar. Precisa de SUPABASE_SERVICE_ROLE_KEY na Vercel
 // (NUNCA coloque essa chave com prefixo VITE_: ela não pode ir para o navegador).
 
-const ROLES = new Set(['diretor', 'prospector', 'dev', 'social', 'financeiro'])
+const ROLES = new Set(['diretor', 'prospector', 'dev', 'social', 'financeiro', 'socio'])
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' })
