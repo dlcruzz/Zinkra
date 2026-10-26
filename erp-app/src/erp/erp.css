@@ -677,3 +677,106 @@ body:has(.erp) { background: #0A0C0B; }
 .erp .pause-tip { display: flex; align-items: center; gap: 10px; padding: 10px 14px; margin-bottom: 14px; border-radius: var(--r2, 12px); border: 1px solid #5A4A22; background: rgba(229,162,58,.07); font-size: 13.5px; line-height: 1.45; animation: erp-fade-up .35s var(--ease, ease) both; }
 .erp .pause-tip > svg { color: #E5A23A; flex: none; }
 @media (max-width: 620px) { .erp .ch-bar { grid-template-columns: minmax(0, 1fr); } .erp .pause-tip { flex-wrap: wrap; } }
+
+/* ======================================================================
+   PESSOAL — finanças pessoais do dono (módulo isolado, prefixo pf-)
+   ====================================================================== */
+.erp .pf-aba { display: flex; flex-direction: column; gap: 18px; animation: erp-fade-up .45s var(--ease); } /* sem fill-mode: o modal dentro dele precisa ficar acima da barra do celular */
+.erp .pf-bloco { background: var(--s1); border: 1px solid var(--line); border-radius: var(--r-l); padding: 18px 20px 14px; display: flex; flex-direction: column; gap: 12px; box-shadow: var(--shadow); }
+.erp .pf-cabeca { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px 14px; flex-wrap: wrap; }
+.erp .pf-cabeca h2 { font-size: 15px; letter-spacing: -0.01em; }
+.erp .pf-cabeca .row { gap: 6px; }
+
+.erp .pf-linha { display: flex; align-items: center; gap: 14px; padding: 11px 0; border-top: 1px solid var(--line-2); animation: erp-lead-in .4s var(--ease) backwards; }
+.erp .pf-linha.slim { padding: 9px 0; }
+.erp .pf-linha.tall { align-items: flex-start; padding: 13px 0; }
+.erp .pf-meio { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.erp .pf-nome { font-size: 14px; color: var(--tx); font-weight: 500; overflow-wrap: anywhere; }
+.erp .pf-valor { font-size: 14px; white-space: nowrap; text-align: right; }
+.erp .pf-dir { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; text-align: right; }
+.erp .pf-acoes { display: inline-flex; gap: 2px; flex: none; }
+.erp .pf-dia { flex: none; width: 46px; height: 46px; border-radius: 13px; background: #0E1210; border: 1px solid var(--line); display: flex; flex-direction: column;
+  align-items: center; justify-content: center; line-height: 1.05; color: var(--mut); }
+.erp .pf-dia b { font-size: 16px; font-weight: 500; color: var(--tx); }
+.erp .pf-dia span { font-size: 9.5px; text-transform: uppercase; letter-spacing: .08em; }
+.erp .pf-bolinha { flex: none; width: 12px; height: 12px; border-radius: 50%; }
+.erp .pf-prog { height: 5px; border-radius: 3px; background: #1F2421; overflow: hidden; margin-top: 6px; }
+.erp .pf-prog i { display: block; height: 100%; background: var(--green); border-radius: 3px; transform-origin: left; animation: erp-grow-x .8s var(--ease) backwards; }
+
+.erp .pf-duas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 32px; }
+.erp .pf-grupo-t { display: flex; justify-content: space-between; align-items: center; font: 500 11px 'Geist Mono', monospace; letter-spacing: .1em; text-transform: uppercase; color: var(--mut-2); padding-bottom: 6px; }
+.erp .pf-exemplos { display: flex; flex-wrap: wrap; gap: 8px 22px; font-size: 13px; color: var(--tx-2); padding: 10px 12px; border-radius: var(--r); background: #0E1210; border: 1px dashed var(--line-3); }
+.erp .pf-exemplos b { font-weight: 500; color: var(--tx); }
+.erp .pf-cores { display: flex; flex-wrap: wrap; gap: 10px; }
+.erp .pf-cores button { width: 28px; height: 28px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; transition: transform .25s var(--ease-spring), box-shadow .2s; }
+.erp .pf-cores button:hover { transform: scale(1.12); }
+.erp .pf-cores button.on { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--tx); }
+.erp .pf-nav { display: flex; justify-content: space-between; gap: 10px; }
+.erp .pf-entra { animation: erp-fade-up .35s var(--ease); }
+
+/* assistente: quatro passos ligados por uma linha */
+.erp .pf-passos { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; }
+.erp .pf-passos li { position: relative; }
+.erp .pf-passos li:not(:last-child)::after { content: ''; position: absolute; top: 17px; left: 52px; right: 8px; height: 2px; background: var(--line-3); border-radius: 2px; }
+.erp .pf-passos li.ok:not(:last-child)::after { background: var(--green); transform-origin: left; animation: erp-grow-x .6s var(--ease) backwards; }
+.erp .pf-passos button { all: unset; box-sizing: border-box; display: flex; align-items: flex-start; gap: 12px; width: 100%; cursor: pointer; padding: 0 6px 0 0; }
+.erp .pf-passos button:disabled { cursor: default; opacity: .55; }
+.erp .pf-passos button:focus-visible { outline: 2px solid var(--green); outline-offset: 4px; border-radius: 10px; }
+.erp .pf-bola { flex: none; width: 34px; height: 34px; border-radius: 50%; border: 1.5px solid var(--line-3); background: var(--s1); display: grid; place-items: center; font-size: 13px; color: var(--mut); position: relative; z-index: 1; transition: all .35s var(--ease); }
+.erp .pf-passos li.on .pf-bola { background: var(--green); border-color: var(--green); color: #04130A; font-weight: 600; box-shadow: 0 0 0 6px rgba(21,196,90,.12); }
+.erp .pf-passos li.ok .pf-bola { background: var(--green-bg); border-color: var(--green-ln); color: var(--green-tx); }
+.erp .pf-passo-t { display: flex; flex-direction: column; gap: 1px; min-width: 0; padding-top: 1px; }
+.erp .pf-passo-t b { font-size: 13px; font-weight: 500; color: var(--tx-2); }
+.erp .pf-passo-t span { font-size: 11.5px; color: var(--mut); }
+.erp .pf-passos li.on .pf-passo-t b { color: var(--tx); }
+
+/* início */
+.erp .pf-hero { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 0; border: 1px solid var(--line); border-radius: var(--r-xl); overflow: hidden; box-shadow: var(--shadow-hi);
+  background: radial-gradient(520px 260px at 0% 0%, rgba(21,196,90,.1), transparent 70%), var(--s1); }
+.erp .pf-hero-saldo { padding: 26px 28px; display: flex; flex-direction: column; gap: 8px; justify-content: center; }
+.erp .pf-grande { font-size: clamp(34px, 6vw, 52px); font-weight: 500; letter-spacing: -0.035em; line-height: 1.05; color: var(--tx); }
+.erp .pf-regua { padding: 22px 26px; border-left: 1px solid var(--line); background: rgba(8,10,9,.35); display: flex; flex-direction: column; gap: 12px; }
+.erp .pf-regua ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.erp .pf-regua li { position: relative; display: flex; align-items: center; gap: 14px; padding: 9px 0 9px 26px; animation: erp-lead-in .45s var(--ease) backwards; }
+.erp .pf-regua li::before { content: ''; position: absolute; left: 5px; top: 0; bottom: 0; width: 2px; background: var(--line-3); }
+.erp .pf-regua li:first-child::before { top: 50%; }
+.erp .pf-regua li:last-child::before { bottom: 50%; }
+.erp .pf-ponto { position: absolute; left: 0; width: 12px; height: 12px; border-radius: 50%; background: var(--s1); border: 2px solid var(--mut-2); z-index: 1; }
+.erp .pf-regua li:first-child .pf-ponto { background: var(--green); border-color: var(--green); animation: erp-ping 2s infinite; }
+.erp .pf-quando { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.erp .pf-quando b { font-weight: 500; font-size: 14px; }
+.erp .pf-quanto { font-size: 14px; color: var(--tx-2); white-space: nowrap; }
+.erp .pf-convite { position: relative; overflow: hidden; border: 1px solid var(--green-ln); border-radius: var(--r-xl); padding: 34px 32px; display: flex; flex-direction: column; align-items: flex-start; gap: 14px;
+  background: radial-gradient(600px 280px at 0% 0%, rgba(21,196,90,.14), transparent 70%), var(--s1); box-shadow: var(--glow); }
+.erp .pf-convite h2 { font-size: clamp(22px, 4vw, 30px); font-weight: 600; letter-spacing: -0.025em; }
+.erp .pf-convite p { max-width: 54ch; color: var(--tx-3); line-height: 1.6; font-size: 14.5px; }
+.erp .pf-selo { font-size: 11px; letter-spacing: .12em; color: var(--green-tx); border: 1px solid var(--green-ln); background: var(--green-bg); border-radius: 999px; padding: 3px 10px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .erp .pf-aba, .erp .pf-linha, .erp .pf-regua li, .erp .pf-prog i, .erp .pf-entra, .erp .pf-passos li.ok:not(:last-child)::after, .erp .pf-regua li:first-child .pf-ponto { animation: none; }
+}
+@media (max-width: 860px) {
+  .erp .pf-bloco { padding: 14px 14px 10px; }
+  .erp .pf-linha { gap: 10px; }
+  .erp .pf-dia { width: 40px; height: 40px; border-radius: 11px; }
+  .erp .pf-valor, .erp .pf-quanto { font-size: 13px; }
+  .erp .pf-duas { grid-template-columns: minmax(0, 1fr); }
+  .erp .pf-hero { grid-template-columns: minmax(0, 1fr); }
+  .erp .pf-hero-saldo { padding: 20px 18px; }
+  .erp .pf-regua { border-left: 0; border-top: 1px solid var(--line); padding: 18px; }
+  .erp .pf-passos { margin-bottom: 44px; }
+  .erp .pf-passos li:not(:last-child)::after { left: 40px; right: 4px; }
+  .erp .pf-passos button { flex-direction: column; align-items: flex-start; gap: 6px; }
+  .erp .pf-passo-t span { display: none; }
+  .erp .pf-passos li:not(.on) .pf-passo-t { display: none; }
+  .erp .pf-passos li.on .pf-passo-t { position: absolute; left: 0; top: 40px; white-space: nowrap; }
+  .erp .pf-seg-lista .seg { display: flex; flex-direction: column; width: 100%; border-radius: var(--r); }
+  .erp .pf-seg-lista .seg button { border-radius: var(--r-s); }
+  .erp .pf-seg-lista .seg button { height: auto; min-height: 36px; padding: 8px 12px; text-align: left; white-space: normal; }
+  .erp .pf-passos li.on:last-child .pf-passo-t { left: auto; right: 0; }
+  .erp .pf-linha.tall { flex-wrap: wrap; }
+  .erp .pf-linha.tall .pf-acoes { order: 2; }
+  .erp .pf-linha.tall .pf-dir { order: 3; flex: 1 0 100%; flex-direction: row; justify-content: space-between; align-items: baseline; }
+  .erp .pf-convite { padding: 24px 20px; }
+  .erp .pf-nav .btn { flex: 1; }
+}

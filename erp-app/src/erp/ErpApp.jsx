@@ -35,6 +35,11 @@ const Parceiros = lazy(() => import('./pages/Parceiros'))
 const Relatorios = lazy(() => import('./pages/Relatorios'))
 const Config = lazy(() => import('./pages/Config'))
 const Conta = lazy(() => import('./pages/Conta'))
+// módulo Pessoal: fora do PAGE_LOADERS de propósito (o código só baixa quando o dono abre)
+const PessoalLayout = lazy(() => import('./pessoal/Layout'))
+const PessoalInicio = lazy(() => import('./pessoal/Inicio'))
+const PessoalPrimeirosPassos = lazy(() => import('./pessoal/PrimeirosPassos'))
+const PessoalConfig = lazy(() => import('./pessoal/Configuracoes'))
 
 
 // pré-carrega o código de todas as telas em segundo plano, para a troca de tela ser imediata
@@ -254,6 +259,12 @@ function Gate() {
         <Route path="relatorios" element={<Guard module="relatorios"><Relatorios /></Guard>} />
         <Route path="config" element={<Guard module="config"><Config /></Guard>} />
         <Route path="conta" element={<Conta />} />
+        <Route path="pessoal" element={<PessoalLayout />}>
+          <Route index element={<PessoalInicio />} />
+          <Route path="primeiros-passos" element={<PessoalPrimeirosPassos />} />
+          <Route path="config" element={<PessoalConfig />} />
+          <Route path="*" element={<Navigate to="/erp/pessoal" replace />} />
+        </Route>
         <Route path="*" element={<Navigate to="/erp" replace />} />
       </Route>
     </Routes>
