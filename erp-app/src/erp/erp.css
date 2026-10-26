@@ -780,3 +780,186 @@ body:has(.erp) { background: #0A0C0B; }
   .erp .pf-convite { padding: 24px 20px; }
   .erp .pf-nav .btn { flex: 1; }
 }
+
+/* ===================== PESSOAL · etapa 2 (Hoje, Receber, Contas a pagar, Lançamentos) ===================== */
+@keyframes pf-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes pf-fade { from { opacity: 0; } }
+
+.erp .pf .neg, .erp .pf .lbl.neg { color: var(--red); }
+.erp .pf .pos { color: var(--green-tx); }
+.erp .btn.danger { color: var(--red); border-color: var(--red-ln); background: var(--red-bg); }
+.erp .btn.danger:hover { border-color: var(--red); }
+
+/* navegação interna do módulo */
+.erp .pf-sub { display: flex; gap: 4px; padding: 10px 28px 0; overflow-x: auto; scrollbar-width: none; }
+.erp .pf-sub::-webkit-scrollbar { display: none; }
+.erp .pf-sub a { flex: none; padding: 7px 14px; border-radius: 999px; font-size: 13px; color: var(--mut); border: 1px solid transparent; transition: color .2s, background .2s, border-color .2s; white-space: nowrap; }
+.erp .pf-sub a:hover { color: var(--tx); }
+.erp .pf-sub a.on { color: var(--green-tx); background: var(--green-bg); border-color: var(--green-ln); }
+
+/* aviso de recebimento */
+.erp .pf-aviso-rec { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: var(--r); border: 1px solid var(--green-ln); background: linear-gradient(90deg, rgba(21,196,90,.14), rgba(21,196,90,.04)); color: var(--tx); font-size: 13.5px; line-height: 1.45; }
+.erp .pf-aviso-rec > span:nth-child(2) { flex: 1; min-width: 0; }
+.erp .pf-ponto-vivo { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--green); animation: erp-ping 2s infinite; }
+
+/* o número do dia */
+.erp .pf-agora { position: relative; overflow: hidden; border: 1px solid var(--line); border-radius: var(--r-xl); padding: 24px 28px 26px; display: flex; flex-direction: column; gap: 10px;
+  background: radial-gradient(520px 240px at 0% 0%, rgba(21,196,90,.16), transparent 70%), var(--s1); box-shadow: var(--shadow-hi); }
+.erp .pf-agora.amarelo { background: radial-gradient(520px 240px at 0% 0%, rgba(240,192,74,.16), transparent 70%), var(--s1); border-color: var(--yel-ln); }
+.erp .pf-agora.vermelho { background: radial-gradient(520px 240px at 0% 0%, rgba(255,122,125,.17), transparent 70%), var(--s1); border-color: var(--red-ln); }
+.erp .pf-agora-topo { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.erp .pf-estado { display: inline-flex; align-items: center; gap: 6px; font: 500 11px 'Geist Mono', monospace; letter-spacing: .1em; text-transform: uppercase; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--green-ln); background: var(--green-bg); color: var(--green-tx); }
+.erp .pf-estado.amarelo { border-color: var(--yel-ln); background: var(--yel-bg); color: var(--yel); }
+.erp .pf-estado.vermelho { border-color: var(--red-ln); background: var(--red-bg); color: var(--red); }
+.erp .pf-agora-t { font-size: 15px; font-weight: 500; color: var(--tx-2); letter-spacing: -0.01em; margin-top: 6px; }
+.erp .pf-numerao { font-size: clamp(46px, 11vw, 84px); font-weight: 500; letter-spacing: -0.045em; line-height: 1; color: var(--green-tx); }
+.erp .pf-agora.amarelo .pf-numerao { color: var(--yel); }
+.erp .pf-agora.vermelho .pf-numerao { color: var(--red); }
+.erp .pf-limite { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; max-width: 560px; }
+.erp .pf-limite-trilho { position: relative; height: 10px; border-radius: 999px; background: #1B201D; }
+.erp .pf-limite-trilho i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px; background: var(--green); transition: width .7s var(--ease), background .3s; }
+.erp .pf-agora.amarelo .pf-limite-trilho i { background: var(--yel); }
+.erp .pf-agora.vermelho .pf-limite-trilho i { background: var(--red); }
+.erp .pf-limite-trilho b { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--mut-2); border-radius: 1px; }
+.erp .pf-limite-leg { display: flex; justify-content: space-between; gap: 10px; font-size: 12.5px; color: var(--mut); flex-wrap: wrap; }
+.erp .pf-limite-leg b { color: var(--tx); font-weight: 500; }
+.erp .pf-agora-acoes { display: flex; gap: 10px; margin-top: 12px; }
+.erp .pf-btn-gasto { height: 48px; padding: 0 28px; font-size: 15px; border-radius: 14px; }
+.erp .pf-btn-porque { height: 48px; padding: 0 22px; border-radius: 14px; }
+
+.erp .pf-aperto { display: flex; flex-direction: column; gap: 14px; padding: 18px 20px; border-radius: var(--r-l); border: 1px solid var(--red-ln); background: linear-gradient(180deg, rgba(255,122,125,.08), transparent 70%), var(--s1); }
+.erp .pf-aperto h2 { font-size: 15px; color: var(--red); }
+
+.erp .pf-faixa { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: var(--r-l); background: var(--s1); overflow: hidden; }
+.erp .pf-faixa > div { padding: 14px 18px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.erp .pf-faixa > div + div { border-left: 1px solid var(--line); }
+.erp .pf-faixa b { font-size: 18px; font-weight: 500; letter-spacing: -0.02em; white-space: nowrap; }
+
+.erp .pf-duas-col { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+.erp .pf-linha.atrasada { background: linear-gradient(90deg, rgba(255,122,125,.09), transparent 60%); border-top-color: var(--red-ln); box-shadow: inset 3px 0 0 var(--red); padding-left: 12px; margin-left: -12px; }
+.erp .pf-linha.atrasada .pf-dia { border-color: var(--red-ln); }
+.erp .pf-linha.atrasada .pf-dia b { color: var(--red); }
+.erp .pf-linha.quieta { opacity: .72; }
+.erp .pf-bloco.atrasadas { border-color: var(--red-ln); }
+.erp .pf-bloco.atrasadas .pf-cabeca h2 { color: var(--red); }
+.erp .pf-bolinha-s { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+.erp .pf-contagem { display: flex; align-items: center; gap: 14px; }
+.erp .pf-dias { font-size: 52px; font-weight: 500; letter-spacing: -0.04em; line-height: 1; color: var(--tx); }
+.erp .pf-dias-t { font-size: 15px; line-height: 1.3; flex: 1; }
+.erp .pf-quanto { font-size: 15px; color: var(--green-tx); }
+
+/* gráfico do saldo */
+.erp .pf-grafico { display: flex; flex-direction: column; gap: 6px; }
+.erp .pf-grafico svg { width: 100%; height: auto; display: block; overflow: visible; }
+.erp .pf-g-linha { fill: none; stroke: var(--green); stroke-width: 2.4; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 0; animation: pf-draw 1.3s var(--ease) backwards; }
+.erp .pf-g-linha.neg { stroke: var(--red); }
+.erp .pf-g-area { animation: pf-fade 1.4s var(--ease) backwards; }
+.erp .pf-g-zero { stroke: var(--red-ln); stroke-width: 1; }
+.erp .pf-g-colchao { stroke: var(--mut-2); stroke-width: 1; stroke-dasharray: 4 5; }
+.erp .pf-g-fim { stroke: var(--line-3); stroke-width: 1; stroke-dasharray: 2 4; }
+.erp .pf-g-entrada { fill: var(--green); stroke: var(--bg); stroke-width: 2; animation: pf-fade 1.4s var(--ease) backwards; }
+.erp .pf-g-pior { fill: var(--tx); stroke: var(--bg); stroke-width: 2; }
+.erp .pf-g-pior.neg { fill: var(--red); }
+.erp .pf-g-eixo { display: flex; justify-content: space-between; font: 11px 'Geist Mono', monospace; color: var(--mut-2); }
+.erp .pf-g-leg { gap: 6px 16px; }
+.erp .pf-g-leg i { border-radius: 50%; }
+
+/* "Por quê?" */
+.erp .pf-porque { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.erp .pf-porque li { display: flex; gap: 12px; align-items: flex-start; padding: 11px 0; border-top: 1px solid var(--line-2); animation: erp-lead-in .4s var(--ease) backwards; }
+.erp .pf-porque li:first-child { border-top: 0; }
+.erp .pf-porque li.res { background: rgba(21,196,90,.05); margin: 0 -12px; padding: 11px 12px; border-radius: 10px; border-top-color: transparent; }
+.erp .pf-sinal { flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; background: #0E1210; border: 1px solid var(--line-3); color: var(--tx-3); }
+.erp .pf-porque li.res .pf-sinal { border-color: var(--green-ln); color: var(--green-tx); }
+.erp .pf-porque-t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.erp .pf-porque-t details { margin-top: 2px; }
+.erp .pf-porque-t summary { cursor: pointer; }
+.erp .pf-porque-item { display: flex; justify-content: space-between; gap: 12px; font-size: 12.5px; color: var(--tx-3); padding: 5px 0 0 8px; }
+
+/* gasto rápido */
+.erp .pf-gasto-valor { font-size: 30px; height: 56px; text-align: center; letter-spacing: -0.02em; }
+.erp .pf-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.erp .pf-chips button { display: inline-flex; align-items: center; gap: 7px; height: 38px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line-3); background: var(--s2); color: var(--tx-2); font: 500 13px Geist, sans-serif; cursor: pointer; transition: all .2s var(--ease); }
+.erp .pf-chips button i { width: 9px; height: 9px; border-radius: 50%; }
+.erp .pf-chips button:hover { border-color: var(--mut-2); }
+.erp .pf-chips button.on { border-color: var(--green); background: var(--green-bg); color: var(--tx); box-shadow: 0 0 0 3px rgba(21,196,90,.12); }
+.erp .pf-chips.grande button { height: auto; min-height: 52px; flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px; border-radius: 14px; padding: 8px 16px; text-align: left; }
+.erp .pf-chips.grande small { font-size: 11.5px; color: var(--mut); font-weight: 400; }
+
+/* plano da entrada */
+.erp .pf-plano { display: flex; flex-direction: column; gap: 16px; border: 1px solid var(--green-ln); border-radius: var(--r-xl); padding: 20px 22px; background: radial-gradient(520px 200px at 0% 0%, rgba(21,196,90,.1), transparent 70%), var(--s1); box-shadow: var(--glow); }
+.erp .pf-plano.falta { border-color: var(--red-ln); box-shadow: var(--shadow); background: radial-gradient(520px 200px at 0% 0%, rgba(255,122,125,.09), transparent 70%), var(--s1); }
+.erp .pf-plano-total { font-size: 30px; font-weight: 500; letter-spacing: -0.03em; }
+.erp .pf-empilhada { display: flex; gap: 3px; height: 30px; border-radius: 10px; overflow: hidden; background: #141816; }
+.erp .pf-empilhada i { flex: 0 1 0; min-width: 0; transition: flex-grow .8s var(--ease); border-radius: 3px; }
+.erp .pf-plano-leg b { font-weight: 500; color: var(--tx); }
+.erp .pf-passos-plano { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.erp .pf-passos-plano > li { display: flex; gap: 14px; padding: 13px 0; border-top: 1px solid var(--line-2); animation: erp-lead-in .45s var(--ease) backwards; }
+.erp .pf-passos-plano > li:first-child { border-top: 0; }
+.erp .pf-n { flex: none; width: 26px; height: 26px; border-radius: 50%; border: 1.5px solid; display: grid; place-items: center; font-size: 12px; }
+.erp .pf-passo-linha { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.erp .pf-check { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+.erp .pf-check-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; background: #0E1210; border: 1px solid var(--line); font-size: 13px; cursor: pointer; transition: opacity .2s, border-color .2s; }
+.erp .pf-check-item:hover { border-color: var(--line-3); }
+.erp .pf-check-item input { width: 18px; height: 18px; accent-color: var(--green); flex: none; }
+.erp .pf-check-t { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.erp .pf-check-t small { color: var(--mut); font-size: 11.5px; }
+.erp .pf-check-item.pago { opacity: .55; }
+.erp .pf-check-item.pago .pf-check-t > span { text-decoration: line-through; }
+.erp .pf-resultado { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; padding: 14px 16px; border-radius: var(--r); background: var(--green-bg); border: 1px solid var(--green-ln); }
+.erp .pf-resultado b { font-size: 30px; font-weight: 500; letter-spacing: -0.03em; color: var(--green-tx); }
+.erp .pf-feito { align-items: flex-start; }
+.erp .pf-feito-t { font-size: 18px; line-height: 1.5; max-width: 40ch; }
+
+/* contas a pagar, calendário, lançamentos */
+.erp .pf-barra-filtros { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; }
+.erp .pf-barra-filtros .tabs { border-bottom: 0; }
+.erp .pf-mes-nav { display: flex; align-items: center; justify-content: center; gap: 14px; }
+.erp .pf-mes-nav b { min-width: 150px; text-align: center; font-weight: 500; font-size: 14px; }
+.erp .pf-cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.erp .pf-cal-cab { text-align: center; font: 500 11px 'Geist Mono', monospace; color: var(--mut-2); padding: 4px 0; }
+.erp .pf-cal-vazio { min-height: 54px; }
+.erp .pf-cal-dia { all: unset; box-sizing: border-box; min-height: 56px; border-radius: 12px; border: 1px solid var(--line); background: #0E1210; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 5px; padding: 7px 2px 5px; cursor: pointer; transition: border-color .2s, background .2s; position: relative; }
+.erp .pf-cal-dia:hover { border-color: var(--line-3); }
+.erp .pf-cal-dia:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+.erp .pf-cal-dia b { font-size: 13px; font-weight: 500; color: var(--tx-2); }
+.erp .pf-cal-dia.hoje b { color: var(--green-tx); }
+.erp .pf-cal-dia.hoje { border-color: var(--green-ln); }
+.erp .pf-cal-dia.venc { border-color: var(--red-ln); background: var(--red-bg); }
+.erp .pf-cal-dia.sel { border-color: var(--green); background: var(--sel); box-shadow: 0 0 0 3px rgba(21,196,90,.12); }
+.erp .pf-cal-pontos { display: flex; gap: 3px; min-height: 9px; align-items: center; justify-content: center; }
+.erp .pf-cal-pontos i { width: 7px; height: 7px; border-radius: 50%; }
+.erp .pf-cal-pontos i.rec { background: transparent; border: 2px solid var(--green); width: 9px; height: 9px; box-sizing: border-box; }
+.erp .pf-cal-dia small { font-size: 10px; color: var(--mut); position: absolute; right: 5px; top: 4px; }
+.erp .rec-leg { border-radius: 50%; border: 2px solid var(--green); background: transparent; width: 10px; height: 10px; box-sizing: border-box; }
+.erp .pf-lanc-linha { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 14px; padding: 11px 0; border-top: 1px solid var(--line-2); cursor: pointer; width: 100%; color: var(--tx); }
+.erp .pf-lanc-linha:hover .pf-nome { color: var(--green-tx); }
+.erp .pf-lanc-linha:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; border-radius: 8px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .erp .pf-g-linha, .erp .pf-g-area, .erp .pf-g-entrada, .erp .pf-passos-plano > li, .erp .pf-porque li, .erp .pf-ponto-vivo { animation: none; }
+  .erp .pf-limite-trilho i, .erp .pf-empilhada i { transition: none; }
+}
+@media (max-width: 860px) {
+  .erp .pf-sub { padding: 10px 16px 0; }
+  .erp .pf-duas-col { grid-template-columns: minmax(0, 1fr); }
+  .erp .pf-agora { padding: 20px 18px 22px; border-radius: var(--r-l); }
+  .erp .pf-agora-acoes { gap: 8px; }
+  .erp .pf-btn-gasto { flex: 1.4; padding: 0 16px; }
+  .erp .pf-btn-porque { flex: 1; padding: 0 12px; }
+  .erp .pf-faixa b { font-size: 15px; }
+  .erp .pf-faixa > div { padding: 12px; }
+  .erp .pf-plano { padding: 16px 14px; border-radius: var(--r-l); }
+  .erp .pf-plano-total { font-size: 24px; }
+  .erp .pf-passos-plano > li { gap: 10px; }
+  .erp .pf-linha.atrasada { margin-left: -8px; padding-left: 8px; }
+  .erp .pf-linha .pf-acoes { flex-wrap: wrap; justify-content: flex-end; }
+  .erp .pf-contas .pf-linha { flex-wrap: wrap; row-gap: 8px; }
+  .erp .pf-contas .pf-linha .pf-meio { flex: 1 1 calc(100% - 100px); }
+  .erp .pf-contas .pf-linha .pf-valor { margin-left: 50px; }
+  .erp .pf-contas .pf-linha .pf-acoes { margin-left: auto; }
+  .erp .pf-cal { gap: 3px; }
+  .erp .pf-cal-dia { min-height: 50px; border-radius: 10px; }
+  .erp .pf-aviso-rec { padding: 12px; font-size: 13px; }
+  .erp .pf-mes-nav b { min-width: 0; }
+}

@@ -80,4 +80,15 @@ export function proximosRecebimentos(modelos, regra, desde, quantas = 4) {
   return todos.sort((a, b) => (a.data < b.data ? -1 : a.data > b.data ? 1 : 0)).slice(0, quantas)
 }
 
+// semanas (domingo a sábado) de um mês, para o calendário: datas AAAA-MM-DD, null fora do mês
+export function gradeDoMes(ano, mes) {
+  const celulas = Array(new Date(ano, mes - 1, 1).getDay()).fill(null)
+  const ultimo = new Date(ano, mes, 0).getDate()
+  for (let d = 1; d <= ultimo; d++) celulas.push(dataDoMes(ano, mes, d))
+  while (celulas.length % 7) celulas.push(null)
+  const semanas = []
+  for (let i = 0; i < celulas.length; i += 7) semanas.push(celulas.slice(i, i + 7))
+  return semanas
+}
+
 export { addDays, addMonths, isoDate }

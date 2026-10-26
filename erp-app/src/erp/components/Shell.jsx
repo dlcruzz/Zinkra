@@ -57,7 +57,10 @@ const NAV = [
 
 // grupo Pessoal: fica FORA do NAV de propósito, para não entrar na busca (Ctrl K) nem em nada global
 const NAV_PESSOAL = [
-  ['pessoal', 'Início', '/erp/pessoal', 'money'],
+  ['pessoal', 'Hoje', '/erp/pessoal', 'money'],
+  ['pessoal-receber', 'Receber', '/erp/pessoal/receber', 'down'],
+  ['pessoal-contas', 'Contas a pagar', '/erp/pessoal/contas', 'cal'],
+  ['pessoal-lancamentos', 'Lançamentos', '/erp/pessoal/lancamentos', 'leads'],
   ['pessoal-passos', 'Primeiros passos', '/erp/pessoal/primeiros-passos', 'spark'],
   ['pessoal-config', 'Configurações', '/erp/pessoal/config', 'sliders'],
 ]

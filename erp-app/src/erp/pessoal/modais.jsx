@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
 import { addMonths } from '../lib/format'
 import { hojeSP } from '../lib/pf/datas'
+import { gerarRecorrentes, salvarCompromisso } from '../lib/pf/nucleo'
 import { valoresDoParcelamento, gerarParcelas, primeiraData } from '../lib/pf/parcelas'
 import { TIPOS_CONTA, PRIORIDADES, RECORRENCIAS, CORES, percentual } from '../lib/pf/api'
 
@@ -120,29 +121,41 @@ export function ModalCategoria({ categoria, tipoInicial = 'saida', onClose }) {
 }
 
 // ---------------------------------------------------------------- conta a pagar
-export function ModalCompromisso({ categorias, onClose }) {
+// Sem `compromisso`: cria. Com `compromisso`: edita (e, se for conta que se repete, pode valer para as próximas).
+export function ModalCompromisso({ compromisso, categorias, onClose }) {
   const auth = useAuth()
-  const [f, setF] = useState({ descricao: '', valor: 0, venc: hojeSP(), recorrencia: 'unica', prioridade: 'importante', categoria: null, multa: '', juros: '' })
-  const [mais, setMais] = useState(false)
+  const edicao = Boolean(compromisso)
+  const [f, setF] = useState(() => compromisso ? {
+    descricao: compromisso.descricao, valor: compromisso.valor_cent, venc: compromisso.vencimento, recorrencia: compromisso.recorrencia, prioridade: compromisso.prioridade,
+    categoria: compromisso.categoria_id, multa: compromisso.multa_pct ? String(compromisso.multa_pct).replace('.', ',') : '', juros: compromisso.juros_dia_pct ? String(compromisso.juros_dia_pct).replace('.', ',') : '', serie: true,
+  } : { descricao: '', valor: 0, venc: hojeSP(), recorrencia: 'unica', prioridade: 'importante', categoria: null, multa: '', juros: '', serie: true })
+  const [mais, setMais] = useState(Boolean(compromisso && (compromisso.multa_pct || compromisso.juros_dia_pct)))
   const set = (k) => (v) => setF((s) => ({ ...s, [k]: v }))
+  const repete = f.recorrencia !== 'unica'
   const salvar = async () => {
     if (!f.descricao.trim()) return notify('Escreva o que é essa conta.', 'err')
     if (!f.valor) return notify('Informe o valor da conta.', 'err')
     if (!f.venc) return notify('Informe o vencimento.', 'err')
-    await insert('pf_compromissos', {
-      owner_id: auth.uid, descricao: f.descricao.trim(), valor_cent: f.valor, vencimento: f.venc, recorrencia: f.recorrencia,
-      dia_venc: f.recorrencia === 'unica' ? null : Number(f.venc.slice(8)), prioridade: f.prioridade, categoria_id: f.categoria || null,
+    const dados = {
+      descricao: f.descricao.trim(), valor_cent: f.valor, vencimento: f.venc, prioridade: f.prioridade, categoria_id: f.categoria || null,
       multa_pct: f.multa ? percentual(f.multa) : null, juros_dia_pct: f.juros ? percentual(f.juros) : null,
-    })
+    }
+    if (edicao) {
+      await salvarCompromisso(compromisso, dados, { serie: repete && f.serie, hoje: hojeSP() })
+      notify('Conta atualizada.', 'ok')
+    } else {
+      await insert('pf_compromissos', { ...dados, owner_id: auth.uid, recorrencia: f.recorrencia, dia_venc: repete ? Number(f.venc.slice(8)) : null })
+      if (repete) await gerarRecorrentes(hojeSP())
+    }
     onClose(true)
   }
   return (
-    <Modal size="sm" title="Nova conta a pagar" onClose={() => onClose(false)} footer={rodape(() => onClose(false), salvar)}>
+    <Modal size="sm" title={edicao ? 'Editar conta' : 'Nova conta a pagar'} onClose={() => onClose(false)} footer={rodape(() => onClose(false), salvar)}>
       <Field label="O que é"><input className="in" autoFocus value={f.descricao} onChange={(e) => set('descricao')(e.target.value)} placeholder="Ex.: aluguel, internet, faculdade" /></Field>
       <div className="fields">
         <Field label="Valor (R$)"><MoneyInput value={f.valor} onChange={set('valor')} /></Field>
         <Field label="Vence em"><input type="date" className="in" value={f.venc} onChange={(e) => set('venc')(e.target.value)} /></Field>
-        <Field label="Repete"><Select value={f.recorrencia} onChange={set('recorrencia')} options={RECORRENCIAS} /></Field>
+        {edicao ? null : <Field label="Repete"><Select value={f.recorrencia} onChange={set('recorrencia')} options={RECORRENCIAS} /></Field>}
         <Field label="Importância"><Select value={f.prioridade} onChange={set('prioridade')} options={PRIORIDADES} /></Field>
       </div>
       <Field label="Categoria"><Select value={f.categoria} onChange={set('categoria')} placeholder="Sem categoria" options={categorias.filter((c) => c.tipo === 'saida').map((c) => [c.id, c.nome])} /></Field>
@@ -153,6 +166,8 @@ export function ModalCompromisso({ categorias, onClose }) {
           <Field label="Juros por dia (%)"><input className="in num" inputMode="decimal" value={f.juros} onChange={(e) => set('juros')(e.target.value)} placeholder="0,033" /></Field>
         </div>
       ) : null}
+      {edicao && repete ? <label className="check"><input type="checkbox" checked={f.serie} onChange={(e) => set('serie')(e.target.checked)} />Valer também para as próximas vezes que ainda não foram pagas</label> : null}
+      {!edicao && repete ? <span className="note g">As próximas vezes são criadas sozinhas, com 90 dias de antecedência.</span> : null}
     </Modal>
   )
 }
