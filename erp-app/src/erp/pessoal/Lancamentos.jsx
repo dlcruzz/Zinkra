@@ -10,6 +10,7 @@ import { apagarLancamento } from '../lib/pf/nucleo'
 import { diaSemanaData } from './listas'
 import { ModalGasto, ModalLancamento } from './acoes'
 import { MesNav } from './Contas'
+import ImportarExtrato from './ImportarExtrato'
 
 const TABELAS = ['pf_lancamentos', 'pf_categorias', 'pf_contas']
 
@@ -27,6 +28,7 @@ export default function Lancamentos() {
   }, TABELAS, [mes])
   const [filtro, setFiltro] = useState('todos')
   const [gasto, setGasto] = useState(false)
+  const [importando, setImportando] = useState(false)
   const [editando, setEditando] = useState(null)
   const confirmar = useConfirm()
 
@@ -61,6 +63,7 @@ export default function Lancamentos() {
   return (
     <div className="page pf pf-lanc">
       <PageHead title="Lançamentos" sub="O dinheiro que realmente entrou e saiu.">
+        <button type="button" className="btn" onClick={() => setImportando(true)}><Icon name="upload" size={14} />Importar extrato</button>
         <button type="button" className="btn p" onClick={() => setGasto(true)}><Icon name="plus" size={14} />Gasto</button>
       </PageHead>
 
@@ -96,6 +99,7 @@ export default function Lancamentos() {
         </section>
       )) : <Empty icon="money" action={<button type="button" className="btn p" onClick={() => setGasto(true)}>Registrar um gasto</button>}>Nenhum lançamento {filtro === 'todos' ? '' : 'desse tipo '}neste mês.</Empty>}
 
+      {importando ? <ImportarExtrato contas={contas} categorias={categorias} onClose={() => setImportando(false)} /> : null}
       {gasto ? <ModalGasto categorias={categorias} contas={contas} onClose={() => setGasto(false)} /> : null}
       {editando ? <ModalLancamento lancamento={editando} categorias={categorias} contas={contas} onClose={() => setEditando(null)} onApagar={() => apagar(editando)} /> : null}
     </div>

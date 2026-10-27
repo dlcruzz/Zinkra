@@ -404,6 +404,61 @@ language sql stable security invoker set search_path = public as $$
   from meses m
 $$;
 
+-- =====================================================================
+-- ETAPA 5 — Importação de extrato
+-- O arquivo é lido no navegador; aqui chegam só as linhas já tratadas.
+-- =====================================================================
+
+-- quais destes hashes de linha já estão gravados (para a prévia "X novas, Y já existiam")
+create or replace function public.pf_hashes_existentes(p_hashes text[]) returns text[]
+language sql stable security invoker set search_path = public as $$
+  select coalesce(array_agg(hash_dedup), '{}') from public.pf_lancamentos where hash_dedup = any(p_hashes)
+$$;
+
+-- grava a importação inteira numa transação: lançamentos novos (repetidos são ignorados pelo hash),
+-- conciliação com contas/parcelas em aberto e o registro em pf_importacoes.
+-- p: { arquivo_nome, periodo, conta_id, linhas: [{ data, valor_cent, descricao, categoria_id, hash, id_externo, compromisso_id, parcela_id }] }
+create or replace function public.pf_importar_extrato(p jsonb) returns jsonb
+language plpgsql security invoker set search_path = public as $$
+declare x jsonb; imp uuid; lid uuid; comp uuid; parc uuid; fid uuid; d date;
+        v_total integer := 0; v_novas integer := 0; v_conc integer := 0;
+begin
+  insert into public.pf_importacoes (arquivo_nome, periodo, conta_id) values (p->>'arquivo_nome', p->>'periodo', nullif(p->>'conta_id', '')::uuid) returning id into imp;
+  for x in select * from jsonb_array_elements(p->'linhas') loop
+    v_total := v_total + 1;
+    d := (x->>'data')::date;
+    comp := null; parc := null;
+    -- só concilia se a conta ainda estiver em aberto
+    if nullif(x->>'compromisso_id', '') is not null then
+      select id into comp from public.pf_compromissos where id = (x->>'compromisso_id')::uuid and status = 'aberta';
+    end if;
+    if nullif(x->>'parcela_id', '') is not null then
+      select id into parc from public.pf_parcelas where id = (x->>'parcela_id')::uuid and status = 'aberta';
+    end if;
+    insert into public.pf_lancamentos (data, valor_cent, conta_id, categoria_id, descricao, origem, id_externo, hash_dedup, compromisso_id, parcela_id)
+    values (d, (x->>'valor_cent')::bigint, nullif(p->>'conta_id', '')::uuid, nullif(x->>'categoria_id', '')::uuid, left(coalesce(x->>'descricao', ''), 300),
+            'importado', nullif(x->>'id_externo', ''), x->>'hash', comp, parc)
+    on conflict (owner_id, hash_dedup) where hash_dedup is not null do nothing
+    returning id into lid;
+    if lid is not null then
+      v_novas := v_novas + 1;
+      if comp is not null then
+        update public.pf_compromissos set status = 'paga', pago_em = d, lancamento_id = lid where id = comp returning fatura_id into fid;
+        if fid is not null then perform public.pf_marcar_fatura(fid, true, d); end if;
+        v_conc := v_conc + 1;
+      end if;
+      if parc is not null then
+        update public.pf_parcelas set status = 'paga', pago_em = d where id = parc returning fatura_id into fid;
+        if fid is not null then perform public.pf_sincronizar_fatura(fid); end if;
+        v_conc := v_conc + 1;
+      end if;
+    end if;
+    lid := null;
+  end loop;
+  update public.pf_importacoes set linhas = v_total, novas = v_novas, duplicadas = v_total - v_novas where id = imp;
+  return jsonb_build_object('importacao_id', imp, 'linhas', v_total, 'novas', v_novas, 'duplicadas', v_total - v_novas, 'conciliadas', v_conc);
+end $$;
+
 -- ---------------------------------------------------------------------
 -- Permissões das funções da etapa 3
 -- ---------------------------------------------------------------------
@@ -415,7 +470,7 @@ begin
     'pf_sincronizar_fatura(uuid)', 'pf_marcar_fatura(uuid,boolean,date)', 'pf_ressincronizar_cartao(uuid,date)',
     'pf_gasto_cartao(uuid,date,bigint,uuid,text)', 'pf_criar_parcelamento(jsonb)', 'pf_antecipar_parcelas(uuid[],date,uuid)',
     'pf_apagar_parcelamento(uuid)', 'pf_parcelamentos_resumo()', 'pf_faturas_abertas()', 'pf_pagar_divida(uuid,date,bigint,uuid)',
-    'pf_pagar_compromisso(uuid,date,bigint,uuid,boolean)', 'pf_reabrir_compromisso(uuid)', 'pf_desfazer_lancamento(uuid)', 'pf_comprometimento(integer)', 'pf_resumo_mes(date)', 'pf_fluxo_meses(integer)'
+    'pf_pagar_compromisso(uuid,date,bigint,uuid,boolean)', 'pf_reabrir_compromisso(uuid)', 'pf_desfazer_lancamento(uuid)', 'pf_comprometimento(integer)', 'pf_hashes_existentes(text[])', 'pf_importar_extrato(jsonb)', 'pf_resumo_mes(date)', 'pf_fluxo_meses(integer)'
   ] loop
     execute format('revoke all on function public.%s from public, anon', f);
     execute format('grant execute on function public.%s to authenticated', f);

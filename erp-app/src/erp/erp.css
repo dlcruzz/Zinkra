@@ -1083,3 +1083,31 @@ body:has(.erp) { background: #0A0C0B; }
   .erp .pf-div .pf-linha.tall .pf-meio { flex: 1 1 100%; }
   .erp .pf-div .pf-linha.tall .pf-valor { margin-right: auto; font-size: 15px; }
 }
+
+/* ===================== PESSOAL · etapa 5 (Importar extrato) ===================== */
+.erp .pf-soltar { all: unset; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 34px 20px; border: 1.5px dashed var(--line-3); border-radius: var(--r-l); background: #0E1210; cursor: pointer; text-align: center; color: var(--tx-2); transition: border-color .2s, background .2s; }
+.erp .pf-soltar:hover, .erp .pf-soltar:focus-visible { border-color: var(--green); background: var(--green-bg); }
+.erp .pf-soltar:disabled { opacity: .6; cursor: wait; }
+.erp .pf-previa-resumo { display: flex; flex-wrap: wrap; gap: 8px; }
+.erp .pf-previa-resumo span { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line-3); background: var(--s2); font-size: 13px; color: var(--tx-2); }
+.erp .pf-previa-resumo b { color: var(--tx); font-weight: 500; margin-right: 3px; }
+.erp .pf-previa-resumo .alerta { border-color: var(--yel-ln); background: var(--yel-bg); color: var(--yel); }
+.erp .pf-previa-resumo .alerta b { color: var(--yel); }
+.erp .pf-previa-resumo .ok { border-color: var(--green-ln); background: var(--green-bg); color: var(--green-tx); }
+.erp .pf-previa { display: flex; flex-direction: column; max-height: 46vh; overflow-y: auto; border: 1px solid var(--line); border-radius: var(--r); }
+.erp .pf-previa-linha { display: grid; grid-template-columns: auto minmax(0, 1fr) auto minmax(130px, 190px); gap: 6px 12px; align-items: center; padding: 10px 12px; border-top: 1px solid var(--line-2); }
+.erp .pf-previa-linha:first-child { border-top: 0; }
+.erp .pf-previa-linha.fora { opacity: .55; }
+.erp .pf-previa-sel input { width: 20px; height: 20px; accent-color: var(--green); }
+.erp .pf-previa-linha .sel { height: 34px; font-size: 12.5px; min-width: 0; }
+.erp .pf-previa-concilia { grid-column: 2 / -1; display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--green-tx); background: var(--green-bg); border: 1px solid var(--green-ln); border-radius: 10px; padding: 7px 10px; cursor: pointer; }
+.erp .pf-previa-concilia input { accent-color: var(--green); flex: none; }
+.erp .pf-previa-existem { font-size: 13px; }
+.erp .pf-previa-existem summary { cursor: pointer; padding: 6px 0; }
+.erp .pf-previa-existe { display: flex; justify-content: space-between; gap: 12px; font-size: 12.5px; color: var(--mut); padding: 4px 0; }
+@media (max-width: 860px) {
+  .erp .pf-previa { max-height: 52vh; }
+  .erp .pf-previa-linha { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .erp .pf-previa-linha .sel { grid-column: 2 / -1; }
+  .erp .pf-previa-concilia { grid-column: 1 / -1; }
+}

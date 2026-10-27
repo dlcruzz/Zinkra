@@ -211,3 +211,21 @@ export const lerParcelasDoParcelamento = (id) => fetchRows('pf_parcelas', { wher
 // ---------------------------------------------------------------- etapa 4: visão geral (tudo agregado no Postgres)
 export const lerResumoMes = (refIso) => rpc('pf_resumo_mes', { p_ref: refIso })
 export const lerFluxoMeses = (n = 6) => rpc('pf_fluxo_meses', { p_meses: n })
+
+// ---------------------------------------------------------------- etapa 5: importação de extrato
+// quais hashes já estão gravados (em lotes, para não estourar o tamanho da chamada)
+export async function hashesExistentes(hashes) {
+  const out = []
+  for (let i = 0; i < hashes.length; i += 400) out.push(...(await rpc('pf_hashes_existentes', { p_hashes: hashes.slice(i, i + 400) })))
+  return out
+}
+export async function importarExtrato(payload) {
+  const r = await rpc('pf_importar_extrato', { p: payload })
+  emitChange('pf_lancamentos', 'pf_compromissos', 'pf_parcelas', 'pf_importacoes')
+  return r
+}
+export async function aprenderRegras(linhas) {
+  const { error } = await supabase.from('pf_regras_categoria').upsert(linhas, { onConflict: 'owner_id,trecho_descricao' })
+  if (error) throw error
+  emitChange('pf_regras_categoria')
+}
