@@ -1,12 +1,12 @@
 import React, { useState } from 'react'
 import { Modal, Field, Select, MoneyInput, AsyncButton, Seg } from '../components/ui'
 import { insert, update, notify } from '../lib/data'
-import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
 import { addMonths } from '../lib/format'
 import { hojeSP } from '../lib/pf/datas'
-import { gerarRecorrentes, salvarCompromisso } from '../lib/pf/nucleo'
-import { valoresDoParcelamento, gerarParcelas, primeiraData } from '../lib/pf/parcelas'
+import { gerarRecorrentes, salvarCompromisso, criarParcelamento } from '../lib/pf/nucleo'
+import { parcelasNoCartao } from '../lib/pf/motor'
+import { valoresDoParcelamento, gerarParcelas, primeiraData, custoDoCredito, taxaImplicita } from '../lib/pf/parcelas'
 import { TIPOS_CONTA, PRIORIDADES, RECORRENCIAS, CORES, percentual } from '../lib/pf/api'
 
 const rodape = (onClose, salvar, rotulo = 'Salvar') => (
@@ -173,37 +173,43 @@ export function ModalCompromisso({ compromisso, categorias, onClose }) {
 }
 
 // ---------------------------------------------------------------- parcelamento
+// Cartão: informa a data da compra e o sistema coloca cada parcela na fatura certa (fechamento do cartão).
+// Carnê/boleto: informa o vencimento da próxima parcela. "Já pagas" gera só as que faltam.
 export function ModalParcelamento({ contas, categorias, onClose }) {
-  const auth = useAuth()
   const cartoes = contas.filter((c) => c.tipo === 'cartao' && c.ativo)
-  const [f, setF] = useState({ descricao: '', forma: 'carne', conta: cartoes[0]?.id || null, modo: 'parcela', valor: 0, n: '', pagas: '0', prox: hojeSP(), juros: 0, categoria: null })
+  const [f, setF] = useState({ descricao: '', forma: cartoes.length ? 'cartao' : 'carne', conta: cartoes[0]?.id || null, modo: 'parcela', valor: 0, n: '', pagas: '0', data: hojeSP(), avista: 0, categoria: null })
   const set = (k) => (v) => setF((s) => ({ ...s, [k]: v }))
   const n = inteiro(f.n) || 0, pagas = inteiro(f.pagas) || 0
   const { total, parcela } = valoresDoParcelamento({ modo: f.modo, valorCent: f.valor, n })
+  const cartao = f.forma === 'cartao' ? cartoes.find((c) => c.id === f.conta) : null
   const salvar = async () => {
     if (!f.descricao.trim()) return notify('Escreva o que foi parcelado.', 'err')
     if (n < 1) return notify('Informe em quantas parcelas.', 'err')
     if (!f.valor) return notify('Informe o valor.', 'err')
     if (pagas >= n) return notify('Todas as parcelas já foram pagas, então não tem o que cadastrar.', 'err')
-    if (f.forma === 'cartao' && !f.conta) return notify('Cadastre o cartão antes (em Contas e cartões) ou escolha "Carnê ou boleto".', 'err')
-    const p = await insert('pf_parcelamentos', {
-      owner_id: auth.uid, descricao: f.descricao.trim(), valor_total_cent: total, n_parcelas: n, valor_parcela_cent: parcela,
-      primeira_data: primeiraData(f.prox, pagas), parcela_atual: pagas, forma: f.forma, conta_id: f.forma === 'cartao' ? f.conta : null,
-      juros_total_cent: f.juros || null, categoria_id: f.categoria || null,
-    })
-    const linhas = gerarParcelas({ total, parcela, n, jaPagas: pagas, proximoVenc: f.prox }).map((x) => ({ ...x, owner_id: auth.uid, parcelamento_id: p.id }))
-    const { error } = await supabase.from('pf_parcelas').insert(linhas)
-    if (error) {
-      await supabase.from('pf_parcelamentos').delete().eq('id', p.id) // não deixa parcelamento sem parcelas
-      throw error
+    if (f.forma === 'cartao' && !cartao) return notify('Cadastre o cartão antes (em Configurações) ou escolha "Carnê ou boleto".', 'err')
+    const todas = gerarParcelas({ total, parcela, n, jaPagas: 0, proximoVenc: f.data }).map((x) => x.valor_cent)
+    let lista, primeira
+    if (cartao) {
+      const cron = parcelasNoCartao({ dataCompra: f.data, cartao, valores: todas })
+      primeira = cron[0].vencimento
+      lista = cron.filter((x) => x.numero > pagas).map((x) => ({ numero: x.numero, vencimento: x.vencimento, valor_cent: x.valor_cent, ref_mes: x.ref_mes }))
+    } else {
+      primeira = primeiraData(f.data, pagas)
+      lista = gerarParcelas({ total, parcela, n, jaPagas: pagas, proximoVenc: f.data }).map((x) => ({ ...x, ref_mes: null }))
     }
+    await criarParcelamento({
+      descricao: f.descricao.trim(), valor_total_cent: total, n_parcelas: n, valor_parcela_cent: parcela, primeira_data: primeira, parcela_atual: pagas, forma: f.forma,
+      conta_id: cartao ? cartao.id : null, juros_total_cent: f.avista ? custoDoCredito(f.avista, total) : null, categoria_id: f.categoria || null, parcelas: lista,
+    })
+    notify('Parcelamento cadastrado.', 'ok')
     onClose(true)
   }
   return (
     <Modal title="Novo parcelamento" onClose={() => onClose(false)} footer={rodape(() => onClose(false), salvar)}>
       <Field label="O que foi parcelado"><input className="in" autoFocus value={f.descricao} onChange={(e) => set('descricao')(e.target.value)} placeholder="Ex.: notebook, curso, financiamento" /></Field>
       <div className="fields">
-        <Field label="Como paga"><Seg value={f.forma} onChange={set('forma')} options={[['carne', 'Carnê ou boleto'], ['cartao', 'Cartão']]} /></Field>
+        <Field label="Como paga"><Seg value={f.forma} onChange={set('forma')} options={[['cartao', 'Cartão'], ['carne', 'Carnê ou boleto']]} /></Field>
         {f.forma === 'cartao' ? (
           <Field label="Qual cartão">
             {cartoes.length ? <Select value={f.conta} onChange={set('conta')} options={cartoes.map((c) => [c.id, c.nome])} /> : <span className="note y">Nenhum cartão cadastrado ainda.</span>}
@@ -215,51 +221,56 @@ export function ModalParcelamento({ contas, categorias, onClose }) {
         <Field label={f.modo === 'parcela' ? 'Valor da parcela (R$)' : 'Valor total (R$)'}><MoneyInput value={f.valor} onChange={set('valor')} /></Field>
         <Field label="Número de parcelas"><input className="in num" inputMode="numeric" maxLength={3} value={f.n} onChange={(e) => set('n')(e.target.value.replace(/\D/g, ''))} /></Field>
         <Field label="Já pagas" hint="Se acabou de comprar, deixe 0."><input className="in num" inputMode="numeric" maxLength={3} value={f.pagas} onChange={(e) => set('pagas')(e.target.value.replace(/\D/g, ''))} /></Field>
-        <Field label={f.forma === 'cartao' ? 'Vencimento da fatura da próxima parcela' : 'Vencimento da próxima parcela'}><input type="date" className="in" value={f.prox} onChange={(e) => set('prox')(e.target.value)} /></Field>
-        <Field label="Juros no total (opcional)" hint="Quanto pagou a mais por parcelar."><MoneyInput value={f.juros} onChange={set('juros')} /></Field>
+        <Field label={f.forma === 'cartao' ? 'Data da compra' : 'Vencimento da próxima parcela'} hint={cartao ? `Compra até o dia ${cartao.fechamento_dia} cai na fatura do mês; depois, na seguinte.` : undefined}><input type="date" className="in" value={f.data} onChange={(e) => set('data')(e.target.value)} /></Field>
+        <Field label="Valor à vista (opcional)" hint="Para calcular o custo do crédito."><MoneyInput value={f.avista} onChange={set('avista')} /></Field>
       </div>
       <Field label="Categoria"><Select value={f.categoria} onChange={set('categoria')} placeholder="Sem categoria" options={categorias.filter((c) => c.tipo === 'saida').map((c) => [c.id, c.nome])} /></Field>
-      {n > 0 && f.valor ? <PrevisaoParcelas total={total} parcela={parcela} n={n} pagas={pagas} prox={f.prox} /> : null}
+      {n > 0 && f.valor ? <PrevisaoParcelas total={total} parcela={parcela} n={n} pagas={pagas} data={f.data} cartao={cartao} avista={f.avista} /> : null}
     </Modal>
   )
 }
 
-function PrevisaoParcelas({ total, parcela, n, pagas, prox }) {
+function PrevisaoParcelas({ total, parcela, n, pagas, data, cartao, avista }) {
   const restam = Math.max(0, n - pagas)
   const falta = Math.max(0, total - parcela * pagas)
-  const fim = restam ? addMonths(prox, restam - 1) : null
+  let fim = null
+  if (restam) fim = cartao ? parcelasNoCartao({ dataCompra: data, cartao, valores: Array(n).fill(parcela) })[n - 1].vencimento : addMonths(data, restam - 1)
+  const custo = custoDoCredito(avista, total)
+  const taxa = taxaImplicita(avista, parcela, n)
   const brlf = (c) => (c / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
   return (
     <div className="note g">
       Total de {brlf(total)}. {restam ? <>Faltam <b>{restam}</b> de {n} parcelas, <b>{brlf(falta)}</b> a pagar, a última em {fim.slice(8)}/{fim.slice(5, 7)}/{fim.slice(0, 4)}.</> : 'Nada a pagar.'}
+      {custo ? <> O crédito custa <b>{brlf(custo)}</b> a mais que o à vista (cerca de {String(taxa).replace('.', ',')}% ao mês).</> : null}
     </div>
   )
 }
 
 // ---------------------------------------------------------------- dívida
-export function ModalDivida({ onClose }) {
+export function ModalDivida({ divida, onClose }) {
   const auth = useAuth()
-  const [f, setF] = useState({ credor: '', saldo: 0, minima: 0, juros: '', dia: '', prioridade: 'importante' })
+  const [f, setF] = useState(() => divida
+    ? { credor: divida.credor, saldo: divida.saldo_devedor_cent, minima: divida.parcela_minima_cent, juros: divida.juros_mes_pct ? String(divida.juros_mes_pct).replace('.', ',') : '', dia: divida.dia_venc ? String(divida.dia_venc) : '', prioridade: divida.prioridade }
+    : { credor: '', saldo: 0, minima: 0, juros: '', dia: '', prioridade: 'importante' })
   const set = (k) => (v) => setF((s) => ({ ...s, [k]: v }))
   const salvar = async () => {
     if (!f.credor.trim()) return notify('Escreva com quem é a dívida.', 'err')
     if (!f.saldo) return notify('Informe quanto você ainda deve.', 'err')
     const dia = f.dia ? inteiro(f.dia) : null
     if (f.dia && !diaValido(dia)) return notify('O dia do vencimento precisa estar entre 1 e 31.', 'err')
-    await insert('pf_dividas', {
-      owner_id: auth.uid, credor: f.credor.trim(), saldo_devedor_cent: f.saldo, parcela_minima_cent: f.minima,
-      juros_mes_pct: f.juros ? percentual(f.juros) : null, dia_venc: dia, prioridade: f.prioridade,
-    })
+    const dados = { credor: f.credor.trim(), saldo_devedor_cent: f.saldo, parcela_minima_cent: f.minima, juros_mes_pct: f.juros ? percentual(f.juros) : null, dia_venc: dia, prioridade: f.prioridade }
+    if (divida) await update('pf_dividas', divida.id, dados)
+    else await insert('pf_dividas', { ...dados, owner_id: auth.uid })
     onClose(true)
   }
   return (
-    <Modal size="sm" title="Nova dívida" onClose={() => onClose(false)} footer={rodape(() => onClose(false), salvar)}>
+    <Modal size="sm" title={divida ? 'Editar dívida' : 'Nova dívida'} onClose={() => onClose(false)} footer={rodape(() => onClose(false), salvar)}>
       <Field label="Com quem"><input className="in" autoFocus value={f.credor} onChange={(e) => set('credor')(e.target.value)} placeholder="Ex.: banco, loja, pessoa" /></Field>
       <div className="fields">
         <Field label="Quanto ainda deve (R$)"><MoneyInput value={f.saldo} onChange={set('saldo')} /></Field>
         <Field label="Parcela mínima (R$)"><MoneyInput value={f.minima} onChange={set('minima')} /></Field>
         <Field label="Juros ao mês (%)"><input className="in num" inputMode="decimal" value={f.juros} onChange={(e) => set('juros')(e.target.value)} placeholder="Se souber" /></Field>
-        <Field label="Dia do vencimento"><input className="in num" inputMode="numeric" maxLength={2} value={f.dia} onChange={(e) => set('dia')(e.target.value.replace(/\D/g, ''))} /></Field>
+        <Field label="Dia do vencimento" hint="Com o dia, a parcela mínima entra na conta todo mês."><input className="in num" inputMode="numeric" maxLength={2} value={f.dia} onChange={(e) => set('dia')(e.target.value.replace(/\D/g, ''))} /></Field>
       </div>
       <Field label="Importância"><Select value={f.prioridade} onChange={set('prioridade')} options={PRIORIDADES} /></Field>
     </Modal>

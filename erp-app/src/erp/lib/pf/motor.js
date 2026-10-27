@@ -52,7 +52,7 @@ export function entradasEsperadas({ modelos, regra, desde, ate, recebidos = [] }
 // ---------------------------------------------------------------------------
 // Junta tudo que sai do bolso numa lista só. Contas ligadas a parcela não entram (a parcela já
 // conta) e parcelas que já viraram fatura de cartão também não (a fatura conta).
-export function normalizarObrigacoes({ compromissos = [], parcelas = [], ignorar = [] }) {
+export function normalizarObrigacoes({ compromissos = [], parcelas = [], ignorar = [], extras = [] }) {
   const fora = new Set(ignorar)
   const contas = compromissos
     .filter((c) => c.status === 'aberta' && !c.parcela_id)
@@ -66,7 +66,35 @@ export function normalizarObrigacoes({ compromissos = [], parcelas = [], ignorar
       id: `p:${p.id}`, ref: p.id, tipo: 'parcela', descricao: p.descricao || 'Parcela', valor_cent: num(p.valor_cent), vencimento: p.vencimento,
       prioridade: p.prioridade || 'importante', multa_pct: 0, juros_dia_pct: 0,
     }))
-  return [...contas, ...parc].filter((o) => !fora.has(o.id) && !fora.has(o.ref)).sort((a, b) => cmp(a.vencimento, b.vencimento) || cmp(a.id, b.id))
+  return [...contas, ...parc, ...extras].filter((o) => !fora.has(o.id) && !fora.has(o.ref)).sort((a, b) => cmp(a.vencimento, b.vencimento) || cmp(a.id, b.id))
+}
+
+// Parcela mínima de cada dívida ativa, uma por mês, no dia de vencer, do mês de `hoje` até `ate`.
+// `pagas`: ['id|AAAA-MM'] das que já foram pagas naquele mês. Dívida sem dia de vencimento não entra
+// (vai em `semDia` para a tela avisar).
+export function obrigacoesDeDividas({ dividas = [], pagas = [], hoje, ate }) {
+  const feitas = new Set(pagas)
+  const itens = [], semDia = []
+  for (const d of dividas) {
+    if (d.ativo === false || !num(d.parcela_minima_cent)) continue
+    if (!d.dia_venc) { semDia.push(d); continue }
+    let ano = Number(hoje.slice(0, 4)), mes = Number(hoje.slice(5, 7))
+    for (let k = 0; k < 40; k++) {
+      const venc = dataDoMes(ano, mes, d.dia_venc)
+      if (venc > ate) break
+      const ref = venc.slice(0, 7)
+      // parcela que venceu há mais de 15 dias sem registro não vira "atrasada" para sempre
+      if (venc >= addDays(hoje, -15) && !feitas.has(`${d.id}|${ref}`)) {
+        itens.push({
+          id: `d:${d.id}|${ref}`, ref: d.id, tipo: 'divida', descricao: `Dívida: ${d.credor}`, valor_cent: num(d.parcela_minima_cent), vencimento: venc,
+          prioridade: d.prioridade || 'importante', multa_pct: 0, juros_dia_pct: 0, mes: ref,
+        })
+      }
+      mes += 1
+      if (mes > 12) { mes = 1; ano += 1 }
+    }
+  }
+  return { itens, semDia }
 }
 
 // multa (uma vez) + juros por dia de atraso, em centavos
@@ -140,7 +168,7 @@ export function sugerirAdiamentos({ faltaCent, obrigacoes, hoje, fimHorizonte, d
  */
 export function calcularPainel({
   hoje, config = {}, saldoCent = 0, modelos = [], recebidos = [], avulsas = [], compromissos = [], parcelas = [],
-  gastosPorDia = {}, inicioCiclo = null, desdeMin = null,
+  gastosPorDia = {}, inicioCiclo = null, desdeMin = null, dividas = [], dividasPagas = [], serieDias = 30,
 }) {
   const colchao = num(config.colchao_cent)
   const regra = config.regra_fim_semana || 'antecipar'
@@ -171,8 +199,10 @@ export function calcularPainel({
   if (semEntrada) avisos.push('Nenhum recebimento cadastrado: dividi o que sobra pelos próximos 30 dias.')
   const dias = Math.max(1, daysBetween(hoje, fimCiclo) + 1)
 
-  const obrigacoes = normalizarObrigacoes({ compromissos, parcelas })
-  const fimSerie = fimHorizonte > addDays(hoje, 29) ? fimHorizonte : addDays(hoje, 29)
+  const dv = obrigacoesDeDividas({ dividas, pagas: dividasPagas, hoje, ate: addDays(hoje, Math.max(serieDias, 130)) })
+  if (dv.semDia.length) avisos.push(`Informe o dia do vencimento de ${dv.semDia.map((d) => d.credor).join(', ')} para a parcela mínima entrar na conta.`)
+  const obrigacoes = normalizarObrigacoes({ compromissos, parcelas, extras: dv.itens })
+  const fimSerie = fimHorizonte > addDays(hoje, serieDias - 1) ? fimHorizonte : addDays(hoje, serieDias - 1)
   const serie = projetarSaldo({ saldoCent: saldoInicioDia, hoje, ate: fimSerie, entradas: futuras, obrigacoes })
   const janela = serie.filter((d) => d.data <= fimHorizonte)
   let pior = janela[0]
@@ -267,11 +297,12 @@ export function explicarDia(p) {
  */
 export function planoDaEntrada({
   valorCent, data, config = {}, modelos = [], recebidos = [], ocorrenciaId = null,
-  compromissos = [], parcelas = [], jaPagas = [], reservaAtualCent = 0,
+  compromissos = [], parcelas = [], jaPagas = [], reservaAtualCent = 0, dividas = [], dividasPagas = [],
 }) {
   const regra = config.regra_fim_semana || 'antecipar'
   const R = Math.max(0, num(valorCent))
-  const obrigacoes = normalizarObrigacoes({ compromissos, parcelas, ignorar: jaPagas })
+  const dv = obrigacoesDeDividas({ dividas, pagas: dividasPagas, hoje: data, ate: addDays(data, 100) })
+  const obrigacoes = normalizarObrigacoes({ compromissos, parcelas, ignorar: jaPagas, extras: dv.itens })
 
   const seguintes = entradasEsperadas({ modelos, regra, desde: addDays(data, 1), ate: addDays(data, 400), recebidos })
     .filter((e) => e.id !== ocorrenciaId)

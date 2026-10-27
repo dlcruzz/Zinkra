@@ -6,6 +6,7 @@ import { remove, notify, emitChange } from '../lib/data'
 import { brl, dm, dmy, WEEK_S, parseDate } from '../lib/format'
 import { hojeSP, proximasDatas, ehFeriado } from '../lib/pf/datas'
 import { resumoParcelamento } from '../lib/pf/parcelas'
+import { apagarParcelamento } from '../lib/pf/nucleo'
 import { TIPOS_CONTA, PRIORIDADES, PRIORIDADE_COR, RECORRENCIAS, restaurarCategoriasPadrao } from '../lib/pf/api'
 import { ModalConta, ModalRecebimento, ModalCategoria, ModalCompromisso, ModalParcelamento, ModalDivida } from './modais'
 
@@ -174,7 +175,12 @@ export function CompromissosBloco({ itens, categorias }) {
 // ---------------------------------------------------------------- parcelamentos
 export function ParcelamentosBloco({ itens, contas, categorias }) {
   const [modal, setModal] = useState(false)
-  const apagar = useApagar('pf_parcelamentos', 'Parcelamento apagado.')
+  const confirmar = useConfirm()
+  const apagar = async (id, nome, extra) => {
+    if (!(await confirmar(`Apagar "${nome}"? ${extra || ''}`.trim(), { ok: 'Apagar', danger: true }))) return
+    await apagarParcelamento(id)
+    notify('Parcelamento apagado.', 'ok')
+  }
   return (
     <div className="pf-bloco">
       <Cabeca titulo="Parcelamentos em andamento" sub="Compras no cartão, carnês, financiamentos.">

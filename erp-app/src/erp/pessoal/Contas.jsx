@@ -8,12 +8,13 @@ import { brl, dm, MONTHS, addMonths, daysBetween } from '../lib/format'
 import { hojeSP, gradeDoMes } from '../lib/pf/datas'
 import { lerCadastros, lerConfig, PRIORIDADES, PRIORIDADE_COR, RECORRENCIAS } from '../lib/pf/api'
 import { lerCompromissosAbertos, lerParcelasAbertas, reabrirCompromisso } from '../lib/pf/nucleo'
-import { encargosDeAtraso, entradasEsperadas } from '../lib/pf/motor'
+import { encargosDeAtraso, entradasEsperadas, obrigacoesDeDividas } from '../lib/pf/motor'
+import { addDays } from '../lib/format'
 import { diaSemanaData } from './listas'
 import { ModalCompromisso } from './modais'
 import { ModalPagar, ModalCancelar } from './acoes'
 
-const TABELAS = ['pf_compromissos', 'pf_parcelas', 'pf_parcelamentos', 'pf_categorias', 'pf_contas', 'pf_lancamentos', 'pf_recebimentos_modelo']
+const TABELAS = ['pf_dividas', 'pf_faturas', 'pf_compromissos', 'pf_parcelas', 'pf_parcelamentos', 'pf_categorias', 'pf_contas', 'pf_lancamentos', 'pf_recebimentos_modelo']
 const COR_PRIO = { essencial: 'var(--blue)', importante: 'var(--tx-3)', adiavel: 'var(--yel)' }
 const fimDoMes = (mes) => addMonths(`${mes}-01`, 1).slice(0, 8) + '01'
 
@@ -26,13 +27,16 @@ function emItem(raw, tipo) {
   }
 }
 
+// parcela mínima de dívida (vem do motor) no mesmo formato das contas
+const emItemDivida = (o) => ({ ...o, uid: o.id, raw: null, status: 'aberta', pago_em: null, categoria_id: null, recorrencia: 'unica' })
+
 export default function Contas() {
   useMeta('Pessoal · Contas a pagar', 'Pessoal')
   const hoje = hojeSP()
   const [mes, setMes] = useState(hoje.slice(0, 7))
   const { data, loading, error, reload } = useData(async () => {
     const ini = `${mes}-01`, fim = fimDoMes(mes)
-    const [config, cad, abertas, parcelasAbertas, doMes, parcelasDoMes] = await Promise.all([
+    const [config, cad, abertas, parcelasAbertas, doMes, parcelasDoMes, dividasRows, pagasRows] = await Promise.all([
       lerConfig(), lerCadastros(), lerCompromissosAbertos(), lerParcelasAbertas(),
       fetchRows('pf_compromissos', {
         where: (q) => q.neq('status', 'aberta').or(`and(vencimento.gte.${ini},vencimento.lt.${fim}),and(pago_em.gte.${ini},pago_em.lt.${fim})`), order: 'vencimento', ascending: true,
@@ -40,9 +44,12 @@ export default function Contas() {
       fetchRows('pf_parcelas', {
         select: '*, pf_parcelamentos(descricao, n_parcelas, categoria_id)', where: (q) => q.neq('status', 'aberta').or(`and(vencimento.gte.${ini},vencimento.lt.${fim}),and(pago_em.gte.${ini},pago_em.lt.${fim})`), order: 'vencimento', ascending: true,
       }),
+      fetchRows('pf_dividas', { where: (q) => q.eq('ativo', true), order: 'credor', ascending: true }),
+      fetchRows('pf_lancamentos', { select: 'data,divida_id', order: 'data', ascending: true, where: (q) => q.not('divida_id', 'is', null).gte('data', addDays(hoje, -40)) }),
     ])
+    const dv = obrigacoesDeDividas({ dividas: dividasRows, pagas: pagasRows.map((r) => `${r.divida_id}|${r.data.slice(0, 7)}`), hoje, ate: addDays(hoje, 75) }).itens
     const desc = (p) => ({ ...p, descricao: p.pf_parcelamentos ? `${p.pf_parcelamentos.descricao} (${p.numero}/${p.pf_parcelamentos.n_parcelas})` : 'Parcela', categoria_id: p.pf_parcelamentos?.categoria_id || null })
-    return { config, ...cad, abertas, parcelasAbertas, doMes, parcelasDoMes: parcelasDoMes.map(desc) }
+    return { config, ...cad, abertas, parcelasAbertas, doMes, parcelasDoMes: parcelasDoMes.map(desc), dividas: dv }
   }, TABELAS, [hoje, mes])
 
   const [modo, setModo] = useState('lista')
@@ -57,7 +64,7 @@ export default function Contas() {
 
   const itens = useMemo(() => {
     if (!data) return { abertas: [], pagas: [], doMes: [] }
-    const abertas = [...data.abertas.map((c) => emItem(c, 'conta')), ...data.parcelasAbertas.map((p) => emItem(p, 'parcela'))]
+    const abertas = [...data.abertas.map((c) => emItem(c, 'conta')), ...data.parcelasAbertas.map((p) => emItem(p, 'parcela')), ...data.dividas.map(emItemDivida)]
       .sort((a, b) => (a.vencimento < b.vencimento ? -1 : a.vencimento > b.vencimento ? 1 : a.descricao.localeCompare(b.descricao)))
     const outras = [...data.doMes.map((c) => emItem(c, 'conta')), ...data.parcelasDoMes.map((p) => emItem(p, 'parcela'))]
     const pagas = outras.filter((i) => i.status === 'paga' && i.pago_em && i.pago_em.slice(0, 7) === mes).sort((a, b) => (a.pago_em < b.pago_em ? 1 : -1))
@@ -156,6 +163,8 @@ function Linha({ i, n, ctx }) {
         <span className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
           {i.status === 'paga' ? <Badge kind="g" dot={false}>Paga em {dm(i.pago_em)}</Badge> : <Badge kind={PRIORIDADE_COR[i.prioridade]} dot={false}>{PRIORIDADES[i.prioridade]}</Badge>}
           {i.tipo === 'parcela' ? <Badge dot={false}>Parcelamento</Badge> : null}
+          {i.tipo === 'divida' ? <Badge dot={false}>Dívida</Badge> : null}
+          {i.raw?.fatura_id ? <Badge dot={false}>Fatura do cartão</Badge> : null}
           {i.recorrencia !== 'unica' ? <Badge dot={false}>{RECORRENCIAS[i.recorrencia]}</Badge> : null}
           {cat ? <span className="lbl"><i className="pf-bolinha-s" style={{ background: cat.cor }} />{cat.nome}</span> : null}
         </span>
@@ -164,8 +173,8 @@ function Linha({ i, n, ctx }) {
       <span className="pf-valor num">{brl(i.valor_cent + enc)}</span>
       <span className="pf-acoes">
         {i.status === 'aberta' ? <button type="button" className="btn s" onClick={() => setPagando(i)}>Pagar</button> : null}
-        {i.status === 'aberta' && i.tipo === 'conta' ? <button type="button" className="btn ic s g" aria-label={`Editar ${i.descricao}`} onClick={() => setEditando(i.raw)}><Icon name="edit" size={14} /></button> : null}
-        {i.status === 'aberta' && i.tipo === 'conta' ? <button type="button" className="btn ic s g" aria-label={`Cancelar ${i.descricao}`} onClick={() => setCancelando(i.raw)}><Icon name="trash" size={14} /></button> : null}
+        {i.status === 'aberta' && i.tipo === 'conta' && !i.raw.fatura_id ? <button type="button" className="btn ic s g" aria-label={`Editar ${i.descricao}`} onClick={() => setEditando(i.raw)}><Icon name="edit" size={14} /></button> : null}
+        {i.status === 'aberta' && i.tipo === 'conta' && !i.raw.fatura_id ? <button type="button" className="btn ic s g" aria-label={`Cancelar ${i.descricao}`} onClick={() => setCancelando(i.raw)}><Icon name="trash" size={14} /></button> : null}
         {i.status === 'paga' && i.tipo === 'conta' ? <button type="button" className="btn s g" onClick={() => reabrir(i)}>Reabrir</button> : null}
       </span>
     </div>

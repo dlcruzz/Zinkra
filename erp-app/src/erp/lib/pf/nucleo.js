@@ -26,35 +26,40 @@ export const lerParcelasAbertas = async () => achatarParcelas(await fetchRows('p
 export const lerCompromissosAbertos = () => fetchRows('pf_compromissos', { where: (q) => q.eq('status', 'aberta'), order: 'vencimento', ascending: true })
 
 // Tudo que o motor precisa para o dia: contas, saldo, o que está aberto, recebimentos já registrados e gastos do ciclo.
-export async function lerNucleo(hoje, configLida = null) {
-  const [config, cad, saldos, compromissos, parcelas, recebidosRows, reservaAtual] = await Promise.all([
+export async function lerNucleo(hoje, configLida = null, { serieDias = 30 } = {}) {
+  const [config, cad, saldos, compromissos, parcelas, recebidosRows, reservaAtual, dividas, pagasRows] = await Promise.all([
     configLida || lerConfig(), lerCadastros(), rpc('pf_saldos'), lerCompromissosAbertos(), lerParcelasAbertas(),
     fetchRows('pf_lancamentos', {
       select: 'id,data,recebimento_modelo_id,recebimento_ref', order: 'data', ascending: true,
       where: (q) => q.not('recebimento_modelo_id', 'is', null).gte('data', addDays(hoje, -60)),
     }),
     rpc('pf_reserva_atual'),
+    fetchRows('pf_dividas', { where: (q) => q.eq('ativo', true), order: 'credor', ascending: true }),
+    fetchRows('pf_lancamentos', { select: 'data,divida_id', order: 'data', ascending: true, where: (q) => q.not('divida_id', 'is', null).gte('data', addDays(hoje, -40)) }),
   ])
+  const dividasPagas = pagasRows.map((r) => `${r.divida_id}|${r.data.slice(0, 7)}`)
   const recebidos = recebidosRows.map((r) => ({ modelo_id: r.recebimento_modelo_id, ref: r.recebimento_ref, data: r.data }))
   const feitos = recebidos.filter((r) => r.data <= hoje).map((r) => r.data).sort()
   const inicioCiclo = feitos.length ? feitos[feitos.length - 1] : null
 
-  // gasto variável por dia desde o começo do ciclo (não conta conta paga, parcela nem dinheiro separado para a reserva)
+  // gasto variável por dia desde o começo do ciclo (não conta conta paga, parcela, dívida, compra no cartão nem dinheiro separado para a reserva)
   const reserva = categoriaReserva(cad.categorias)
-  const { data: gastos, error } = await supabase.from('pf_lancamentos').select('data,valor_cent,categoria_id')
-    .gte('data', inicioCiclo || hoje).lte('data', hoje).lt('valor_cent', 0).is('compromisso_id', null).is('parcela_id', null).limit(1000)
+  const cartoes = new Set(cad.contas.filter((c) => c.tipo === 'cartao').map((c) => c.id))
+  const { data: gastos, error } = await supabase.from('pf_lancamentos').select('data,valor_cent,categoria_id,conta_id')
+    .gte('data', inicioCiclo || hoje).lte('data', hoje).lt('valor_cent', 0).is('compromisso_id', null).is('parcela_id', null).is('divida_id', null).limit(1000)
   if (error) throw error
   const gastosPorDia = {}
   for (const g of gastos) {
     if (reserva && g.categoria_id === reserva.id) continue
+    if (cartoes.has(g.conta_id)) continue // compra no cartão não tira dinheiro da conta hoje: entra pela fatura
     gastosPorDia[g.data] = (gastosPorDia[g.data] || 0) - Number(g.valor_cent)
   }
 
   const desdeMin = config.onboarding_ok_em ? localDay(config.onboarding_ok_em) : null
   const painel = calcularPainel({
-    hoje, config, saldoCent: Number(saldos.total_cent) || 0, modelos: cad.modelos, recebidos, compromissos, parcelas, gastosPorDia, inicioCiclo, desdeMin,
+    hoje, config, saldoCent: Number(saldos.total_cent) || 0, modelos: cad.modelos, recebidos, compromissos, parcelas, gastosPorDia, inicioCiclo, desdeMin, dividas, dividasPagas, serieDias,
   })
-  return { config, ...cad, saldos, compromissos, parcelas, recebidos, reservaAtual: Number(reservaAtual) || 0, gastosPorDia, inicioCiclo, painel }
+  return { config, ...cad, saldos, compromissos, parcelas, recebidos, dividas, dividasPagas, reservaAtual: Number(reservaAtual) || 0, gastosPorDia, inicioCiclo, painel }
 }
 
 // ---------------------------------------------------------------- gravar
@@ -95,13 +100,15 @@ export async function registrarRecebimento({ ocorrencia, valorCent, data, contaI
     recebimento_modelo_id: ocorrencia?.modeloId || null, recebimento_ref: ocorrencia?.nominal || null,
   })
   const falhas = []
-  for (const id of jaPagas) {
+  // jaPagas: itens do plano ({ id, tipo, ref, valor_cent }) quitados por fora: só dar baixa, sem mexer no saldo
+  for (const o of jaPagas) {
     try {
-      if (id.startsWith('c:')) await rpc('pf_pagar_compromisso', { p_id: id.slice(2), p_data: data, p_valor_cent: 0, p_conta: null, p_gerar_lancamento: false }, { quiet: true })
-      else if (id.startsWith('p:')) await rpc('pf_pagar_parcela', { p_id: id.slice(2), p_data: data, p_valor_cent: 0, p_conta: null, p_gerar_lancamento: false }, { quiet: true })
-    } catch { falhas.push(id) }
+      if (o.tipo === 'conta') await rpc('pf_pagar_compromisso', { p_id: o.ref, p_data: data, p_valor_cent: 0, p_conta: null, p_gerar_lancamento: false }, { quiet: true })
+      else if (o.tipo === 'parcela') await rpc('pf_pagar_parcela', { p_id: o.ref, p_data: data, p_valor_cent: 0, p_conta: null, p_gerar_lancamento: false }, { quiet: true })
+      else if (o.tipo === 'divida') await rpc('pf_pagar_divida', { p_id: o.ref, p_data: data, p_valor_cent: o.valor_cent, p_conta: null }, { quiet: true })
+    } catch { falhas.push(o.id) }
   }
-  emitChange('pf_lancamentos', 'pf_compromissos', 'pf_parcelas')
+  emitChange('pf_lancamentos', 'pf_compromissos', 'pf_parcelas', 'pf_dividas')
   return { lancamento: lanc, falhas }
 }
 
@@ -156,3 +163,47 @@ export async function cancelarCompromisso(c, { serie = false, hoje }) {
     await updateWhere('pf_compromissos', (q) => q.eq('origem_id', raiz).eq('status', 'aberta').gte('vencimento', hoje), { status: 'cancelada' })
   }
 }
+
+// ---------------------------------------------------------------- etapa 3: parcelamentos, cartão, dívidas
+export async function criarParcelamento(payload) {
+  const id = await rpc('pf_criar_parcelamento', { p: payload })
+  emitChange('pf_parcelamentos', 'pf_parcelas', 'pf_faturas', 'pf_compromissos')
+  return id
+}
+
+export async function anteciparParcelas(ids, { data, contaId }) {
+  const n = await rpc('pf_antecipar_parcelas', { p_ids: ids, p_data: data, p_conta: contaId || null })
+  emitChange('pf_parcelas', 'pf_lancamentos', 'pf_compromissos')
+  return n
+}
+
+export async function apagarParcelamento(id) {
+  await rpc('pf_apagar_parcelamento', { p_id: id })
+  emitChange('pf_parcelamentos', 'pf_parcelas', 'pf_faturas', 'pf_compromissos')
+}
+
+export async function gastoNoCartao({ contaId, data, valorCent, categoriaId, descricao }) {
+  const id = await rpc('pf_gasto_cartao', { p_conta: contaId, p_data: data, p_valor_cent: valorCent, p_categoria: categoriaId || null, p_descricao: descricao || '' })
+  emitChange('pf_lancamentos', 'pf_faturas', 'pf_compromissos')
+  return id
+}
+
+export async function pagarDivida(id, { data, valorCent, contaId }) {
+  await rpc('pf_pagar_divida', { p_id: id, p_data: data, p_valor_cent: valorCent, p_conta: contaId || null })
+  emitChange('pf_dividas', 'pf_lancamentos')
+}
+
+export const lerParcelamentosResumo = () => rpc('pf_parcelamentos_resumo')
+export const lerFaturasAbertas = () => rpc('pf_faturas_abertas')
+export const lerComprometimento = (meses = 12) => rpc('pf_comprometimento', { p_meses: meses })
+
+// parcelas em aberto dos próximos meses, com o que a linha do tempo precisa do parcelamento
+export async function lerParcelasDaLinha(ateIso) {
+  const linhas = await fetchRows('pf_parcelas', {
+    select: 'id,parcelamento_id,numero,vencimento,valor_cent,pf_parcelamentos(descricao,n_parcelas,forma)',
+    where: (q) => q.eq('status', 'aberta').lt('vencimento', ateIso), order: 'vencimento', ascending: true,
+  })
+  return linhas.map((p) => ({ id: p.id, parcelamento_id: p.parcelamento_id, numero: p.numero, vencimento: p.vencimento, valor_cent: Number(p.valor_cent), descricao: p.pf_parcelamentos?.descricao || 'Parcelamento', n_parcelas: p.pf_parcelamentos?.n_parcelas || 0, forma: p.pf_parcelamentos?.forma }))
+}
+
+export const lerParcelasDoParcelamento = (id) => fetchRows('pf_parcelas', { where: (q) => q.eq('parcelamento_id', id).eq('status', 'aberta'), order: 'numero', ascending: true })

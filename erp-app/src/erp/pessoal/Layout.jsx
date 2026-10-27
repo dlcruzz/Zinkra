@@ -46,5 +46,7 @@ const ABAS = [
   ['/erp/pessoal/receber', 'Receber', false],
   ['/erp/pessoal/contas', 'Contas a pagar', false],
   ['/erp/pessoal/lancamentos', 'Lançamentos', false],
+  ['/erp/pessoal/parcelamentos', 'Parcelamentos', false],
+  ['/erp/pessoal/dividas', 'Dívidas', false],
   ['/erp/pessoal/config', 'Configurações', false],
 ]

@@ -3,7 +3,7 @@ import { Modal, Field, Select, MoneyInput, AsyncButton, Seg } from '../component
 import { notify, update } from '../lib/data'
 import { brl, dmy } from '../lib/format'
 import { hojeSP } from '../lib/pf/datas'
-import { contaPadrao, registrarGasto, pagarCompromisso, pagarParcela, cancelarCompromisso, categoriaReserva } from '../lib/pf/nucleo'
+import { contaPadrao, registrarGasto, gastoNoCartao, pagarCompromisso, pagarParcela, pagarDivida, cancelarCompromisso, categoriaReserva, anteciparParcelas, lerParcelasDoParcelamento } from '../lib/pf/nucleo'
 import { encargosDeAtraso } from '../lib/pf/motor'
 
 const rodape = (onClose, salvar, rotulo) => (
@@ -18,12 +18,16 @@ export function ModalGasto({ categorias, contas, onClose }) {
   const [valor, setValor] = useState(0)
   const [cat, setCat] = useState(null)
   const [desc, setDesc] = useState('')
+  const cartoes = contas.filter((c) => c.tipo === 'cartao' && c.ativo)
+  const [com, setCom] = useState('conta')
+  const [cartao, setCartao] = useState(cartoes[0]?.id || null)
   const reserva = categoriaReserva(categorias)
   const opcoes = categorias.filter((c) => c.tipo === 'saida' && c.ativo !== false && c.id !== reserva?.id)
   const salvar = async () => {
     if (!valor) return notify('Informe quanto foi o gasto.', 'err')
-    await registrarGasto({ valorCent: valor, categoriaId: cat, contaId: contaPadrao(contas)?.id, descricao: desc.trim(), data: hojeSP() })
-    notify(`Gasto de ${brl(valor)} registrado.`, 'ok')
+    if (com === 'cartao' && cartao) await gastoNoCartao({ contaId: cartao, data: hojeSP(), valorCent: valor, categoriaId: cat, descricao: desc.trim() })
+    else await registrarGasto({ valorCent: valor, categoriaId: cat, contaId: contaPadrao(contas)?.id, descricao: desc.trim(), data: hojeSP() })
+    notify(com === 'cartao' ? `Gasto de ${brl(valor)} lançado na fatura do cartão.` : `Gasto de ${brl(valor)} registrado.`, 'ok')
     onClose(true)
   }
   return (
@@ -41,6 +45,12 @@ export function ModalGasto({ categorias, contas, onClose }) {
           ))}
         </div>
       </Field>
+      {cartoes.length ? (
+        <Field label="Pago com">
+          <Seg value={com} onChange={setCom} options={[['conta', 'Conta ou dinheiro'], ['cartao', 'Cartão']]} />
+          {com === 'cartao' && cartoes.length > 1 ? <Select value={cartao} onChange={setCartao} options={cartoes.map((c) => [c.id, c.nome])} /> : null}
+        </Field>
+      ) : null}
       <Field label="Anotação (opcional)"><input className="in" value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Ex.: almoço, uber" /></Field>
     </Modal>
   )
@@ -59,6 +69,7 @@ export function ModalPagar({ item, contas, onClose }) {
     if (!f.baixa && !f.valor) return notify('Informe o valor pago.', 'err')
     const args = { data: f.data, valorCent: f.valor, contaId: f.conta, gerar: !f.baixa }
     if (item.tipo === 'parcela') await pagarParcela(item.ref, args)
+    else if (item.tipo === 'divida') await pagarDivida(item.ref, { data: f.data, valorCent: f.valor, contaId: f.baixa ? null : f.conta })
     else await pagarCompromisso(item.ref, args)
     notify(f.baixa ? 'Conta marcada como paga.' : `Pago ${brl(f.valor)}. O lançamento foi criado.`, 'ok')
     onClose(true)
@@ -133,6 +144,47 @@ export function ModalLancamento({ lancamento, categorias, contas, onClose, onApa
         {correntes.length > 1 ? <Field label="Conta"><Select value={f.conta} onChange={set('conta')} options={correntes.map((c) => [c.id, c.nome])} /></Field> : null}
       </div>
       {ligado ? <span className="note y">Esse lançamento pagou uma conta. Se apagar, a conta volta para "em aberto".</span> : null}
+    </Modal>
+  )
+}
+
+// ---------------------------------------------------------------- antecipar parcelas (várias de uma vez)
+export function ModalAntecipar({ parcelamento, contas, onClose }) {
+  const [parcelas, setParcelas] = useState(null)
+  const [sel, setSel] = useState([])
+  const [data, setData] = useState(hojeSP())
+  const [conta, setConta] = useState(contaPadrao(contas)?.id || null)
+  const correntes = contas.filter((c) => c.ativo && c.tipo !== 'cartao')
+  React.useEffect(() => { lerParcelasDoParcelamento(parcelamento.id).then(setParcelas).catch(() => setParcelas([])) }, [parcelamento.id])
+  const total = (parcelas || []).filter((p) => sel.includes(p.id)).reduce((s, p) => s + Number(p.valor_cent), 0)
+  const alterna = (id) => setSel((l) => (l.includes(id) ? l.filter((x) => x !== id) : [...l, id]))
+  // marcar a parcela n marca também todas as anteriores em aberto (antecipar é pagar as próximas em sequência)
+  const ate = (p) => setSel(parcelas.filter((x) => x.numero <= p.numero).map((x) => x.id))
+  const salvar = async () => {
+    if (!sel.length) return notify('Marque as parcelas que quer pagar agora.', 'err')
+    await anteciparParcelas(sel, { data, contaId: conta })
+    notify(`${sel.length} ${sel.length === 1 ? 'parcela paga' : 'parcelas pagas'}: ${brl(total)}.`, 'ok')
+    onClose(true)
+  }
+  return (
+    <Modal size="sm" title={`Antecipar: ${parcelamento.descricao}`} onClose={() => onClose(false)} footer={rodape(() => onClose(false), salvar, `Pagar ${brl(total)}`)}>
+      {parcelas === null ? <span className="lbl">Carregando as parcelas…</span> : (
+        <div className="pf-check">
+          {parcelas.map((p) => (
+            <label key={p.id} className={`pf-check-item ${sel.includes(p.id) ? '' : ''}`}>
+              <input type="checkbox" checked={sel.includes(p.id)} onChange={() => alterna(p.id)} />
+              <span className="pf-check-t"><span>Parcela {p.numero}/{parcelamento.n_parcelas}</span><small>vence {dmy(p.vencimento)}</small></span>
+              <span className="num">{brl(p.valor_cent)}</span>
+              <button type="button" className="btn s g" onClick={(e) => { e.preventDefault(); ate(p) }}>até aqui</button>
+            </label>
+          ))}
+        </div>
+      )}
+      <div className="fields">
+        <Field label="Pago em"><input type="date" className="in" value={data} onChange={(e) => setData(e.target.value)} /></Field>
+        {correntes.length > 1 ? <Field label="Saiu de qual conta"><Select value={conta} onChange={setConta} options={correntes.map((c) => [c.id, c.nome])} /></Field> : null}
+      </div>
+      <span className="lbl">Cada parcela vira um lançamento. Se pagou menos por causa de desconto, ajuste o valor depois em Lançamentos.</span>
     </Modal>
   )
 }

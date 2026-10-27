@@ -963,3 +963,52 @@ body:has(.erp) { background: #0A0C0B; }
   .erp .pf-aviso-rec { padding: 12px; font-size: 13px; }
   .erp .pf-mes-nav b { min-width: 0; }
 }
+
+/* ===================== PESSOAL · etapa 3 (Parcelamentos, faturas, Dívidas) ===================== */
+.erp .pf-alerta { line-height: 1.55; }
+.erp .pf-faixa-dois { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.erp .pf-falta { font-size: 18px; letter-spacing: -0.02em; }
+.erp .pf-parc-linha .pf-meio { gap: 5px; }
+
+/* linha do tempo: 12 meses, uma faixa por parcelamento */
+.erp .pf-tempo-rolagem { overflow-x: auto; margin: 0 -4px; padding: 0 4px 6px; scrollbar-width: thin; scrollbar-color: var(--line-3) transparent; }
+.erp .pf-tempo { display: grid; gap: 6px 4px; min-width: 1060px; align-items: stretch; }
+.erp .pf-tempo-mes { display: flex; flex-direction: column; gap: 2px; padding: 8px 6px; border-radius: 10px; background: #0E1210; border: 1px solid var(--line); text-align: center; }
+.erp .pf-tempo-mes b { font-size: 13px; font-weight: 500; }
+.erp .pf-tempo-mes.alerta { border-color: var(--red-ln); background: var(--red-bg); }
+.erp .pf-tempo-mes.alerta b { color: var(--red); }
+.erp .pf-tempo-nome { position: sticky; left: 0; z-index: 2; display: flex; align-items: center; padding-right: 8px; font-size: 13px; font-weight: 500; background: linear-gradient(90deg, var(--s1) 85%, transparent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.erp .pf-tempo-faixa { display: flex; border-radius: 10px; overflow: hidden; border: 1px solid var(--blue-ln); background: var(--blue-bg); animation: erp-lead-in .5s var(--ease) backwards; min-height: 44px; }
+.erp .pf-tempo-faixa.carne { border-color: var(--yel-ln); background: var(--yel-bg); }
+.erp .pf-tempo-faixa > span { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; padding: 5px 2px; }
+.erp .pf-tempo-faixa > span + span { border-left: 1px solid rgba(255,255,255,.07); }
+.erp .pf-tempo-faixa b { font-size: 12.5px; font-weight: 500; color: var(--blue); }
+.erp .pf-tempo-faixa.carne b { color: var(--yel); }
+.erp .pf-tempo-faixa small { font-size: 11px; color: var(--tx-3); }
+
+/* dívidas */
+.erp .pf-ordem { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.erp .pf-ordem li { display: flex; align-items: center; gap: 14px; padding: 11px 0; border-top: 1px solid var(--line-2); animation: erp-lead-in .4s var(--ease) backwards; }
+.erp .pf-ordem li:first-child { border-top: 0; }
+.erp .pf-ordem .pf-n { border-color: var(--red); color: var(--red); }
+.erp .pf-ordem li:nth-child(2) .pf-n { border-color: var(--org); color: var(--org); }
+.erp .pf-ordem li:nth-child(n+3) .pf-n { border-color: var(--mut-2); color: var(--mut); }
+.erp .pf-comp { display: flex; flex-direction: column; gap: 10px; }
+.erp .pf-comp-linha { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border-radius: var(--r); border: 1px solid var(--line); background: #0E1210; animation: erp-fade-up .4s var(--ease) backwards; }
+.erp .pf-comp-linha.melhor { border-color: var(--green-ln); background: var(--green-bg); box-shadow: 0 0 0 3px rgba(21,196,90,.08); }
+.erp .pf-comp-dados { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.erp .pf-comp-dados span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.erp .pf-comp-dados b { font-size: 15px; font-weight: 500; overflow-wrap: anywhere; }
+
+@media (max-width: 860px) {
+  .erp .pf-falta { font-size: 16px; }
+  .erp .pf-parc-linha { flex-wrap: wrap; row-gap: 10px; }
+  .erp .pf-parc-linha .pf-meio { flex: 1 1 100%; }
+  .erp .pf-parc-linha .pf-dir { flex-direction: row; align-items: baseline; gap: 8px; flex: 1; }
+  .erp .pf-comp-dados { grid-template-columns: 1fr 1fr; }
+  .erp .pf-comp-dados span:first-child { grid-column: 1 / -1; }
+  .erp .pf-faixa-dois b { font-size: 15px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .erp .pf-tempo-faixa, .erp .pf-ordem li, .erp .pf-comp-linha { animation: none; }
+}

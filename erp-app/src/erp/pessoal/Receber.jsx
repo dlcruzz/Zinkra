@@ -25,7 +25,7 @@ export default function Receber() {
 }
 
 function Formulario({ data, hoje }) {
-  const { config, modelos, compromissos, parcelas, recebidos, contas, categorias, reservaAtual } = data
+  const { config, modelos, compromissos, parcelas, recebidos, contas, categorias, reservaAtual, dividas, dividasPagas } = data
   const regra = config.regra_fim_semana
   const desdeMin = config.onboarding_ok_em.slice(0, 10)
   const opcoes = useMemo(() => {
@@ -47,7 +47,7 @@ function Formulario({ data, hoje }) {
   useEffect(() => { setValor(ocorrencia ? ocorrencia.valor_cent : 0); setJa([]) }, [sel]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const entrada = ocorrencia ? categorias.find((c) => c.tipo === 'entrada' && c.nome === 'Salário') : categorias.find((c) => c.tipo === 'entrada' && c.nome === 'Outras entradas')
-  const comum = { valorCent: valor, data: dataRec, config, modelos, recebidos, ocorrenciaId: ocorrencia?.id || null, compromissos, parcelas, reservaAtualCent: reservaAtual }
+  const comum = { valorCent: valor, data: dataRec, config, modelos, recebidos, ocorrenciaId: ocorrencia?.id || null, compromissos, parcelas, reservaAtualCent: reservaAtual, dividas, dividasPagas }
   const base = useMemo(() => planoDaEntrada({ ...comum, jaPagas: [] }), [valor, dataRec, ocorrencia]) // eslint-disable-line react-hooks/exhaustive-deps
   const plano = useMemo(() => planoDaEntrada({ ...comum, jaPagas: ja }), [valor, dataRec, ocorrencia, ja]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -55,7 +55,7 @@ function Formulario({ data, hoje }) {
   const confirmar = async () => {
     if (!valor) return notify('Informe quanto você recebeu.', 'err')
     if (!ocorrencia && !descAvulsa.trim()) return notify('Escreva de onde veio esse dinheiro.', 'err')
-    const r = await registrarRecebimento({ ocorrencia, valorCent: valor, data: dataRec, contaId: conta || ocorrencia?.contaId, categoriaId: entrada?.id, descricao: ocorrencia ? ocorrencia.descricao : descAvulsa.trim(), jaPagas: ja })
+    const r = await registrarRecebimento({ ocorrencia, valorCent: valor, data: dataRec, contaId: conta || ocorrencia?.contaId, categoriaId: entrada?.id, descricao: ocorrencia ? ocorrencia.descricao : descAvulsa.trim(), jaPagas: base.passos.flatMap((p) => p.itens).filter((o) => ja.includes(o.id)) })
     if (r.falhas.length) notify('O recebimento foi registrado, mas algumas contas não deram baixa. Confira em Contas a pagar.', 'err')
     else notify('Recebimento registrado.', 'ok')
     setFeito({ plano, valor })

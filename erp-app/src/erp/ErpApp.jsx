@@ -43,6 +43,8 @@ const PessoalConfig = lazy(() => import('./pessoal/Configuracoes'))
 const PessoalReceber = lazy(() => import('./pessoal/Receber'))
 const PessoalContas = lazy(() => import('./pessoal/Contas'))
 const PessoalLancamentos = lazy(() => import('./pessoal/Lancamentos'))
+const PessoalParcelamentos = lazy(() => import('./pessoal/Parcelamentos'))
+const PessoalDividas = lazy(() => import('./pessoal/Dividas'))
 
 
 // pré-carrega o código de todas as telas em segundo plano, para a troca de tela ser imediata
@@ -267,6 +269,8 @@ function Gate() {
           <Route path="receber" element={<PessoalReceber />} />
           <Route path="contas" element={<PessoalContas />} />
           <Route path="lancamentos" element={<PessoalLancamentos />} />
+          <Route path="parcelamentos" element={<PessoalParcelamentos />} />
+          <Route path="dividas" element={<PessoalDividas />} />
           <Route path="primeiros-passos" element={<PessoalPrimeirosPassos />} />
           <Route path="config" element={<PessoalConfig />} />
           <Route path="*" element={<Navigate to="/erp/pessoal" replace />} />

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useMeta } from '../components/Shell'
 import { PageHead, Loading, ErrorBox, CountUp, Modal, Empty } from '../components/ui'
 import { Icon } from '../lib/icons'
-import { useData, fetchRows } from '../lib/data'
+import { useData } from '../lib/data'
 import { brl, dm, dmy } from '../lib/format'
 import { hojeSP } from '../lib/pf/datas'
 import { lerConfig } from '../lib/pf/api'
@@ -12,7 +12,7 @@ import { diaSemanaData } from './listas'
 import { ModalGasto, ModalPagar } from './acoes'
 import { LinhaSaldo } from './graficos'
 
-const TABELAS = [...TABELAS_NUCLEO, 'pf_dividas']
+const TABELAS = [...TABELAS_NUCLEO, 'pf_dividas', 'pf_faturas']
 
 const ESTADOS = {
   verde: { rotulo: 'Dentro do limite', icone: 'check' },
@@ -33,8 +33,7 @@ export default function Inicio() {
   const { data, loading, error, reload } = useData(async () => {
     const config = await lerConfig()
     if (!config.onboarding_ok_em) return { config, pendente: true }
-    const [n, dividas] = await Promise.all([lerNucleo(hoje, config), fetchRows('pf_dividas', { where: (q) => q.eq('ativo', true), order: 'credor', ascending: true })])
-    return { ...n, dividas }
+    return lerNucleo(hoje, config)
   }, TABELAS, [hoje])
   const [gasto, setGasto] = useState(false)
   const [porque, setPorque] = useState(false)
@@ -159,10 +158,9 @@ export default function Inicio() {
         </section>
       </div>
 
-      {p.avisos.length || dividas.length ? (
+      {p.avisos.length ? (
         <div className="stack-s">
           {p.avisos.map((a) => <span className="note y" key={a}>{a}</span>)}
-          {dividas.length ? <span className="note">{dividas.length === 1 ? 'A parcela mínima da sua dívida ainda não entra' : `As parcelas mínimas das suas ${dividas.length} dívidas ainda não entram`} nesta conta. Para entrar, cadastre {dividas.length === 1 ? 'a parcela' : 'cada uma'} como conta a pagar que repete todo mês.</span> : null}
         </div>
       ) : null}
       <span className="lbl">Saldo informado e lançamentos de {saldos.contas.length} {saldos.contas.length === 1 ? 'conta' : 'contas'}. <Link to="/erp/pessoal/lancamentos">Ver lançamentos</Link></span>
