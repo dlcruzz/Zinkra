@@ -63,6 +63,7 @@ const NAV_PESSOAL = [
   ['pessoal-lancamentos', 'Lançamentos', '/erp/pessoal/lancamentos', 'leads'],
   ['pessoal-parcelamentos', 'Parcelamentos', '/erp/pessoal/parcelamentos', 'pipeline'],
   ['pessoal-dividas', 'Dívidas', '/erp/pessoal/dividas', 'shield'],
+  ['pessoal-geral', 'Visão geral', '/erp/pessoal/visao-geral', 'chart'],
   ['pessoal-passos', 'Primeiros passos', '/erp/pessoal/primeiros-passos', 'spark'],
   ['pessoal-config', 'Configurações', '/erp/pessoal/config', 'sliders'],
 ]

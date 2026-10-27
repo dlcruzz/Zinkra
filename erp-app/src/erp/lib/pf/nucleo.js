@@ -207,3 +207,7 @@ export async function lerParcelasDaLinha(ateIso) {
 }
 
 export const lerParcelasDoParcelamento = (id) => fetchRows('pf_parcelas', { where: (q) => q.eq('parcelamento_id', id).eq('status', 'aberta'), order: 'numero', ascending: true })
+
+// ---------------------------------------------------------------- etapa 4: visão geral (tudo agregado no Postgres)
+export const lerResumoMes = (refIso) => rpc('pf_resumo_mes', { p_ref: refIso })
+export const lerFluxoMeses = (n = 6) => rpc('pf_fluxo_meses', { p_meses: n })

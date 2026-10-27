@@ -340,6 +340,70 @@ language sql stable security invoker set search_path = public as $$
   from meses m
 $$;
 
+-- =====================================================================
+-- ETAPA 4 — Visão geral
+-- Regra dos números: o que saiu do bolso (contas corrente e dinheiro). Compras no cartão entram quando a
+-- fatura é paga (aparece como "Fatura do cartão"), para não contar duas vezes. Dinheiro separado para a
+-- reserva não é gasto: sai à parte.
+-- =====================================================================
+
+-- resumo de um mês: totais, gastos por categoria e gastos por dia da semana
+create or replace function public.pf_resumo_mes(p_ref date default current_date) returns jsonb
+language sql stable security invoker set search_path = public as $$
+  with l as (
+    select x.data, x.valor_cent, x.descricao,
+           (x.compromisso_id is null and x.parcela_id is null and x.divida_id is null) as variavel,
+           case when f.id is not null then 'Fatura do cartão' else coalesce(c.nome, 'Sem categoria') end as cat_nome,
+           case when f.id is not null then '#8A938E' else coalesce(c.cor, '#8A938E') end as cat_cor,
+           (c.nome = 'Reserva' and c.tipo = 'saida') as reserva
+      from public.pf_lancamentos x
+      left join public.pf_categorias c on c.id = x.categoria_id
+      left join public.pf_contas ct on ct.id = x.conta_id
+      left join public.pf_compromissos cp on cp.id = x.compromisso_id
+      left join public.pf_faturas f on f.id = cp.fatura_id
+     where x.data >= date_trunc('month', p_ref)::date
+       and x.data <  (date_trunc('month', p_ref) + interval '1 month')::date
+       and (ct.id is null or ct.tipo <> 'cartao')
+  ),
+  saidas as (select * from l where valor_cent < 0 and not coalesce(reserva, false))
+  select jsonb_build_object(
+    'mes', date_trunc('month', p_ref)::date,
+    'entradas_cent', coalesce((select sum(valor_cent) from l where valor_cent > 0), 0),
+    'saidas_cent', coalesce((select -sum(valor_cent) from saidas), 0),
+    'reservado_cent', coalesce((select -sum(valor_cent) from l where valor_cent < 0 and coalesce(reserva, false)), 0),
+    'lancamentos', (select count(*) from l),
+    'maior_gasto', (select jsonb_build_object('descricao', descricao, 'valor_cent', -valor_cent, 'data', data) from saidas order by valor_cent limit 1),
+    'categorias', coalesce((select jsonb_agg(jsonb_build_object('nome', nome, 'cor', cor, 'total_cent', total) order by total desc)
+                              from (select cat_nome as nome, min(cat_cor) as cor, -sum(valor_cent) as total from saidas group by cat_nome) t), '[]'::jsonb),
+    -- gasto do dia a dia (sem contas pagas, parcelas e dívidas) por dia da semana: 0 = domingo … 6 = sábado
+    'dia_semana', (select jsonb_agg(coalesce(d.total, 0) order by g.i)
+                     from generate_series(0, 6) g(i)
+                     left join (select extract(dow from data)::int as dow, -sum(valor_cent) as total from saidas where variavel group by 1) d on d.dow = g.i)
+  )
+$$;
+
+-- entradas e saídas dos últimos meses (o mês de hoje por último)
+create or replace function public.pf_fluxo_meses(p_meses integer default 6) returns jsonb
+language sql stable security invoker set search_path = public as $$
+  with meses as (
+    select (date_trunc('month', current_date) - (g || ' month')::interval)::date as m
+      from generate_series(0, greatest(p_meses, 1) - 1) g
+  )
+  select coalesce(jsonb_agg(jsonb_build_object(
+    'mes', m.m,
+    'entradas_cent', coalesce((select sum(x.valor_cent) from public.pf_lancamentos x left join public.pf_contas ct on ct.id = x.conta_id
+                                where x.valor_cent > 0 and (ct.id is null or ct.tipo <> 'cartao')
+                                  and x.data >= m.m and x.data < (m.m + interval '1 month')::date), 0),
+    'saidas_cent', coalesce((select -sum(x.valor_cent) from public.pf_lancamentos x
+                               left join public.pf_contas ct on ct.id = x.conta_id
+                               left join public.pf_categorias c on c.id = x.categoria_id
+                              where x.valor_cent < 0 and (ct.id is null or ct.tipo <> 'cartao')
+                                and not (coalesce(c.nome, '') = 'Reserva' and c.tipo = 'saida')
+                                and x.data >= m.m and x.data < (m.m + interval '1 month')::date), 0)
+  ) order by m.m), '[]'::jsonb)
+  from meses m
+$$;
+
 -- ---------------------------------------------------------------------
 -- Permissões das funções da etapa 3
 -- ---------------------------------------------------------------------
@@ -351,7 +415,7 @@ begin
     'pf_sincronizar_fatura(uuid)', 'pf_marcar_fatura(uuid,boolean,date)', 'pf_ressincronizar_cartao(uuid,date)',
     'pf_gasto_cartao(uuid,date,bigint,uuid,text)', 'pf_criar_parcelamento(jsonb)', 'pf_antecipar_parcelas(uuid[],date,uuid)',
     'pf_apagar_parcelamento(uuid)', 'pf_parcelamentos_resumo()', 'pf_faturas_abertas()', 'pf_pagar_divida(uuid,date,bigint,uuid)',
-    'pf_pagar_compromisso(uuid,date,bigint,uuid,boolean)', 'pf_reabrir_compromisso(uuid)', 'pf_desfazer_lancamento(uuid)', 'pf_comprometimento(integer)'
+    'pf_pagar_compromisso(uuid,date,bigint,uuid,boolean)', 'pf_reabrir_compromisso(uuid)', 'pf_desfazer_lancamento(uuid)', 'pf_comprometimento(integer)', 'pf_resumo_mes(date)', 'pf_fluxo_meses(integer)'
   ] loop
     execute format('revoke all on function public.%s from public, anon', f);
     execute format('grant execute on function public.%s to authenticated', f);
