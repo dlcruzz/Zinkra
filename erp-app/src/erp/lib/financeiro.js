@@ -113,7 +113,111 @@ export function resumoComanda({ valores = [], recebimentos = [], hoje = today() 
   return { ...total, itens, semItem: soma(recebimentos.filter((r) => !r.valor_id)) }
 }
 
-// Faturamento = dinheiro que já entrou (recebido), nunca o que só foi combinado.
+// Datas em que cada mensalidade foi cobrada até hoje (uma por mês, no dia do início).
+const somaMeses = (iso, n) => {
+  const [y, m, d] = iso.split('-').map(Number)
+  const t = y * 12 + (m - 1) + n
+  return `${Math.floor(t / 12)}-${String((t % 12) + 1).padStart(2, '0')}-${String(Math.min(d, 28)).padStart(2, '0')}`
+}
+export const datasDeCobranca = (item, hoje = today()) =>
+  Array.from({ length: mesesCobrados(item, hoje) }, (_, k) => somaMeses(item.starts_on, k))
+
+// Financeiro SaaS: produtos próprios da Zinkra com assinatura mensal.
+//   mrr = soma das assinaturas vigentes hoje; emAberto = mensalidades já vencidas sem recebimento ligado.
+export function resumoSaas({ produtos = [], assinaturas = [], recebimentos = [] } = {}, hoje = today()) {
+  const feitos = recebimentos.filter((r) => r.received_on && r.received_on <= hoje)
+  const vigente = (a) => a.starts_on <= hoje && (!a.ends_on || a.ends_on >= hoje)
+  const comoItem = (a) => ({ kind: 'mensalidade', amount_cents: a.amount_cents, starts_on: a.starts_on, ends_on: a.ends_on })
+  const linhas = assinaturas.map((a) => {
+    const esperado = valorDoItem(comoItem(a), hoje)
+    const recebido = soma(feitos.filter((r) => r.assinatura_id === a.id))
+    return { assinatura: a, vigente: vigente(a), meses: mesesCobrados(comoItem(a), hoje), esperado, recebido, emAberto: Math.max(0, esperado - recebido) }
+  })
+  const porProduto = produtos.map((p) => {
+    const deste = linhas.filter((l) => l.assinatura.produto_id === p.id)
+    const vigentes = deste.filter((l) => l.vigente)
+    return {
+      produto: p,
+      mrr: soma(vigentes.map((l) => l.assinatura)),
+      assinantes: vigentes.length,
+      recebido: soma(feitos.filter((r) => r.produto_id === p.id)),
+      emAberto: deste.reduce((a, l) => a + l.emAberto, 0),
+    }
+  })
+  const mes = hoje.slice(0, 7)
+  return {
+    mrr: porProduto.reduce((a, p) => a + p.mrr, 0),
+    assinantes: porProduto.reduce((a, p) => a + p.assinantes, 0),
+    recebidoTotal: soma(feitos),
+    recebidoMes: soma(feitos.filter((r) => r.received_on.slice(0, 7) === mes)),
+    emAberto: linhas.reduce((a, l) => a + l.emAberto, 0),
+    porProduto,
+    assinaturas: linhas,
+  }
+}
+
+// FATURADO = tudo que a Zinkra já fechou até hoje, mesmo o que ainda falta receber:
+//   projetos no modelo novo: cada item de valor na data dele (mensalidade: uma vez por mês cobrado);
+//   contratos no modelo antigo: cada parcela já recebida ou vencida;
+//   SaaS: o que entrou nos recebimentos de cada produto.
+// RECEBIDO = o que já entrou no caixa. Nada é contado duas vezes: o mundo (w) já traz o modelo novo
+// no lugar das parcelas antigas do mesmo contrato (semDuplicidade) e o banco só vira recebimento uma vez.
+export function faturado(w, hoje = today()) {
+  const nomeCliente = (id) => (w.clients || []).find((c) => c.id === id)?.name || 'Sem cliente'
+  const projeto = (id) => (w.projects || []).find((p) => p.id === id)
+  const rotuloProjeto = (id) => { const p = projeto(id); return p ? `${nomeCliente(p.client_id)} · ${p.name}` : 'Projeto removido' }
+  const fat = []
+  const rec = []
+  const valor = (x) => Number(x.amount_cents) || 0
+  const fin = w.fin || {}
+
+  for (const v of fin.valores || []) {
+    const origem = rotuloProjeto(v.project_id)
+    if (v.kind === 'mensalidade') datasDeCobranca(v, hoje).forEach((d) => fat.push({ origem, data: d, valor: valor(v) }))
+    else fat.push({ origem, data: v.on_date, valor: valor(v) })
+  }
+  for (const r of fin.recebimentos || []) rec.push({ origem: rotuloProjeto(r.project_id), data: r.received_on, valor: valor(r) })
+
+  // modelo antigo: sobram em w.receivables só as parcelas que NÃO foram trocadas pelo modelo novo
+  for (const r of w.receivables || []) {
+    if (/^(proj|saas)-rec-/.test(String(r.id))) continue
+    const contrato = (w.contracts || []).find((c) => c.id === r.contract_id)
+    const cliente = nomeCliente(r.client_id || contrato?.client_id)
+    const origem = contrato?.title ? `${cliente} · ${contrato.title}` : cliente
+    const data = r.received_on || r.due_on
+    if (!data || data > hoje) continue
+    fat.push({ origem, data, valor: valor(r) })
+    if (r.received_on) rec.push({ origem, data: r.received_on, valor: valor(r) })
+  }
+
+  const nomeProduto = (id) => (w.saas?.produtos || []).find((p) => p.id === id)?.name || 'produto'
+  for (const r of w.saas?.recebimentos || []) {
+    const origem = `SaaS · ${nomeProduto(r.produto_id)}`
+    fat.push({ origem, data: r.received_on, valor: valor(r) })
+    rec.push({ origem, data: r.received_on, valor: valor(r) })
+  }
+
+  const ate = (l) => l.data && l.data <= hoje
+  const feitosFat = fat.filter(ate)
+  const feitosRec = rec.filter(ate)
+  const origens = new Map()
+  feitosFat.forEach((l) => origens.set(l.origem, { origem: l.origem, faturado: (origens.get(l.origem)?.faturado || 0) + l.valor, recebido: origens.get(l.origem)?.recebido || 0 }))
+  feitosRec.forEach((l) => {
+    const o = origens.get(l.origem) || { origem: l.origem, faturado: 0, recebido: 0 }
+    origens.set(l.origem, { ...o, recebido: o.recebido + l.valor })
+  })
+  const total = soma(feitosFat.map((l) => ({ amount_cents: l.valor })))
+  const recebido = soma(feitosRec.map((l) => ({ amount_cents: l.valor })))
+  return {
+    total,
+    recebido,
+    falta: Math.max(0, total - recebido),
+    lancamentos: feitosFat.map((l) => ({ amount_cents: l.valor, received_on: l.data })),
+    porOrigem: [...origens.values()].sort((a, b) => b.faturado - a.faturado),
+  }
+}
+
+// Por período, a partir de lançamentos { amount_cents, received_on } (received_on = a data do lançamento).
 // Janelas móveis que terminam hoje: semana (7 dias), 15 dias, mês (30), 3 meses (90),
 // 6 meses (180), 1 ano (365). Cada uma traz também o período anterior de mesmo tamanho.
 export const JANELAS_FATURAMENTO = [

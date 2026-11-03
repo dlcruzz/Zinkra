@@ -90,7 +90,7 @@ export default function Dashboard() {
         <Seg value={period} onChange={setPeriod} options={[['week', 'Semana'], ['month', 'Mês'], ['quarter', 'Trimestre']]} />
       </PageHead>
 
-      {auth.canSee('financeiro') ? <FaturamentoHero recebidos={w.receivables} /> : null}
+      {auth.canSee('financeiro') ? <FaturamentoHero w={w} /> : null}
 
       <section aria-label="Dinheiro" className="grid-kpi">
         <Kpi label="Recebido no mês" value={brl0(c.cs.received)} bar={c.goal ? pct(c.cs.received, c.goal) : undefined}
