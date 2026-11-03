@@ -62,6 +62,7 @@ export default function Fluxo() {
             <Stat label="Recorrente mensal" value={brl0(c.cs.mrr)} valueClass="ok" />
             <Stat label="Saldo projetado em 30 dias" value={brl0(c.cs.projected)} valueClass={c.cs.projected < 0 ? 'bad' : ''} />
             <Stat label="Próximos 3 meses" value={brl0(future.reduce((a, m) => a + m.result, 0))} sub="resultado previsto" valueClass={future.reduce((a, m) => a + m.result, 0) < 0 ? 'bad' : ''} />
+            {c.cs.projRecv || c.cs.projComm ? <Stat label="A receber dos projetos" value={brl0(c.cs.projRecv)} sub={`comissões a pagar: ${brl0(c.cs.projComm)}`} /> : null}
           </div>
           {negative ? <div className="note r">{monthLabel(negative.key)} fecha negativo na previsão ({brl0(negative.in)} de entradas contra {brl0(negative.out)} de saídas). Feche projetos ou antecipe recebimentos.</div> : null}
           <Card pad title={<h2>Entradas e saídas por mês</h2>} action={

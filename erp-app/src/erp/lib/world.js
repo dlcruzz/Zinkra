@@ -3,11 +3,13 @@
 // é mais simples e barato do que manter dezenas de views no banco.
 import { useData, fetchRows, onChange } from './data'
 import { getPipelines } from './automations'
+import { calcularCarteira, semDuplicidade } from './financeiro'
 import { addDays, today, inRange, startOfMonth, endOfMonth, startOfWeek } from './format'
 
 const TABLES = ['leads', 'activities', 'tasks', 'projects', 'receivables', 'payables', 'proposals', 'proposal_items',
   'contracts', 'clients', 'goals', 'meetings', 'time_entries', 'commissions', 'pipeline_stages', 'ideas',
-  'insight_dismissals', 'settings', 'playbooks', 'partners', 'milestones']
+  'insight_dismissals', 'settings', 'playbooks', 'partners', 'milestones',
+  'project_valores', 'project_recebimentos', 'project_comissao', 'project_comissao_pagamentos', 'project_comissao_abatimentos']
 
 const safe = (p) => p.catch(() => [])
 
@@ -24,7 +26,8 @@ export function prefetchWorld() { loadWorld().catch(() => {}) }
 async function loadWorldFresh() {
   const since = addDays(today(), -400)
   const [P, leads, activities, tasks, projects, receivables, payables, proposals, items, contracts, clients, goals,
-    meetings, timeEntries, commissions, ideas, dismissals, settingsRows, playbooks, partners, milestones] = await Promise.all([
+    meetings, timeEntries, commissions, ideas, dismissals, settingsRows, playbooks, partners, milestones,
+    finValores, finRecebimentos, finParceiros, finPagamentos, finAbatimentos] = await Promise.all([
     getPipelines(),
     safe(fetchRows('leads', { limit: 5000 })),
     safe(fetchRows('activities', { where: (q) => q.gte('happened_at', since), order: 'happened_at', limit: 10000 })),
@@ -46,12 +49,37 @@ async function loadWorldFresh() {
     safe(fetchRows('playbooks')),
     safe(fetchRows('partners')),
     safe(fetchRows('milestones', { order: null })),
+    safe(fetchRows('project_valores', { order: null })),
+    safe(fetchRows('project_recebimentos', { order: null })),
+    safe(fetchRows('project_comissao', { order: null })),
+    safe(fetchRows('project_comissao_pagamentos', { order: null })),
+    safe(fetchRows('project_comissao_abatimentos', { order: null })),
   ])
   const settings = Object.fromEntries(settingsRows.map((r) => [r.key, r.value]))
-  return {
+  const world = {
     P, leads, activities, tasks, projects, receivables, payables, proposals, items, contracts, clients, goals, meetings,
     timeEntries, commissions, terms: [], ideas, dismissals, settings, playbooks, partners, milestones,
   }
+  return comFinanceiroDosProjetos(world, {
+    valores: finValores, recebimentos: finRecebimentos, parceiros: finParceiros, pagamentos: finPagamentos, abatimentos: finAbatimentos,
+  })
+}
+
+// Financeiro dos projetos entra no caixa SEM contar duas vezes:
+//  - parcelas do contrato (e contas de comissão dele) de um projeto no modelo novo saem da conta;
+//  - cada recebimento do projeto vira uma entrada já recebida, cada pagamento de comissão uma saída já paga
+//    (um lançamento conciliado com o banco é UM recebimento só: o banco nunca soma por fora);
+//  - o que falta receber e a comissão a pagar (sem data certa) ficam em w.carteira, fora da projeção de 30 dias.
+export function comFinanceiroDosProjetos(w, fin) {
+  const { linhas, totais } = calcularCarteira(fin, w.projects)
+  if (!linhas.length) return { ...w, fin, carteira: { linhas, totais } }
+  const { receivables, payables } = semDuplicidade(w, fin)
+  const frente = (id) => w.projects.find((p) => p.id === id)?.front || 'sites'
+  const entradas = fin.recebimentos.map((r) => ({ id: 'proj-rec-' + r.id, contract_id: null, front: frente(r.project_id),
+    amount_cents: r.amount_cents, due_on: r.received_on, received_on: r.received_on }))
+  const saidas = fin.pagamentos.map((p) => ({ id: 'proj-pag-' + p.id, category: 'Comissões', recurrence: 'once', series_id: null,
+    amount_cents: p.amount_cents, due_on: p.paid_on, paid_on: p.paid_on }))
+  return { ...w, receivables: [...receivables, ...entradas], payables: [...payables, ...saidas], fin, carteira: { linhas, totais } }
 }
 
 export function useWorld(deps = []) {
@@ -123,6 +151,7 @@ export function cashSummary(w, ref = today()) {
     - w.payables.filter((p) => p.paid_on).reduce((a, p) => a + p.amount_cents, 0)
   return {
     received, billedMonth, recv30, pay30, mrr, cash, projected: cash + recv30 - pay30,
+    projRecv: w.carteira?.totais.faltaReceber || 0, projComm: w.carteira?.totais.comissaoAPagar || 0,
     overdueR, overdueP, payWeek,
   }
 }

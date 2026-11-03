@@ -7,6 +7,7 @@ import { brl0, dm, today, daysFromToday } from '../lib/format'
 import { PageHead, Seg, Loading, ErrorBox, Badge, Select, Empty } from '../components/ui'
 import { PROJECT_STAGES, PROJECT_STAGE_CLASS, FRONTS } from '../lib/constants'
 import { NewProject } from './Clientes'
+import FinanceiroLista from '../components/FinanceiroLista'
 
 const OPEN = new Set(['briefing', 'design', 'desenvolvimento', 'revisao', 'ajustes'])
 
@@ -68,7 +69,7 @@ export default function Projetos() {
   return (
     <div className="page">
       <PageHead title="Projetos" sub={`${active.length} ativos · ${late.length} atrasado(s) · ${week.length} entrega(s) nos próximos 7 dias`}>
-        <Seg value={view} onChange={setView} options={[['kanban', 'Kanban'], ['list', 'Lista'], ['timeline', 'Linha do tempo']]} />
+        <Seg value={view} onChange={setView} options={[['kanban', 'Kanban'], ['list', 'Lista'], ['timeline', 'Linha do tempo'], ...(auth.canSee('financeiro') ? [['fin', 'Financeiro']] : [])]} />
         <Select value={front} onChange={(v) => setFront(v || '')} placeholder="Todas as frentes" options={FRONTS} style={{ width: 170 }} />
         <label className="check"><input type="checkbox" checked={showDone} onChange={(e) => setShowDone(e.target.checked)} />Mostrar entregues</label>
         {auth.canEdit('projetos') ? <button type="button" className="btn p" onClick={() => setCreating(true)}>Novo projeto</button> : null}
@@ -111,6 +112,8 @@ export default function Projetos() {
           </tbody>
         </table></div>
       ) : null}
+
+      {view === 'fin' && auth.canSee('financeiro') ? <FinanceiroLista projetos={rows.filter((p) => !p.archived_at)} /> : null}
 
       {view === 'timeline' ? <Timeline rows={active.filter((p) => p.starts_on && p.due_on)} onOpen={(id) => nav(`/erp/projetos/${id}`)} /> : null}
       {!rows.length ? <Empty icon="folder">Nenhum projeto. Eles nascem quando uma proposta é aceita, ou crie um aqui.</Empty> : null}

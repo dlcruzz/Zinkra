@@ -9,6 +9,7 @@ import { PageHead, Card, Tabs, Loading, ErrorBox, Badge, Field, Select, MoneyInp
 import { TaskRow } from '../components/TaskRow'
 import { PROJECT_STAGES, PROJECT_STAGE_CLASS, FRONTS, MEETING_TYPES } from '../lib/constants'
 import { Icon } from '../lib/icons'
+import FinanceiroProjeto from '../components/FinanceiroProjeto'
 
 export default function ProjetoDetalhe() {
   const { id } = useParams()
@@ -59,7 +60,7 @@ export default function ProjetoDetalhe() {
         {canEdit ? <button type="button" className="btn p" onClick={() => erp.openQuick('task', { project_id: p.id, client_id: p.client_id, front: p.front, owner_id: p.owner_id })}>Nova tarefa</button> : null}
       </PageHead>
 
-      <Tabs value={tab} onChange={setTab} options={[['geral', 'Visão geral'], ['tarefas', 'Tarefas', tasks.length], ['marcos', 'Marcos', milestones.length], ['horas', 'Horas'], ['reunioes', 'Reuniões', meetings.length], ['notas', 'Notas']]} />
+      <Tabs value={tab} onChange={setTab} options={[['geral', 'Visão geral'], ...(auth.canSee('financeiro') ? [['financeiro', 'Financeiro']] : []), ['tarefas', 'Tarefas', tasks.length], ['marcos', 'Marcos', milestones.length], ['horas', 'Horas'], ['reunioes', 'Reuniões', meetings.length], ['notas', 'Notas']]} />
 
       {tab === 'geral' ? (
         <div className="cols">
@@ -82,6 +83,8 @@ export default function ProjetoDetalhe() {
           </div>
         </div>
       ) : null}
+
+      {tab === 'financeiro' && auth.canSee('financeiro') ? <FinanceiroProjeto project={p} /> : null}
 
       {tab === 'tarefas' ? (
         <Card>

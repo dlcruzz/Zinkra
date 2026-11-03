@@ -101,6 +101,10 @@ export default function Dashboard() {
         <Kpi label="Saldo projetado 30 dias" value={brl0(c.cs.projected)} accent={c.cs.projected >= 0} danger={c.cs.projected < 0}
           hint={revDelta !== null ? `${revDelta >= 0 ? '+' : ''}${revDelta}% de recebimento vs mês anterior` : 'caixa + receber − pagar'}
           hintClass={revDelta === null ? 'lbl' : revDelta >= 0 ? 'up' : 'dn'} />
+        {c.cs.projRecv || c.cs.projComm ? <>
+          <Kpi label="A receber dos projetos" value={brl0(c.cs.projRecv)} hint={`${w.carteira.linhas.filter((l) => l.fin.faltaReceber > 0).length} projeto(s) com saldo`} />
+          <Kpi label="Comissões a pagar" value={brl0(c.cs.projComm)} hint="parceiros dos projetos, já descontados abatimentos" />
+        </> : null}
       </section>
 
       <section className="grid-2">
