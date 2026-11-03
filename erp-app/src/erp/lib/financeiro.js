@@ -3,12 +3,30 @@
 // Dinheiro sempre em centavos (inteiro). Percentual é convertido em pontos-base (1% = 100)
 // antes da conta, para nunca depender de número com vírgula flutuante.
 
-import { brl } from './format'
+import { brl, today, addDays } from './format'
 
-export const TIPOS_VALOR = { base: 'Valor base', adicional: 'Adicional', melhoria: 'Melhoria' }
+export const TIPOS_VALOR = { base: 'Valor base', adicional: 'Adicional', melhoria: 'Melhoria', mensalidade: 'Mensalidade' }
 export const FORMAS_RECEBIMENTO = ['Pix', 'Transferência', 'Boleto', 'Cartão', 'Dinheiro']
 
 const soma = (lista) => (lista || []).reduce((a, x) => a + (Number(x.amount_cents) || 0), 0)
+
+// Mensalidade: amount_cents é o valor POR MÊS. Um ciclo é cobrado no dia do início, todo mês
+// (dia 29 a 31 vira 28 para existir em todos os meses), até ends_on se houver.
+// Datas no formato AAAA-MM-DD.
+export function mesesCobrados(item, hoje = today()) {
+  if (!item || item.kind !== 'mensalidade' || !item.starts_on || hoje < item.starts_on) return 0
+  const fim = item.ends_on && item.ends_on < hoje ? item.ends_on : hoje
+  const [ya, ma, da] = item.starts_on.split('-').map(Number)
+  const [yb, mb, db] = fim.split('-').map(Number)
+  const n = (yb - ya) * 12 + (mb - ma) + (db >= Math.min(da, 28) ? 1 : 0)
+  return Math.max(0, n)
+}
+
+// Quanto o item vale até hoje: valor fechado, ou valor mensal vezes os meses já cobrados.
+export function valorDoItem(item, hoje = today()) {
+  const v = Number(item.amount_cents) || 0
+  return item.kind === 'mensalidade' ? v * mesesCobrados(item, hoje) : v
+}
 
 // parceiro: { kind: 'fixa' | 'percentual', amount_cents, pct } ou null (projeto sem parceiro)
 export function comissaoTotal(parceiro, valorTotal) {
@@ -22,8 +40,8 @@ export function comissaoTotal(parceiro, valorTotal) {
 
 // dados: { valores, recebimentos, parceiro, pagamentos, abatimentos } (listas de linhas com amount_cents)
 export function calcularProjeto(dados = {}) {
-  const { valores = [], recebimentos = [], parceiro = null, pagamentos = [], abatimentos = [] } = dados
-  const valorTotal = soma(valores)
+  const { valores = [], recebimentos = [], parceiro = null, pagamentos = [], abatimentos = [], hoje = today() } = dados
+  const valorTotal = valores.reduce((a, x) => a + valorDoItem(x, hoje), 0)
   const recebido = soma(recebimentos)
   const diferenca = valorTotal - recebido
   const temParceiro = Boolean(parceiro)
@@ -80,6 +98,45 @@ export function avisoAbatimento(fin, novoValor) {
   return novoValor > fin.comissaoAPagar
     ? 'Este abatimento é maior que a comissão que ainda falta pagar. O parceiro ficará devendo a diferença.'
     : ''
+}
+
+// Uma comanda: totais dela e, item por item, quanto foi cobrado e quanto entrou apontando para ele.
+// Recebimentos sem item (valor_id vazio) ficam em `semItem`: contam no total da comanda, não em um item.
+export function resumoComanda({ valores = [], recebimentos = [], hoje = today() }) {
+  const total = calcularProjeto({ valores, recebimentos, hoje })
+  const itens = valores.map((item) => ({
+    item,
+    cobrado: valorDoItem(item, hoje),
+    meses: mesesCobrados(item, hoje),
+    recebido: soma(recebimentos.filter((r) => r.valor_id === item.id)),
+  }))
+  return { ...total, itens, semItem: soma(recebimentos.filter((r) => !r.valor_id)) }
+}
+
+// Faturamento = dinheiro que já entrou (recebido), nunca o que só foi combinado.
+// Janelas móveis que terminam hoje: semana (7 dias), 15 dias, mês (30), 3 meses (90),
+// 6 meses (180), 1 ano (365). Cada uma traz também o período anterior de mesmo tamanho.
+export const JANELAS_FATURAMENTO = [
+  { id: 'semana', rotulo: 'Semana', dias: 7, legenda: 'últimos 7 dias' },
+  { id: 'quinzena', rotulo: '15 dias', dias: 15, legenda: 'últimos 15 dias' },
+  { id: 'mes', rotulo: 'Mês', dias: 30, legenda: 'últimos 30 dias' },
+  { id: 'tri', rotulo: '3 meses', dias: 90, legenda: 'últimos 90 dias' },
+  { id: 'sem', rotulo: '6 meses', dias: 180, legenda: 'últimos 180 dias' },
+  { id: 'ano', rotulo: '1 ano', dias: 365, legenda: 'últimos 365 dias' },
+]
+
+// recebidos: linhas com amount_cents e received_on (só entram as já recebidas, até hoje)
+export function faturamento(recebidos, hoje = today()) {
+  const feitos = (recebidos || []).filter((r) => r.received_on && r.received_on <= hoje)
+  const entre = (de, ate) => soma(feitos.filter((r) => r.received_on >= de && r.received_on <= ate))
+  return {
+    total: soma(feitos),
+    janelas: JANELAS_FATURAMENTO.map((j) => {
+      const de = addDays(hoje, -(j.dias - 1))
+      const anteriorAte = addDays(de, -1)
+      return { ...j, valor: entre(de, hoje), anterior: entre(addDays(anteriorAte, -(j.dias - 1)), anteriorAte) }
+    }),
+  }
 }
 
 // Linha do tempo única, mais recente primeiro.
