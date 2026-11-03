@@ -3,14 +3,14 @@
 // é mais simples e barato do que manter dezenas de views no banco.
 import { useData, fetchRows, onChange } from './data'
 import { getPipelines } from './automations'
-import { calcularCarteira, semDuplicidade } from './financeiro'
+import { calcularCarteira, semDuplicidade, saldoPrevistoAte } from './financeiro'
 import { addDays, today, inRange, startOfMonth, endOfMonth, startOfWeek } from './format'
 
 const TABLES = ['leads', 'activities', 'tasks', 'projects', 'receivables', 'payables', 'proposals', 'proposal_items',
   'contracts', 'clients', 'goals', 'meetings', 'time_entries', 'commissions', 'pipeline_stages', 'ideas',
   'insight_dismissals', 'settings', 'playbooks', 'partners', 'milestones',
   'project_valores', 'project_recebimentos', 'project_comissao', 'project_comissao_pagamentos', 'project_comissao_abatimentos',
-  'saas_produtos', 'saas_assinaturas', 'saas_recebimentos']
+  'saas_produtos', 'saas_assinaturas', 'saas_recebimentos', 'project_comandas']
 
 const safe = (p) => p.catch(() => [])
 
@@ -28,7 +28,7 @@ async function loadWorldFresh() {
   const since = addDays(today(), -400)
   const [P, leads, activities, tasks, projects, receivables, payables, proposals, items, contracts, clients, goals,
     meetings, timeEntries, commissions, ideas, dismissals, settingsRows, playbooks, partners, milestones,
-    finValores, finRecebimentos, finParceiros, finPagamentos, finAbatimentos, saasProdutos, saasAssinaturas, saasRecebimentos] = await Promise.all([
+    finValores, finRecebimentos, finParceiros, finPagamentos, finAbatimentos, saasProdutos, saasAssinaturas, saasRecebimentos, finComandas] = await Promise.all([
     getPipelines(),
     safe(fetchRows('leads', { limit: 5000 })),
     safe(fetchRows('activities', { where: (q) => q.gte('happened_at', since), order: 'happened_at', limit: 10000 })),
@@ -58,6 +58,7 @@ async function loadWorldFresh() {
     safe(fetchRows('saas_produtos', { order: null })),
     safe(fetchRows('saas_assinaturas', { order: null })),
     safe(fetchRows('saas_recebimentos', { order: null })),
+    safe(fetchRows('project_comandas', { order: null })),
   ])
   const settings = Object.fromEntries(settingsRows.map((r) => [r.key, r.value]))
   const world = {
@@ -65,7 +66,7 @@ async function loadWorldFresh() {
     timeEntries, commissions, terms: [], ideas, dismissals, settings, playbooks, partners, milestones,
   }
   const comProjetos = comFinanceiroDosProjetos(world, {
-    valores: finValores, recebimentos: finRecebimentos, parceiros: finParceiros, pagamentos: finPagamentos, abatimentos: finAbatimentos,
+    valores: finValores, recebimentos: finRecebimentos, parceiros: finParceiros, pagamentos: finPagamentos, abatimentos: finAbatimentos, comandas: finComandas,
   })
   return comSaas(comProjetos, { produtos: saasProdutos, assinaturas: saasAssinaturas, recebimentos: saasRecebimentos })
 }
@@ -151,7 +152,9 @@ export function cashSummary(w, ref = today()) {
   const unpaid = (p) => !p.paid_on
   const received = w.receivables.filter((r) => r.received_on && inRange(r.received_on, m0, m1)).reduce((a, r) => a + r.amount_cents, 0)
   const billedMonth = w.receivables.filter((r) => inRange(r.due_on, m0, m1)).reduce((a, r) => a + r.amount_cents, 0)
+  // saldo de projeto com previsão até daqui a 30 dias também entra (projeto no modelo novo não tem parcela)
   const recv30 = w.receivables.filter((r) => open(r) && r.due_on <= in30).reduce((a, r) => a + r.amount_cents, 0)
+    + saldoPrevistoAte(w.carteira?.linhas || [], in30)
   const overdueR = w.receivables.filter((r) => open(r) && r.due_on < ref)
   const pay30 = w.payables.filter((p) => unpaid(p) && p.due_on <= in30).reduce((a, p) => a + p.amount_cents, 0)
   const payWeek = w.payables.filter((p) => unpaid(p) && p.due_on >= ref && p.due_on <= addDays(ref, 7))

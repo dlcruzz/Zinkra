@@ -12,7 +12,8 @@ export async function carregarFinanceiro() {
   const [valores, recebimentos, parceiros, pagamentos, abatimentos] = await Promise.all(
     ['project_valores', 'project_recebimentos', 'project_comissao', 'project_comissao_pagamentos', 'project_comissao_abatimentos']
       .map((t) => fetchRows(t, { order: 'created_at' })))
-  return { valores, recebimentos, parceiros, pagamentos, abatimentos }
+  const comandas = await fetchRows('project_comandas', { order: 'created_at' }).catch(() => [])
+  return { valores, recebimentos, parceiros, pagamentos, abatimentos, comandas }
 }
 
 // Lista de projetos com os saldos em colunas, filtros e totais no rodapé.

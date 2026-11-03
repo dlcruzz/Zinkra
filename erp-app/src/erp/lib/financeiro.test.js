@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { calcularProjeto, calcularCarteira, linhaDoTempo, validarValor, avisoRecebimento, avisoAbatimento, semDuplicidade, mesesCobrados, valorDoItem, resumoComanda, faturamento, datasDeCobranca, resumoSaas, faturado } from './financeiro'
+import { calcularProjeto, calcularCarteira, linhaDoTempo, validarValor, avisoRecebimento, avisoAbatimento, semDuplicidade, mesesCobrados, valorDoItem, resumoComanda, faturamento, datasDeCobranca, resumoSaas, faturado, previsaoDoSaldo, saldoPrevistoAte } from './financeiro'
 
 // Valores abaixo são só de teste (nada disso vai para o banco).
 const v = (amount_cents, extra = {}) => ({ amount_cents, ...extra })
@@ -288,5 +288,24 @@ describe('faturado (valor fechado) x recebido', () => {
   it('mensalidade de projeto entra mês a mês', () => {
     const w2 = { ...w, fin: { valores: [{ project_id: 'p1', kind: 'mensalidade', amount_cents: 45000, starts_on: '2026-09-05' }], recebimentos: [] }, receivables: [], saas: null }
     expect(faturado(w2, hoje).total).toBe(45000 * 2) // 05/09 e 05/10; o de 05/11 ainda não venceu
+  })
+})
+describe('previsão de receber o saldo do projeto', () => {
+  const f = {
+    valores: [{ project_id: 'p1', kind: 'base', amount_cents: 100000 }, { project_id: 'p2', kind: 'base', amount_cents: 50000 }],
+    recebimentos: [{ project_id: 'p1', amount_cents: 40000 }],
+    comandas: [
+      { project_id: 'p1', status: 'aberta', receber_previsto_em: '2026-11-20' },
+      { project_id: 'p2', status: 'aberta', receber_previsto_em: null },
+    ],
+  }
+  const { linhas } = calcularCarteira(f, [{ id: 'p1' }, { id: 'p2' }])
+  it('a carteira traz a previsão da comanda aberta', () => expect(linhas.map((l) => l.previsao)).toEqual(['2026-11-20', null]))
+  it('previsaoDoSaldo ignora comanda encerrada', () => {
+    expect(previsaoDoSaldo({ comandas: [{ project_id: 'p1', status: 'encerrada', receber_previsto_em: '2026-11-20' }] }, 'p1')).toBeNull()
+  })
+  it('só entra no a receber o saldo com previsão até a data', () => {
+    expect(saldoPrevistoAte(linhas, '2026-12-03')).toBe(60000)
+    expect(saldoPrevistoAte(linhas, '2026-11-10')).toBe(0)
   })
 })

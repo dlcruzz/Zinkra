@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
-import { useData, fetchRows, fetchOne, insert, update, remove, notify } from '../lib/data'
+import { useData, fetchRows, fetchOne, insert, update, remove, archive, notify } from '../lib/data'
 import { brl, dmy, hm, today } from '../lib/format'
 import { calcularProjeto, resumoComanda, linhaDoTempo, validarValor, avisoRecebimento, avisoAbatimento, ALERTAS, TIPOS_VALOR, FORMAS_RECEBIMENTO } from '../lib/financeiro'
 import { Card, Kpi, Loading, ErrorBox, Modal, Field, Select, MoneyInput, AsyncButton, useConfirm, Badge } from './ui'
@@ -21,7 +21,7 @@ export function useFinanceiroProjeto(projectId, clientId = null) {
   return useData(async () => {
     const where = (q) => q.eq('project_id', projectId)
     try {
-      const [valores, recebimentos, parceiros, pagamentos, abatimentos, partners, comandas, historico, cliente] = await Promise.all([
+      const [valores, recebimentos, parceiros, pagamentos, abatimentos, partners, comandas, historico, cliente, legados] = await Promise.all([
         fetchRows('project_valores', { where, order: 'on_date' }),
         fetchRows('project_recebimentos', { where, order: 'received_on' }),
         fetchRows('project_comissao', { where, order: 'created_at' }),
@@ -31,13 +31,14 @@ export function useFinanceiroProjeto(projectId, clientId = null) {
         opcional(fetchRows('project_comandas', { where, order: 'created_at', ascending: true })),
         opcional(fetchRows('project_fin_log', { where, order: 'feito_em', limit: 40 })),
         clientId ? fetchOne('clients', clientId).catch(() => null) : null,
+        clientId ? fetchRows('receivables', { where: (q) => q.eq('client_id', clientId), order: 'due_on', ascending: true }).catch(() => []) : [],
       ])
-      return { valores, recebimentos, parceiro: parceiros[0] || null, pagamentos, abatimentos, partners, comandas, historico, cliente }
+      return { valores, recebimentos, parceiro: parceiros[0] || null, pagamentos, abatimentos, partners, comandas, historico, cliente, legados }
     } catch (e) {
       if (FALTA_TABELA.test(e?.message || '')) return { semTabelas: true }
       throw e
     }
-  }, [...TABELAS_FIN, 'project_fin_log', 'clients'], [projectId, clientId])
+  }, [...TABELAS_FIN, 'project_fin_log', 'clients', 'receivables'], [projectId, clientId])
 }
 
 const rotuloItem = (v) => `${TIPOS_VALOR[v.kind] || 'Valor'}${v.description ? ` · ${v.description}` : ''}`
@@ -64,6 +65,11 @@ export default function FinanceiroProjeto({ project, onChanged }) {
   const comanda = temComandas ? (data.comandas.find((c) => c.status === 'aberta') || data.comandas[0] || null) : null
   const itensPorId = Object.fromEntries(data.valores.map((v) => [v.id, rotuloItem(v)]))
   const semValor = data.valores.length === 0
+  // parcelas do modelo antigo (Contas a receber) do mesmo cliente que ainda contam por fora deste financeiro
+  const legados = (data.legados || []).filter((x) => !(project.contract_id && x.contract_id === project.contract_id))
+  const arquivarLegado = async (x) => {
+    if (await confirm(`Arquivar a parcela "${x.description}" de ${brl(x.amount_cents)}? Ela sai de Contas a receber e dos totais. Dá para desfazer logo depois.`, { ok: 'Arquivar' })) await archive('receivables', x.id)
+  }
 
   // a comanda nasce no primeiro lançamento; depois todo item e recebimento cai nela
   const garantirComanda = async () => {
@@ -98,6 +104,13 @@ export default function FinanceiroProjeto({ project, onChanged }) {
             : <b className="lbl">Rode supabase/erp-comandas.sql para ativar</b>}
         </div>
       </div>
+
+      {comanda && Object.hasOwn(comanda, 'receber_previsto_em') && fin.faltaReceber > 0 ? (
+        <div className="note info fin-vazio">
+          <span>{comanda.receber_previsto_em ? <>Previsão de receber o saldo de {brl(fin.faltaReceber)}: <b>{dmy(comanda.receber_previsto_em)}</b>.</> : <>Falta receber {brl(fin.faltaReceber)}. Diga quando você espera receber para o saldo entrar no caixa dos próximos 30 dias.</>}</span>
+          {canEdit ? <button type="button" className="btn s" onClick={() => setModal('previsao')}>{comanda.receber_previsto_em ? 'Mudar previsão' : 'Definir previsão'}</button> : null}
+        </div>
+      ) : null}
 
       <section className="grid-kpi" aria-label="Saldos do projeto">
         <Kpi label="Valor total" value={brl(fin.valorTotal)} hint={`${data.valores.length} item(ns) de valor`} />
@@ -164,6 +177,24 @@ export default function FinanceiroProjeto({ project, onChanged }) {
               </ol>
             ) : <p className="lbl">Nada lançado ainda. Use os botões acima.</p>}
           </Card>
+
+          {canEdit && legados.length && !semValor ? (
+            <Card pad title={<h2>Parcelas antigas deste cliente</h2>} action={<span className="lbl">modelo antigo</span>}>
+              <p className="lbl" style={{ marginBottom: 8 }}>Estas parcelas vêm de Contas a receber e ainda contam por fora deste financeiro. Se o valor delas já está lançado aqui, arquive para não contar duas vezes.</p>
+              <ul className="fin-itens">
+                {legados.map((x) => (
+                  <li key={x.id} className="fin-item">
+                    <div className="fin-item-m">
+                      <span className="fin-ev-t">{x.description}{x.part_label ? ` (${x.part_label})` : ''}</span>
+                      <span className="lbl num">{x.received_on ? `recebida em ${dmy(x.received_on)}` : `vence em ${dmy(x.due_on)}`}</span>
+                    </div>
+                    <div className="fin-item-v num"><b>{brl(x.amount_cents)}</b></div>
+                    <button type="button" className="btn s" onClick={() => arquivarLegado(x)}>Arquivar</button>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          ) : null}
         </div>
         <div className="stack" style={{ flex: '1 1 280px', minWidth: 0 }}>
           <Card pad title={<h2>Parceiro e comissão</h2>} action={canEdit ? <button type="button" className="btn s" onClick={() => setModal('parceiro')}>{data.parceiro ? 'Editar' : 'Definir'}</button> : null}>
@@ -194,6 +225,7 @@ export default function FinanceiroProjeto({ project, onChanged }) {
       </div>
 
       {modal === 'parceiro' ? <ParceiroModal project={project} atual={data.parceiro} partners={data.partners} onClose={fechar} /> : null}
+      {modal === 'previsao' && comanda ? <PrevisaoModal comanda={comanda} onClose={fechar} /> : null}
       {['recebimento', 'adicional', 'pagamento', 'abatimento'].includes(modal) || modal?.editar
         ? <LancamentoModal tipo={modal?.editar ? 'adicional' : modal} editar={modal?.editar} project={project} fin={fin} itens={data.valores}
             temComandas={temComandas} garantirComanda={garantirComanda} onClose={fechar} /> : null}
@@ -309,6 +341,24 @@ function LancamentoModal({ tipo, editar, project, fin, itens, temComandas, garan
         {erro ? <div className="note r">{erro}</div> : null}
         <button id="fin-salvar" type="submit" hidden />
       </form>
+    </Modal>
+  )
+}
+
+function PrevisaoModal({ comanda, onClose }) {
+  const [data, setData] = useState(comanda.receber_previsto_em || '')
+  const salvar = async () => {
+    await update('project_comandas', comanda.id, { receber_previsto_em: data || null })
+    notify(data ? 'Previsão salva.' : 'Previsão removida.', 'ok')
+    onClose()
+  }
+  return (
+    <Modal title="Previsão de receber o saldo" size="sm" onClose={onClose}
+      footer={<><button type="button" className="btn" onClick={onClose}>Cancelar</button><AsyncButton className="btn p" onClick={salvar}>Salvar</AsyncButton></>}>
+      <div className="stack">
+        <Field label="Espero receber em"><input type="date" className="in" value={data} autoFocus onChange={(e) => setData(e.target.value)} /></Field>
+        <div className="note info">Deixe em branco para tirar a previsão. O saldo com previsão nos próximos 30 dias entra no "a receber" e no saldo projetado.</div>
+      </div>
     </Modal>
   )
 }
