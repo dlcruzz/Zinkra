@@ -271,11 +271,19 @@ export function projetoNoModeloNovo(f, projectId) {
   return (f.valores || []).some((r) => r.project_id === projectId)
 }
 
+// Quando o Danilo espera receber o saldo do projeto (data da comanda aberta), ou null.
+export const previsaoDoSaldo = (f, projectId) =>
+  (f.comandas || []).find((c) => c.project_id === projectId && c.status === 'aberta' && c.receber_previsto_em)?.receber_previsto_em || null
+
+// Saldo dos projetos que se espera receber até uma data (entra no "a receber em 30 dias").
+export const saldoPrevistoAte = (linhas, ate) =>
+  linhas.reduce((a, l) => a + (l.previsao && l.previsao <= ate ? l.fin.faltaReceber : 0), 0)
+
 // Carteira: um cálculo por projeto + totais (rodapé da lista, dashboard, fluxo).
 export function calcularCarteira(f, projetos) {
   const linhas = projetos
     .filter((p) => projetoNoModeloNovo(f, p.id))
-    .map((p) => ({ projeto: p, fin: calcularProjeto(dadosDoProjeto(f, p.id)) }))
+    .map((p) => ({ projeto: p, fin: calcularProjeto(dadosDoProjeto(f, p.id)), previsao: previsaoDoSaldo(f, p.id) }))
   const totais = linhas.reduce((t, { fin }) => ({
     valorTotal: t.valorTotal + fin.valorTotal,
     recebido: t.recebido + fin.recebido,

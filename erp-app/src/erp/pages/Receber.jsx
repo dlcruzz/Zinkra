@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useMeta } from '../components/Shell'
 import { useAuth } from '../lib/auth'
 import { useData, fetchRows, insert, update, notify, useSettings } from '../lib/data'
@@ -7,8 +7,18 @@ import { markReceived } from '../lib/automations'
 import { brl, brl0, dm, today, addDays, startOfMonth, endOfMonth, daysFromToday, waLink, fillTemplate } from '../lib/format'
 import { PageHead, Tabs, Loading, ErrorBox, Badge, Modal, Field, Select, MoneyInput, AsyncButton, Empty, Stat } from '../components/ui'
 import { FRONTS, METHODS } from '../lib/constants'
+import { calcularCarteira, semDuplicidade } from '../lib/financeiro'
+import { carregarFinanceiro } from '../components/FinanceiroLista'
+import { TABELAS_FIN } from '../components/FinanceiroProjeto'
 import { toCsv, download } from '../lib/csv'
 import { Icon } from '../lib/icons'
+
+// Projeto no financeiro novo substitui as parcelas antigas do contrato dele: elas não entram na conta duas vezes.
+function visiveis(data) {
+  if (!data.fin) return { rows: data.rows, escondidas: 0 }
+  const rows = semDuplicidade({ projects: data.projects, receivables: data.rows, payables: [], commissions: [] }, data.fin).receivables
+  return { rows, escondidas: data.rows.length - rows.length }
+}
 
 export default function Receber() {
   useMeta('Financeiro', 'Contas a receber')
@@ -26,12 +36,15 @@ export default function Receber() {
     rows: await fetchRows('receivables', { order: 'due_on', ascending: true }),
     clients: await fetchRows('clients').catch(() => []),
     playbooks: await fetchRows('playbooks', { where: (q) => q.eq('collection', 'Cobrança'), order: 'code', ascending: true }).catch(() => []),
-  }), ['receivables', 'clients'])
+    projects: await fetchRows('projects').catch(() => []),
+    fin: await carregarFinanceiro().catch(() => null),
+  }), ['receivables', 'clients', 'projects', ...TABELAS_FIN])
 
   const t = today()
+  const { rows: todos, escondidas } = useMemo(() => (data ? visiveis(data) : { rows: [], escondidas: 0 }), [data])
   const list = useMemo(() => {
     if (!data) return []
-    const r = data.rows
+    const r = todos
     const f = {
       abertas: (x) => !x.received_on,
       vencidas: (x) => !x.received_on && x.due_on < t,
@@ -42,20 +55,24 @@ export default function Receber() {
     }[tab] || (() => true)
     const l = r.filter(f)
     return tab === 'recebidas' ? [...l].reverse() : l
-  }, [data, tab, t])
+  }, [data, todos, tab, t])
 
   useEffect(() => { if (list.length && (!sel || !list.some((x) => x.id === sel))) setSel(list[0].id) }, [list]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (error) return <div className="page"><ErrorBox error={error} onRetry={reload} /></div>
   if (loading || !data) return <div className="page"><Loading rows={8} /></div>
   const client = (id) => data.clients.find((c) => c.id === id)
-  const open = data.rows.filter((x) => !x.received_on)
+  const open = todos.filter((x) => !x.received_on)
   const sum = (l) => l.reduce((a, x) => a + x.amount_cents, 0)
   const overdue = open.filter((x) => x.due_on < t)
   const soon = open.filter((x) => x.due_on >= t && x.due_on <= addDays(t, 7))
   const monthOpen = open.filter((x) => x.due_on >= startOfMonth(t) && x.due_on <= endOfMonth(t))
-  const monthRec = data.rows.filter((x) => x.received_on && x.received_on >= startOfMonth(t) && x.received_on <= endOfMonth(t))
-  const r = data.rows.find((x) => x.id === sel)
+  const monthRec = todos.filter((x) => x.received_on && x.received_on >= startOfMonth(t) && x.received_on <= endOfMonth(t))
+  const r = todos.find((x) => x.id === sel)
+  const saldos = (data.fin ? calcularCarteira(data.fin, data.projects).linhas : [])
+    .filter((l) => l.fin.faltaReceber > 0)
+    .sort((a, b) => ((a.previsao || '9') < (b.previsao || '9') ? -1 : 1))
+  const totalSaldos = saldos.reduce((a, l) => a + l.fin.faltaReceber, 0)
   const c = r ? client(r.client_id) : null
   const pix = settings.company?.pix || '64.312.169/0001-60'
   const pb = r ? data.playbooks.find((p) => p.code === (r.due_on < t ? 'C2' : 'C1')) : null
@@ -76,7 +93,7 @@ export default function Receber() {
 
   return (
     <div className="page">
-      <PageHead title="Contas a receber" sub="Parcelas e mensalidades geradas a partir dos contratos e propostas aceitas.">
+      <PageHead title="Contas a receber" sub="Parcelas e mensalidades dos contratos e o saldo a receber dos projetos.">
         <button type="button" className="btn" onClick={exportCsv}><Icon name="download" size={14} />CSV</button>
         {auth.canEdit('financeiro') ? <button type="button" className="btn p" onClick={() => setAdding(true)}>Lançamento avulso</button> : null}
       </PageHead>
@@ -87,6 +104,29 @@ export default function Receber() {
         <Stat label="A vencer no mês" value={brl0(sum(monthOpen))} sub={`${monthOpen.length} cobrança(s)`} />
         <Stat label="Recebido no mês" value={brl0(sum(monthRec))} valueClass="ok" sub={`${monthRec.length} pagamento(s)`} />
       </div>
+
+      {saldos.length ? (
+        <div className="card" style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div className="row" style={{ justifyContent: 'space-between' }}>
+            <h2>Saldo dos projetos</h2>
+            <span className="lbl">{brl(totalSaldos)} a receber · vem do financeiro de cada projeto</span>
+          </div>
+          <div className="tbl-wrap"><table className="tbl">
+            <thead><tr><th>Cliente · projeto</th><th>Previsão</th><th className="r">Falta receber</th><th /></tr></thead>
+            <tbody>
+              {saldos.map(({ projeto: p, fin: f, previsao }) => (
+                <tr key={p.id}>
+                  <td data-l="Projeto"><span style={{ fontWeight: 500 }}>{client(p.client_id)?.name || 'Sem cliente'}</span><br /><span className="lbl">{p.name}</span></td>
+                  <td data-l="Previsão" className="num">{previsao ? dm(previsao) : <span className="lbl">sem previsão</span>}</td>
+                  <td data-l="Falta receber" className="num r">{brl(f.faltaReceber)}</td>
+                  <td className="r"><Link className="btn s" to={`/erp/projetos/${p.id}`}>Abrir projeto</Link></td>
+                </tr>
+              ))}
+            </tbody>
+          </table></div>
+          {escondidas ? <span className="lbl">{escondidas} parcela(s) antiga(s) deste contrato ficaram escondidas, porque o projeto agora é controlado pelo financeiro dele.</span> : null}
+        </div>
+      ) : null}
 
       <div className="cols">
         <div className="stack" style={{ flex: '3 1 560px', minWidth: 0 }}>
