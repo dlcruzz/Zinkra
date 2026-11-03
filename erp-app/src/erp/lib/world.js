@@ -9,7 +9,8 @@ import { addDays, today, inRange, startOfMonth, endOfMonth, startOfWeek } from '
 const TABLES = ['leads', 'activities', 'tasks', 'projects', 'receivables', 'payables', 'proposals', 'proposal_items',
   'contracts', 'clients', 'goals', 'meetings', 'time_entries', 'commissions', 'pipeline_stages', 'ideas',
   'insight_dismissals', 'settings', 'playbooks', 'partners', 'milestones',
-  'project_valores', 'project_recebimentos', 'project_comissao', 'project_comissao_pagamentos', 'project_comissao_abatimentos']
+  'project_valores', 'project_recebimentos', 'project_comissao', 'project_comissao_pagamentos', 'project_comissao_abatimentos',
+  'saas_produtos', 'saas_assinaturas', 'saas_recebimentos']
 
 const safe = (p) => p.catch(() => [])
 
@@ -27,7 +28,7 @@ async function loadWorldFresh() {
   const since = addDays(today(), -400)
   const [P, leads, activities, tasks, projects, receivables, payables, proposals, items, contracts, clients, goals,
     meetings, timeEntries, commissions, ideas, dismissals, settingsRows, playbooks, partners, milestones,
-    finValores, finRecebimentos, finParceiros, finPagamentos, finAbatimentos] = await Promise.all([
+    finValores, finRecebimentos, finParceiros, finPagamentos, finAbatimentos, saasProdutos, saasAssinaturas, saasRecebimentos] = await Promise.all([
     getPipelines(),
     safe(fetchRows('leads', { limit: 5000 })),
     safe(fetchRows('activities', { where: (q) => q.gte('happened_at', since), order: 'happened_at', limit: 10000 })),
@@ -54,15 +55,26 @@ async function loadWorldFresh() {
     safe(fetchRows('project_comissao', { order: null })),
     safe(fetchRows('project_comissao_pagamentos', { order: null })),
     safe(fetchRows('project_comissao_abatimentos', { order: null })),
+    safe(fetchRows('saas_produtos', { order: null })),
+    safe(fetchRows('saas_assinaturas', { order: null })),
+    safe(fetchRows('saas_recebimentos', { order: null })),
   ])
   const settings = Object.fromEntries(settingsRows.map((r) => [r.key, r.value]))
   const world = {
     P, leads, activities, tasks, projects, receivables, payables, proposals, items, contracts, clients, goals, meetings,
     timeEntries, commissions, terms: [], ideas, dismissals, settings, playbooks, partners, milestones,
   }
-  return comFinanceiroDosProjetos(world, {
+  const comProjetos = comFinanceiroDosProjetos(world, {
     valores: finValores, recebimentos: finRecebimentos, parceiros: finParceiros, pagamentos: finPagamentos, abatimentos: finAbatimentos,
   })
+  return comSaas(comProjetos, { produtos: saasProdutos, assinaturas: saasAssinaturas, recebimentos: saasRecebimentos })
+}
+
+// Financeiro SaaS: cada recebimento de produto vira uma entrada já recebida no caixa (uma vez só).
+export function comSaas(w, saas) {
+  const entradas = saas.recebimentos.map((r) => ({ id: 'saas-rec-' + r.id, contract_id: null, front: 'sistemas',
+    amount_cents: r.amount_cents, due_on: r.received_on, received_on: r.received_on }))
+  return { ...w, saas, receivables: [...w.receivables, ...entradas] }
 }
 
 // Financeiro dos projetos entra no caixa SEM contar duas vezes:

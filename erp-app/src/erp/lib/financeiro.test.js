@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { calcularProjeto, calcularCarteira, linhaDoTempo, validarValor, avisoRecebimento, avisoAbatimento, semDuplicidade, mesesCobrados, valorDoItem, resumoComanda, faturamento } from './financeiro'
+import { calcularProjeto, calcularCarteira, linhaDoTempo, validarValor, avisoRecebimento, avisoAbatimento, semDuplicidade, mesesCobrados, valorDoItem, resumoComanda, faturamento, datasDeCobranca, resumoSaas, faturado } from './financeiro'
 
 // Valores abaixo são só de teste (nada disso vai para o banco).
 const v = (amount_cents, extra = {}) => ({ amount_cents, ...extra })
@@ -205,5 +205,88 @@ describe('faturamento por período', () => {
     const z = faturamento([], hoje)
     expect(z.total).toBe(0)
     expect(z.janelas.every((j) => j.valor === 0 && j.anterior === 0)).toBe(true)
+  })
+})
+describe('datas de cobrança da mensalidade', () => {
+  it('uma data por mês cobrado, no dia do início (31 vira 28)', () => {
+    expect(datasDeCobranca({ kind: 'mensalidade', amount_cents: 1, starts_on: '2026-01-31' }, '2026-03-30'))
+      .toEqual(['2026-01-28', '2026-02-28', '2026-03-28'])
+  })
+  it('vira o ano certo', () => {
+    expect(datasDeCobranca({ kind: 'mensalidade', amount_cents: 1, starts_on: '2026-11-05' }, '2027-01-06'))
+      .toEqual(['2026-11-05', '2026-12-05', '2027-01-05'])
+  })
+})
+
+describe('financeiro SaaS', () => {
+  const dados = {
+    produtos: [{ id: 's1', name: 'App' }],
+    assinaturas: [
+      { id: 'a1', produto_id: 's1', amount_cents: 4000, starts_on: '2026-09-10', ends_on: null },
+      { id: 'a2', produto_id: 's1', amount_cents: 9000, starts_on: '2026-01-01', ends_on: '2026-03-31' },
+    ],
+    recebimentos: [{ produto_id: 's1', assinatura_id: 'a1', amount_cents: 4000, received_on: '2026-10-10' }],
+  }
+  const r = resumoSaas(dados, '2026-11-12')
+  it('MRR só conta assinatura vigente', () => { expect(r.mrr).toBe(4000); expect(r.assinantes).toBe(1) })
+  it('em aberto = mensalidades vencidas sem recebimento ligado', () => {
+    const a1 = r.assinaturas.find((l) => l.assinatura.id === 'a1')
+    expect(a1.meses).toBe(3)
+    expect(a1.emAberto).toBe(8000)
+    expect(r.assinaturas.find((l) => l.assinatura.id === 'a2').emAberto).toBe(27000)
+    expect(r.emAberto).toBe(35000)
+  })
+  it('recebido total e do mês', () => { expect(r.recebidoTotal).toBe(4000); expect(r.recebidoMes).toBe(0) })
+  it('resumo por produto', () => expect(r.porProduto[0]).toMatchObject({ mrr: 4000, assinantes: 1, recebido: 4000 }))
+  it('sem dados tudo zero', () => expect(resumoSaas({}, '2026-11-12')).toMatchObject({ mrr: 0, recebidoTotal: 0, emAberto: 0 }))
+})
+
+describe('faturado (valor fechado) x recebido', () => {
+  const hoje = '2026-11-03'
+  const w = {
+    clients: [{ id: 'c1', name: 'Cliente A' }, { id: 'c2', name: 'Cliente B' }],
+    projects: [{ id: 'p1', client_id: 'c1', name: 'Sistema X' }],
+    contracts: [{ id: 'k1', client_id: 'c2', title: 'Site' }],
+    fin: {
+      valores: [
+        { project_id: 'p1', kind: 'base', amount_cents: 300000, on_date: '2026-10-01' },
+        { project_id: 'p1', kind: 'adicional', amount_cents: 100000, on_date: '2026-10-20' },
+      ],
+      recebimentos: [{ project_id: 'p1', amount_cents: 250000, received_on: '2026-10-05' }],
+    },
+    receivables: [
+      { id: 'r1', contract_id: 'k1', client_id: 'c2', amount_cents: 50000, due_on: '2026-10-10', received_on: '2026-10-11' },
+      { id: 'r2', contract_id: 'k1', client_id: 'c2', amount_cents: 30000, due_on: '2026-10-25', received_on: null },
+      { id: 'r3', contract_id: 'k1', client_id: 'c2', amount_cents: 30000, due_on: '2026-12-25', received_on: null },
+      { id: 'proj-rec-a', amount_cents: 250000, due_on: '2026-10-05', received_on: '2026-10-05' },
+      { id: 'saas-rec-b', amount_cents: 4000, due_on: '2026-11-02', received_on: '2026-11-02' },
+    ],
+    saas: { produtos: [{ id: 's1', name: 'App' }], recebimentos: [{ produto_id: 's1', amount_cents: 4000, received_on: '2026-11-02' }] },
+  }
+  const f = faturado(w, hoje)
+  it('faturado conta o valor fechado do projeto, mesmo sem ter recebido tudo', () => {
+    expect(f.total).toBe(300000 + 100000 + 50000 + 30000 + 4000)
+  })
+  it('parcela futura não é faturada ainda', () => expect(f.total).not.toBe(300000 + 100000 + 50000 + 30000 + 30000 + 4000))
+  it('recebido só conta o que entrou, sem contar duas vezes', () => {
+    expect(f.recebido).toBe(250000 + 50000 + 4000)
+    expect(f.falta).toBe(f.total - f.recebido)
+  })
+  it('origem por cliente/projeto, contrato e SaaS', () => {
+    expect(f.porOrigem).toEqual([
+      { origem: 'Cliente A · Sistema X', faturado: 400000, recebido: 250000 },
+      { origem: 'Cliente B · Site', faturado: 80000, recebido: 50000 },
+      { origem: 'SaaS · App', faturado: 4000, recebido: 4000 },
+    ])
+  })
+  it('alimenta os períodos pela data de cada lançamento', () => {
+    const por = (id) => faturamento(f.lancamentos, hoje).janelas.find((j) => j.id === id).valor
+    expect(por('semana')).toBe(4000)
+    expect(por('mes')).toBe(f.total - 300000) // o item de 01/10 já saiu da janela de 30 dias
+    expect(por('tri')).toBe(f.total)
+  })
+  it('mensalidade de projeto entra mês a mês', () => {
+    const w2 = { ...w, fin: { valores: [{ project_id: 'p1', kind: 'mensalidade', amount_cents: 45000, starts_on: '2026-09-05' }], recebimentos: [] }, receivables: [], saas: null }
+    expect(faturado(w2, hoje).total).toBe(45000 * 2) // 05/09 e 05/10; o de 05/11 ainda não venceu
   })
 })
