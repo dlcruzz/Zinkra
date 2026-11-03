@@ -1,44 +1,57 @@
 import React, { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
-import { useData, fetchRows, insert, update, remove, notify } from '../lib/data'
-import { brl, dmy, today } from '../lib/format'
-import { calcularProjeto, linhaDoTempo, validarValor, avisoRecebimento, avisoAbatimento, ALERTAS, TIPOS_VALOR, FORMAS_RECEBIMENTO } from '../lib/financeiro'
+import { useData, fetchRows, fetchOne, insert, update, remove, notify } from '../lib/data'
+import { brl, dmy, hm, today } from '../lib/format'
+import { calcularProjeto, resumoComanda, linhaDoTempo, validarValor, avisoRecebimento, avisoAbatimento, ALERTAS, TIPOS_VALOR, FORMAS_RECEBIMENTO } from '../lib/financeiro'
 import { Card, Kpi, Loading, ErrorBox, Modal, Field, Select, MoneyInput, AsyncButton, useConfirm, Badge } from './ui'
 import { Icon } from '../lib/icons'
 
-export const TABELAS_FIN = ['project_valores', 'project_recebimentos', 'project_comissao', 'project_comissao_pagamentos', 'project_comissao_abatimentos']
+export const TABELAS_FIN = ['project_valores', 'project_recebimentos', 'project_comissao', 'project_comissao_pagamentos', 'project_comissao_abatimentos', 'project_comandas']
 
 const FALTA_TABELA = /does not exist|schema cache|Could not find the table/i
 
-export function useFinanceiroProjeto(projectId) {
+// comandas e histórico vêm de supabase/erp-comandas.sql; sem ele o financeiro segue funcionando sem eles
+const opcional = (promessa) => promessa.catch((e) => {
+  if (FALTA_TABELA.test(e?.message || '')) return null
+  throw e
+})
+
+export function useFinanceiroProjeto(projectId, clientId = null) {
   return useData(async () => {
     const where = (q) => q.eq('project_id', projectId)
     try {
-      const [valores, recebimentos, parceiros, pagamentos, abatimentos, partners] = await Promise.all([
+      const [valores, recebimentos, parceiros, pagamentos, abatimentos, partners, comandas, historico, cliente] = await Promise.all([
         fetchRows('project_valores', { where, order: 'on_date' }),
         fetchRows('project_recebimentos', { where, order: 'received_on' }),
         fetchRows('project_comissao', { where, order: 'created_at' }),
         fetchRows('project_comissao_pagamentos', { where, order: 'paid_on' }),
         fetchRows('project_comissao_abatimentos', { where, order: 'on_date' }),
         fetchRows('partners').catch(() => []),
+        opcional(fetchRows('project_comandas', { where, order: 'created_at', ascending: true })),
+        opcional(fetchRows('project_fin_log', { where, order: 'feito_em', limit: 40 })),
+        clientId ? fetchOne('clients', clientId).catch(() => null) : null,
       ])
-      return { valores, recebimentos, parceiro: parceiros[0] || null, pagamentos, abatimentos, partners }
+      return { valores, recebimentos, parceiro: parceiros[0] || null, pagamentos, abatimentos, partners, comandas, historico, cliente }
     } catch (e) {
       if (FALTA_TABELA.test(e?.message || '')) return { semTabelas: true }
       throw e
     }
-  }, TABELAS_FIN, [projectId])
+  }, [...TABELAS_FIN, 'project_fin_log', 'clients'], [projectId, clientId])
 }
+
+const rotuloItem = (v) => `${TIPOS_VALOR[v.kind] || 'Valor'}${v.description ? ` · ${v.description}` : ''}`
 
 export default function FinanceiroProjeto({ project, onChanged }) {
   const auth = useAuth()
   const confirm = useConfirm()
   const [modal, setModal] = useState(null)
-  const { data, loading, error, reload } = useFinanceiroProjeto(project.id)
+  const { data, loading, error, reload } = useFinanceiroProjeto(project.id, project.client_id)
   const canEdit = auth.canEdit('financeiro')
   const canDelete = auth.isTotal('financeiro')
 
   const fin = useMemo(() => (data && !data.semTabelas ? calcularProjeto(data) : null), [data])
+  const resumo = useMemo(() => (data && !data.semTabelas ? resumoComanda(data) : null), [data])
   const tempo = useMemo(() => (data && !data.semTabelas ? linhaDoTempo(data) : []), [data])
 
   if (error) return <ErrorBox error={error} onRetry={reload} />
@@ -47,9 +60,21 @@ export default function FinanceiroProjeto({ project, onChanged }) {
     return <div className="note y">O financeiro dos projetos ainda não foi criado no banco. Rode o arquivo <span className="num">supabase/erp-financeiro-projetos.sql</span> no SQL Editor do Supabase e atualize esta página.</div>
   }
 
+  const temComandas = data.comandas !== null
+  const comanda = temComandas ? (data.comandas.find((c) => c.status === 'aberta') || data.comandas[0] || null) : null
+  const itensPorId = Object.fromEntries(data.valores.map((v) => [v.id, rotuloItem(v)]))
   const semValor = data.valores.length === 0
+
+  // a comanda nasce no primeiro lançamento; depois todo item e recebimento cai nela
+  const garantirComanda = async () => {
+    if (!temComandas) return null
+    if (comanda) return comanda.id
+    const nova = await insert('project_comandas', { project_id: project.id, client_id: project.client_id || null, title: project.name })
+    return nova.id
+  }
+
   const apagar = async (tabela, id, texto) => {
-    if (await confirm(`Apagar ${texto}? Isso muda os saldos do projeto.`, { ok: 'Apagar', danger: true })) {
+    if (await confirm(`Apagar ${texto}? Isso muda os saldos do projeto e fica no histórico.`, { ok: 'Apagar', danger: true })) {
       await remove(tabela, id)
       onChanged?.()
     }
@@ -58,6 +83,22 @@ export default function FinanceiroProjeto({ project, onChanged }) {
 
   return (
     <div className="stack" style={{ gap: 16 }}>
+      <div className="fin-vinculo" aria-label="Vínculo do financeiro">
+        <div>
+          <span className="lbl">Cliente</span>
+          {data.cliente
+            ? <b><Link to={`/erp/clientes?id=${data.cliente.id}`}>{data.cliente.name}</Link>{data.cliente.contact_name ? <span className="lbl"> · {data.cliente.contact_name}</span> : null}</b>
+            : <b className="warn">Sem cliente vinculado ao projeto</b>}
+        </div>
+        <div><span className="lbl">Projeto</span><b>{project.name}</b></div>
+        <div>
+          <span className="lbl">Comanda</span>
+          {temComandas
+            ? <b>{comanda ? comanda.title : 'Será criada no primeiro lançamento'}{comanda ? <> <Badge kind={comanda.status === 'aberta' ? 'g' : ''} dot={false}>{comanda.status}</Badge></> : null}</b>
+            : <b className="lbl">Rode supabase/erp-comandas.sql para ativar</b>}
+        </div>
+      </div>
+
       <section className="grid-kpi" aria-label="Saldos do projeto">
         <Kpi label="Valor total" value={brl(fin.valorTotal)} hint={`${data.valores.length} item(ns) de valor`} />
         <Kpi label="Recebido" value={brl(fin.recebido)} accent={fin.recebido > 0 && fin.faltaReceber === 0} bar={fin.valorTotal ? (fin.recebido / fin.valorTotal) * 100 : 0} />
@@ -72,7 +113,7 @@ export default function FinanceiroProjeto({ project, onChanged }) {
       {canEdit ? (
         <div className="fin-acoes">
           <button type="button" className="btn p" onClick={() => setModal('recebimento')}><Icon name="down" size={14} />Registrar recebimento</button>
-          <button type="button" className="btn" onClick={() => setModal('adicional')}><Icon name="plus" size={14} />Adicionar adicional</button>
+          <button type="button" className="btn" onClick={() => setModal('adicional')}><Icon name="plus" size={14} />Adicionar item na comanda</button>
           <button type="button" className="btn" disabled={!fin.temParceiro} title={fin.temParceiro ? '' : 'Defina o parceiro primeiro'} onClick={() => setModal('pagamento')}><Icon name="send" size={14} />Registrar pagamento de comissão</button>
           <button type="button" className="btn" disabled={!fin.temParceiro} title={fin.temParceiro ? '' : 'Defina o parceiro primeiro'} onClick={() => setModal('abatimento')}><Icon name="zap" size={14} />Registrar abatimento</button>
         </div>
@@ -83,7 +124,8 @@ export default function FinanceiroProjeto({ project, onChanged }) {
           <span>Este projeto ainda não tem valor combinado. Cadastre o valor base para o ERP calcular os saldos{project.value_cents ? ` (o cadastro do projeto diz ${brl(project.value_cents)}).` : '.'}</span>
           {canEdit && project.value_cents ? (
             <AsyncButton className="btn s p" onClick={async () => {
-              await insert('project_valores', { project_id: project.id, kind: 'base', description: 'Valor combinado', amount_cents: project.value_cents })
+              const comandaId = await garantirComanda()
+              await insert('project_valores', { project_id: project.id, kind: 'base', description: 'Valor combinado', amount_cents: project.value_cents, ...(comandaId ? { comanda_id: comandaId } : {}) })
               onChanged?.()
             }}>Usar {brl(project.value_cents)} como valor base</AsyncButton>
           ) : null}
@@ -92,10 +134,33 @@ export default function FinanceiroProjeto({ project, onChanged }) {
 
       <div className="cols">
         <div className="stack" style={{ flex: '2 1 460px', minWidth: 0 }}>
+          {data.valores.length ? (
+            <Card pad title={<h2>Itens da comanda</h2>} action={<span className="lbl">cobrado até hoje · recebido neste item</span>}>
+              <ul className="fin-itens">
+                {resumo.itens.map(({ item, cobrado, meses, recebido }) => (
+                  <li key={item.id} className="fin-item">
+                    <div className="fin-item-m">
+                      <span className="fin-ev-t">{rotuloItem(item)}</span>
+                      <span className="lbl num">
+                        {item.kind === 'mensalidade'
+                          ? `${brl(item.amount_cents)} por mês · desde ${dmy(item.starts_on)}${item.ends_on ? ` até ${dmy(item.ends_on)}` : ''} · ${meses} mês(es) cobrado(s)`
+                          : dmy(item.on_date)}
+                      </span>
+                    </div>
+                    <div className="fin-item-v num"><b>{brl(cobrado)}</b><span className="lbl">recebido {brl(recebido)}</span></div>
+                    {canEdit ? <button type="button" className="btn s ic g" aria-label="Alterar este item" onClick={() => setModal({ editar: item })}><Icon name="edit" size={13} /></button> : null}
+                    {canDelete ? <button type="button" className="btn s ic g" aria-label="Apagar este item" onClick={() => apagar('project_valores', item.id, 'este item de valor')}><Icon name="trash" size={13} /></button> : null}
+                  </li>
+                ))}
+              </ul>
+              {resumo.semItem ? <span className="lbl" style={{ display: 'block', marginTop: 8 }}>{brl(resumo.semItem)} recebidos sem apontar para um item específico (contam no total da comanda).</span> : null}
+            </Card>
+          ) : null}
+
           <Card pad title={<h2>Linha do tempo</h2>} action={<span className="lbl">{tempo.length} lançamento(s)</span>}>
             {tempo.length ? (
               <ol className="fin-tempo">
-                {tempo.map((e) => <Evento key={e.tipo + e.row.id} e={e} canDelete={canDelete} onDelete={apagar} />)}
+                {tempo.map((e) => <Evento key={e.tipo + e.row.id} e={e} itens={itensPorId} canDelete={canDelete} onDelete={apagar} />)}
               </ol>
             ) : <p className="lbl">Nada lançado ainda. Use os botões acima.</p>}
           </Card>
@@ -116,20 +181,47 @@ export default function FinanceiroProjeto({ project, onChanged }) {
             </dl>
             <span className="lbl" style={{ display: 'block', marginTop: 8 }}>Valor total − comissão total + abatimentos.</span>
           </Card>
+          {data.historico ? (
+            <Card pad title={<h2>Histórico de alterações</h2>} action={<span className="lbl">{data.historico.length ? 'mais recentes' : ''}</span>}>
+              {data.historico.length ? (
+                <ol className="fin-hist">
+                  {data.historico.map((l) => <li key={l.id}>{descreverLog(l)}<span className="lbl">{dmy(l.feito_em)} {hm(l.feito_em)} · {auth.memberName(l.feito_por)}</span></li>)}
+                </ol>
+              ) : <p className="lbl">Toda criação, troca de valor ou exclusão aparece aqui.</p>}
+            </Card>
+          ) : null}
         </div>
       </div>
 
       {modal === 'parceiro' ? <ParceiroModal project={project} atual={data.parceiro} partners={data.partners} onClose={fechar} /> : null}
-      {['recebimento', 'adicional', 'pagamento', 'abatimento'].includes(modal) ? <LancamentoModal tipo={modal} project={project} fin={fin} onClose={fechar} /> : null}
+      {['recebimento', 'adicional', 'pagamento', 'abatimento'].includes(modal) || modal?.editar
+        ? <LancamentoModal tipo={modal?.editar ? 'adicional' : modal} editar={modal?.editar} project={project} fin={fin} itens={data.valores}
+            temComandas={temComandas} garantirComanda={garantirComanda} onClose={fechar} /> : null}
     </div>
   )
 }
 
-function Evento({ e, canDelete, onDelete }) {
+const TABELA_LOG = {
+  project_valores: 'Item', project_recebimentos: 'Recebimento', project_comissao: 'Comissão',
+  project_comissao_pagamentos: 'Pagamento de comissão', project_comissao_abatimentos: 'Abatimento', project_comandas: 'Comanda',
+}
+
+function descreverLog(l) {
+  const antes = l.antes || {}
+  const depois = l.depois || {}
+  const ref = l.acao === 'apagado' ? antes : depois
+  const nome = ref.description || ref.reason || ref.title || ref.partner_name || ''
+  const quanto = l.acao === 'alterado' && antes.amount_cents != null && antes.amount_cents !== depois.amount_cents
+    ? `${brl(antes.amount_cents)} → ${brl(depois.amount_cents)}`
+    : ref.amount_cents != null ? brl(ref.amount_cents) : ''
+  return <span className="fin-hist-t">{TABELA_LOG[l.tabela] || l.tabela} {l.acao}{nome ? ` · ${nome}` : ''}{quanto ? ` · ${quanto}` : ''}</span>
+}
+
+function Evento({ e, itens, canDelete, onDelete }) {
   const r = e.row
   const cfg = {
-    valor: { cor: 'blue', icone: 'plus', titulo: `${TIPOS_VALOR[r.kind] || 'Valor'}${r.description ? ` · ${r.description}` : ''}`, sinal: '+', tabela: 'project_valores', texto: 'este valor' },
-    recebimento: { cor: 'green', icone: 'down', titulo: `Recebimento${r.method ? ` · ${r.method}` : ''}${r.notes ? ` · ${r.notes}` : ''}`, sinal: '+', tabela: 'project_recebimentos', texto: 'este recebimento' },
+    valor: { cor: 'blue', icone: 'plus', titulo: `${rotuloItem(r)}${r.kind === 'mensalidade' ? ' (por mês)' : ''}`, sinal: '+', tabela: 'project_valores', texto: 'este valor' },
+    recebimento: { cor: 'green', icone: 'down', titulo: `Recebimento${r.method ? ` · ${r.method}` : ''}${r.valor_id && itens[r.valor_id] ? ` · ref. ${itens[r.valor_id]}` : ''}${r.notes ? ` · ${r.notes}` : ''}`, sinal: '+', tabela: 'project_recebimentos', texto: 'este recebimento' },
     pagamento: { cor: 'yel', icone: 'send', titulo: `Pagamento de comissão${r.notes ? ` · ${r.notes}` : ''}`, sinal: '−', tabela: 'project_comissao_pagamentos', texto: 'este pagamento de comissão' },
     abatimento: { cor: 'red', icone: 'zap', titulo: `Abatimento · ${r.reason}`, sinal: '−', tabela: 'project_comissao_abatimentos', texto: 'este abatimento' },
   }[e.tipo]
@@ -146,21 +238,48 @@ function Evento({ e, canDelete, onDelete }) {
   )
 }
 
-const TITULOS = { recebimento: 'Registrar recebimento', adicional: 'Adicionar adicional', pagamento: 'Registrar pagamento de comissão', abatimento: 'Registrar abatimento' }
+const TITULOS = { recebimento: 'Registrar recebimento', adicional: 'Adicionar item na comanda', pagamento: 'Registrar pagamento de comissão', abatimento: 'Registrar abatimento' }
+const GERAL = '_geral'
 
-function LancamentoModal({ tipo, project, fin, onClose }) {
-  const [f, setF] = useState({ valor: 0, data: today(), forma: 'Pix', obs: '', kind: 'adicional', desc: '', motivo: '' })
+function LancamentoModal({ tipo, editar, project, fin, itens, temComandas, garantirComanda, onClose }) {
+  const [f, setF] = useState({
+    valor: editar?.amount_cents || 0,
+    data: (editar && (editar.kind === 'mensalidade' ? editar.starts_on : editar.on_date)) || today(),
+    fim: editar?.ends_on || '',
+    forma: 'Pix', obs: '', motivo: '',
+    kind: editar?.kind || 'adicional', desc: editar?.description || '', item: GERAL,
+  })
   const [erro, setErro] = useState('')
   const set = (k) => (v) => setF((x) => ({ ...x, [k]: v }))
-  const aviso = f.valor > 0 ? (tipo === 'recebimento' ? avisoRecebimento(fin, f.valor) : tipo === 'abatimento' ? avisoAbatimento(fin, f.valor) : '') : ''
+  const mensal = tipo === 'adicional' && f.kind === 'mensalidade'
+  const aviso = f.valor > 0 && !editar ? (tipo === 'recebimento' ? avisoRecebimento(fin, f.valor) : tipo === 'abatimento' ? avisoAbatimento(fin, f.valor) : '') : ''
+  const opcoesItem = [[GERAL, 'Geral da comanda (sem item específico)'], ...itens.map((v) => [v.id, rotuloItem(v)])]
 
   const salvar = async () => {
-    const e = validarValor(f.valor) || (tipo === 'abatimento' && !f.motivo.trim() ? 'Diga o motivo do abatimento.' : '') || (!f.data ? 'Informe a data.' : '')
+    const e = validarValor(f.valor)
+      || (tipo === 'abatimento' && !f.motivo.trim() ? 'Diga o motivo do abatimento.' : '')
+      || (!f.data ? (mensal ? 'Informe quando a cobrança começa.' : 'Informe a data.') : '')
+      || (mensal && f.fim && f.fim < f.data ? 'O fim da mensalidade não pode ser antes do início.' : '')
     setErro(e)
     if (e) return
     const base = { project_id: project.id, amount_cents: f.valor }
-    if (tipo === 'recebimento') await insert('project_recebimentos', { ...base, received_on: f.data, method: f.forma, notes: f.obs.trim() || null })
-    if (tipo === 'adicional') await insert('project_valores', { ...base, kind: f.kind, on_date: f.data, description: f.desc.trim() || null })
+    if (tipo === 'adicional') {
+      const campos = { kind: f.kind, on_date: f.data, description: f.desc.trim() || null, ...(temComandas ? { starts_on: mensal ? f.data : null, ends_on: mensal && f.fim ? f.fim : null } : {}) }
+      if (editar) {
+        await update('project_valores', editar.id, { amount_cents: f.valor, ...campos })
+        notify('Item alterado. A mudança ficou no histórico.', 'ok')
+      } else {
+        const comandaId = await garantirComanda()
+        await insert('project_valores', { ...base, ...campos, ...(comandaId ? { comanda_id: comandaId } : {}) })
+        notify('Lançado.', 'ok')
+      }
+      return onClose()
+    }
+    if (tipo === 'recebimento') {
+      const comandaId = await garantirComanda()
+      await insert('project_recebimentos', { ...base, received_on: f.data, method: f.forma, notes: f.obs.trim() || null,
+        ...(comandaId ? { comanda_id: comandaId, valor_id: f.item === GERAL ? null : f.item } : {}) })
+    }
     if (tipo === 'pagamento') await insert('project_comissao_pagamentos', { ...base, paid_on: f.data, notes: f.obs.trim() || null })
     if (tipo === 'abatimento') await insert('project_comissao_abatimentos', { ...base, on_date: f.data, reason: f.motivo.trim() })
     notify('Lançado.', 'ok')
@@ -168,18 +287,24 @@ function LancamentoModal({ tipo, project, fin, onClose }) {
   }
 
   return (
-    <Modal title={TITULOS[tipo]} size="sm" onClose={onClose}
+    <Modal title={editar ? 'Alterar item da comanda' : TITULOS[tipo]} size="sm" onClose={onClose}
       footer={<><button type="button" className="btn" onClick={onClose}>Cancelar</button><AsyncButton className="btn p" onClick={salvar}>Salvar</AsyncButton></>}>
       <form className="stack" onSubmit={(e) => { e.preventDefault(); document.getElementById('fin-salvar')?.click() }}>
         {tipo === 'adicional' ? (
-          <Field label="Tipo"><Select value={f.kind} onChange={(v) => set('kind')(v || 'adicional')} options={TIPOS_VALOR} /></Field>
+          <Field label="Tipo"><Select value={f.kind} onChange={(v) => set('kind')(v || 'adicional')} options={temComandas ? TIPOS_VALOR : Object.fromEntries(Object.entries(TIPOS_VALOR).filter(([k]) => k !== 'mensalidade'))} /></Field>
         ) : null}
-        <Field label="Valor"><MoneyInput value={f.valor} onChange={set('valor')} autoFocus /></Field>
-        <Field label="Data"><input type="date" className="in" value={f.data} onChange={(e) => set('data')(e.target.value)} /></Field>
+        {tipo === 'recebimento' && temComandas ? (
+          <Field label="Referente a"><Select value={f.item} onChange={(v) => set('item')(v || GERAL)} options={opcoesItem} /></Field>
+        ) : null}
+        <Field label={mensal ? 'Valor por mês' : 'Valor'}><MoneyInput value={f.valor} onChange={set('valor')} autoFocus /></Field>
+        <Field label={mensal ? 'Começa a cobrar em' : 'Data'}><input type="date" className="in" value={f.data} onChange={(e) => set('data')(e.target.value)} /></Field>
+        {mensal ? <Field label="Termina em (opcional)"><input type="date" className="in" value={f.fim} onChange={(e) => set('fim')(e.target.value)} /></Field> : null}
         {tipo === 'recebimento' ? <Field label="Forma"><Select value={f.forma} onChange={(v) => set('forma')(v || 'Pix')} options={FORMAS_RECEBIMENTO} /></Field> : null}
-        {tipo === 'adicional' ? <Field label="Descrição"><input className="in" placeholder="Ex.: página extra, integração" value={f.desc} onChange={(e) => set('desc')(e.target.value)} /></Field> : null}
+        {tipo === 'adicional' ? <Field label="Descrição"><input className="in" placeholder="Ex.: página extra, integração, plano mensal" value={f.desc} onChange={(e) => set('desc')(e.target.value)} /></Field> : null}
         {tipo === 'abatimento' ? <Field label="Motivo"><input className="in" placeholder="Ex.: melhoria do sistema" value={f.motivo} onChange={(e) => set('motivo')(e.target.value)} /></Field> : null}
         {tipo === 'recebimento' || tipo === 'pagamento' ? <Field label="Observação"><input className="in" value={f.obs} onChange={(e) => set('obs')(e.target.value)} /></Field> : null}
+        {mensal ? <div className="note info">A mensalidade soma no total do projeto uma vez por mês, a partir da data de início.</div> : null}
+        {editar ? <div className="note info">O valor antigo e o novo ficam guardados no histórico da comanda.</div> : null}
         {aviso ? <div className="note y">{aviso} Você pode salvar mesmo assim.</div> : null}
         {erro ? <div className="note r">{erro}</div> : null}
         <button id="fin-salvar" type="submit" hidden />

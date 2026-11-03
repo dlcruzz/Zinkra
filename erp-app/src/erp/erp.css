@@ -719,3 +719,36 @@ body:has(.erp) { background: #0A0C0B; }
   .erp .fin-acoes .btn { flex: 1 1 100%; justify-content: center; }
 }
 @media (prefers-reduced-motion: reduce) { .erp .fin-ev, .erp .cc-row { animation: none; } }
+
+/* ---- Comanda: vínculo cliente / projeto / comanda, itens e histórico ---- */
+.erp .fin-vinculo { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--r, 12px); overflow: hidden; }
+.erp .fin-vinculo > div { background: var(--s2); padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.erp .fin-vinculo b { font-weight: 600; overflow-wrap: anywhere; }
+.erp .fin-itens, .erp .fin-hist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.erp .fin-item { display: flex; align-items: center; gap: 10px; padding: 11px 0; border-top: 1px solid var(--line-2); }
+.erp .fin-item:first-child { border-top: 0; }
+.erp .fin-item-m { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.erp .fin-item-v { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.erp .fin-hist li { display: flex; flex-direction: column; gap: 2px; padding: 9px 0; border-top: 1px solid var(--line-2); }
+.erp .fin-hist li:first-child { border-top: 0; }
+.erp .fin-hist-t { font-size: 13px; overflow-wrap: anywhere; }
+@media (max-width: 860px) { .erp .fin-vinculo { grid-template-columns: 1fr; } }
+
+/* ---- Faturamento grande da Visão geral ---- */
+.erp .fat-hero { position: relative; overflow: hidden; border: 1px solid var(--green-ln, var(--line)); border-radius: 18px; padding: clamp(20px, 4vw, 36px); background: radial-gradient(120% 160% at 0% 0%, var(--green-bg, transparent), transparent 62%), var(--s2); display: flex; flex-direction: column; gap: clamp(18px, 3vw, 28px); animation: erp-lead-in .5s var(--ease) backwards; }
+.erp .fat-top { display: flex; flex-direction: column; gap: 6px; }
+.erp .fat-eyebrow { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; letter-spacing: .04em; text-transform: uppercase; color: var(--green-tx, var(--mut)); }
+.erp .fat-total { font-size: clamp(44px, 9vw, 92px); line-height: 1.02; font-weight: 700; letter-spacing: -.02em; color: var(--green-tx, var(--tx)); overflow-wrap: anywhere; }
+.erp .fat-sub { font-size: 14px; color: var(--mut); }
+.erp .fat-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
+.erp .fat-tile { display: flex; flex-direction: column; gap: 3px; padding: 12px 14px; border-radius: 12px; background: var(--s3); border: 1px solid var(--line); animation: erp-lead-in .45s var(--ease) backwards; animation-delay: calc(var(--i) * 60ms + 150ms); transition: transform .2s var(--ease), border-color .2s; }
+.erp .fat-tile:hover { transform: translateY(-2px); border-color: var(--green-ln, var(--line-3)); }
+.erp .fat-rot { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--mut); }
+.erp .fat-val { font-size: clamp(18px, 2.2vw, 24px); font-weight: 650; overflow-wrap: anywhere; }
+.erp .fat-leg { font-size: 12px; color: var(--mut); }
+.erp .fat-var { font-size: 12px; margin-top: 2px; }
+.erp .fat-var.up { color: var(--green-tx); }
+.erp .fat-var.dn { color: var(--red); }
+@media (max-width: 1100px) { .erp .fat-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .erp .fat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (prefers-reduced-motion: reduce) { .erp .fat-hero, .erp .fat-tile { animation: none; transition: none; } }

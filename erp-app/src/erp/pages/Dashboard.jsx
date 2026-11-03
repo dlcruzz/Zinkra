@@ -8,6 +8,7 @@ import { brl0, today, addDays, startOfMonth, endOfMonth, startOfWeek, MONTHS, dm
 import { PageHead, Kpi, Card, Seg, Loading, ErrorBox, Badge } from '../components/ui'
 import { GroupedBars, Funnel, StackBar } from '../components/charts'
 import { InsightList } from '../components/Insights'
+import FaturamentoHero from '../components/FaturamentoHero'
 import { PROJECT_STAGES, PROJECT_STAGE_CLASS, FRONTS, FRONT_COLORS } from '../lib/constants'
 
 const OPEN = new Set(['briefing', 'design', 'desenvolvimento', 'revisao', 'ajustes'])
@@ -88,6 +89,8 @@ export default function Dashboard() {
       <PageHead title="Visão geral da Zinkra" sub={`${MONTHS[now.getMonth()]} de ${now.getFullYear()} · atualizado agora`}>
         <Seg value={period} onChange={setPeriod} options={[['week', 'Semana'], ['month', 'Mês'], ['quarter', 'Trimestre']]} />
       </PageHead>
+
+      {auth.canSee('financeiro') ? <FaturamentoHero recebidos={w.receivables} /> : null}
 
       <section aria-label="Dinheiro" className="grid-kpi">
         <Kpi label="Recebido no mês" value={brl0(c.cs.received)} bar={c.goal ? pct(c.cs.received, c.goal) : undefined}

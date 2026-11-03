@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { calcularProjeto, calcularCarteira, linhaDoTempo, validarValor, avisoRecebimento, avisoAbatimento, semDuplicidade } from './financeiro'
+import { calcularProjeto, calcularCarteira, linhaDoTempo, validarValor, avisoRecebimento, avisoAbatimento, semDuplicidade, mesesCobrados, valorDoItem, resumoComanda, faturamento } from './financeiro'
 
 // Valores abaixo são só de teste (nada disso vai para o banco).
 const v = (amount_cents, extra = {}) => ({ amount_cents, ...extra })
 
-describe('projeto com parceiro e comissão fixa (caso King Mídia / André)', () => {
+describe('projeto com parceiro e comissão fixa (caso de referência do briefing)', () => {
   const fin = calcularProjeto({
     valores: [v(350000), v(120000)],
     recebimentos: [v(105000), v(120000), v(150000)],
@@ -136,5 +136,74 @@ describe('carteira e duplicidade', () => {
     const r = semDuplicidade(w, f)
     expect(r.receivables.map((x) => x.id)).toEqual([2])
     expect(r.payables.map((x) => x.id)).toEqual(['p2'])
+  })
+})
+describe('comanda: adicional meses depois entra na mesma conta', () => {
+  const base = { id: 'i1', kind: 'base', amount_cents: 350000 }
+  it('um adicional novo soma no total sem criar projeto', () => {
+    const antes = calcularProjeto({ valores: [base], recebimentos: [v(350000)] })
+    expect(antes.faltaReceber).toBe(0)
+    const depois = calcularProjeto({ valores: [base, { id: 'i2', kind: 'adicional', amount_cents: 80000 }], recebimentos: [v(350000)] })
+    expect(depois.valorTotal).toBe(430000)
+    expect(depois.faltaReceber).toBe(80000)
+  })
+  it('resumo por item mostra quanto entrou apontando para cada um', () => {
+    const r = resumoComanda({
+      valores: [base, { id: 'i2', kind: 'adicional', amount_cents: 80000 }],
+      recebimentos: [v(200000, { valor_id: 'i1' }), v(80000, { valor_id: 'i2' }), v(50000)],
+    })
+    expect(r.itens.map((i) => [i.cobrado, i.recebido])).toEqual([[350000, 200000], [80000, 80000]])
+    expect(r.semItem).toBe(50000)
+    expect(r.recebido).toBe(330000)
+    expect(r.faltaReceber).toBe(100000)
+  })
+})
+
+describe('mensalidade', () => {
+  const m = (extra = {}) => ({ id: 'm1', kind: 'mensalidade', amount_cents: 45000, starts_on: '2026-11-05', ...extra })
+  it('antes do início não cobra nada', () => expect(mesesCobrados(m(), '2026-11-04')).toBe(0))
+  it('no dia do início cobra o primeiro mês', () => expect(mesesCobrados(m(), '2026-11-05')).toBe(1))
+  it('conta um mês novo a cada dia de cobrança', () => {
+    expect(mesesCobrados(m(), '2026-12-04')).toBe(1)
+    expect(mesesCobrados(m(), '2026-12-05')).toBe(2)
+    expect(mesesCobrados(m(), '2027-11-05')).toBe(13)
+  })
+  it('para de cobrar depois do fim', () => {
+    expect(mesesCobrados(m({ ends_on: '2027-01-04' }), '2028-01-01')).toBe(2)
+  })
+  it('início no dia 31 cobra no dia 28 dos meses curtos', () => {
+    expect(mesesCobrados(m({ starts_on: '2026-01-31' }), '2026-02-28')).toBe(2)
+  })
+  it('entra no valor total e no que falta receber', () => {
+    const fin = calcularProjeto({ valores: [m()], recebimentos: [v(45000)], hoje: '2027-01-10' })
+    expect(valorDoItem(m(), '2027-01-10')).toBe(45000 * 3)
+    expect(fin.valorTotal).toBe(135000)
+    expect(fin.faltaReceber).toBe(90000)
+  })
+})
+
+describe('faturamento por período', () => {
+  const hoje = '2026-11-10'
+  const r = (amount_cents, received_on) => ({ amount_cents, received_on })
+  const dados = [r(1000, '2026-11-10'), r(2000, '2026-11-04'), r(4000, '2026-10-20'), r(8000, '2026-06-01'), r(16000, '2025-11-12'), r(500, '2026-05-01'), r(32000, null), r(64000, '2026-12-01')]
+  const fat = faturamento(dados, hoje)
+  const por = (id) => fat.janelas.find((j) => j.id === id).valor
+  it('total só conta o que já foi recebido até hoje', () => expect(fat.total).toBe(1000 + 2000 + 4000 + 8000 + 16000 + 500))
+  it('semana = últimos 7 dias incluindo hoje', () => expect(por('semana')).toBe(3000))
+  it('15 dias, mês, 3 meses, 6 meses e 1 ano', () => {
+    expect(por('quinzena')).toBe(3000)
+    expect(por('mes')).toBe(7000)
+    expect(por('tri')).toBe(7000)
+    expect(por('sem')).toBe(15000)
+    expect(por('ano')).toBe(31500)
+  })
+  it('traz o período anterior de mesmo tamanho para comparar', () => {
+    expect(fat.janelas.find((j) => j.id === 'mes').anterior).toBe(0)
+    expect(fat.janelas.find((j) => j.id === 'sem').anterior).toBe(500)
+  })
+  it('sem lançamentos tudo vem zerado', () => {
+    const z = faturamento([], hoje)
+    expect(z.total).toBe(0)
+    expect(z.janelas.every((j) => j.valor === 0 && j.anterior === 0)).toBe(true)
   })
 })
