@@ -8,7 +8,6 @@ import { useData, insert, notify } from '../lib/data'
 import { today, addDays, minutesLabel, isoDate } from '../lib/format'
 import { stopTimer, defaultLeadStage } from '../lib/automations'
 import { prefetchWorld } from '../lib/world'
-import { PfDonoProvider, usePfDono } from '../lib/pf/dono'
 import { Modal, Field, Select, MoneyInput, AsyncButton } from './ui'
 import { FRONTS, PRIORITIES, RECURRENCE, MEETING_TYPES, IDEA_TYPES } from '../lib/constants'
 
@@ -20,6 +19,9 @@ export function useMeta(crumb, title) {
   const ctx = useContext(ErpCtx)
   useEffect(() => { ctx?.setMeta({ crumb, title }) }, [crumb, title]) // eslint-disable-line react-hooks/exhaustive-deps
 }
+
+// 'banco' não é um módulo de permissão: os dados bancários são só do Diretor geral
+const podeVer = (auth, mod) => (mod === 'banco' ? auth.isDirector : auth.canSee(mod))
 
 const NAV = [
   ['Visão', [
@@ -46,6 +48,7 @@ const NAV = [
     ['pagar', 'Contas a pagar', '/erp/financeiro/pagar', 'down', 'financeiro', 'pay'],
     ['receber', 'Contas a receber', '/erp/financeiro/receber', 'up', 'financeiro', 'recv'],
     ['fluxo', 'Fluxo de caixa', '/erp/financeiro/fluxo', 'trend', 'financeiro'],
+    ['conciliacao', 'Conciliação', '/erp/financeiro/conciliacao', 'shield', 'banco'],
   ]],
   ['Empresa', [
     ['ideias', 'Ideias', '/erp/ideias', 'bulb', 'ideias'],
@@ -53,19 +56,6 @@ const NAV = [
     ['parceiros', 'Parceiros', '/erp/parceiros', 'users', 'parceiros'],
     ['relatorios', 'Relatórios', '/erp/relatorios', 'chart', 'relatorios'],
   ]],
-]
-
-// grupo Pessoal: fica FORA do NAV de propósito, para não entrar na busca (Ctrl K) nem em nada global
-const NAV_PESSOAL = [
-  ['pessoal', 'Hoje', '/erp/pessoal', 'money'],
-  ['pessoal-receber', 'Receber', '/erp/pessoal/receber', 'down'],
-  ['pessoal-contas', 'Contas a pagar', '/erp/pessoal/contas', 'cal'],
-  ['pessoal-lancamentos', 'Lançamentos', '/erp/pessoal/lancamentos', 'leads'],
-  ['pessoal-parcelamentos', 'Parcelamentos', '/erp/pessoal/parcelamentos', 'pipeline'],
-  ['pessoal-dividas', 'Dívidas', '/erp/pessoal/dividas', 'shield'],
-  ['pessoal-geral', 'Visão geral', '/erp/pessoal/visao-geral', 'chart'],
-  ['pessoal-passos', 'Primeiros passos', '/erp/pessoal/primeiros-passos', 'spark'],
-  ['pessoal-config', 'Configurações', '/erp/pessoal/config', 'sliders'],
 ]
 
 async function loadCounts(uid) {
@@ -85,7 +75,6 @@ async function loadCounts(uid) {
 function Sidebar({ counts, open, onClose }) {
   const auth = useAuth()
   const loc = useLocation()
-  const { dono } = usePfDono()
   const hot = { hoje: counts.hoje > 0, follow: counts.follow > 0, recv: counts.recv > 0, pay: counts.pay > 0 }
   return (
     <>
@@ -99,7 +88,7 @@ function Sidebar({ counts, open, onClose }) {
         <button type="button" className="btn ic s g only-m" aria-label="Fechar menu" onClick={onClose}><Icon name="x" /></button>
       </div>
       {NAV.map(([group, items]) => {
-        const visible = items.filter(([, , , , mod]) => !mod || auth.canSee(mod))
+        const visible = items.filter(([, , , , mod]) => !mod || podeVer(auth, mod))
         if (!visible.length) return null
         return (
           <div className="nav-group" key={group}>
@@ -118,19 +107,6 @@ function Sidebar({ counts, open, onClose }) {
           </div>
         )
       })}
-      {dono ? (
-        <div className="nav-group">
-          <div className="nav-label">Pessoal</div>
-          {NAV_PESSOAL.map(([id, label, to, icon]) => {
-            const active = to === '/erp/pessoal' ? loc.pathname === to || loc.pathname === to + '/' : loc.pathname.startsWith(to)
-            return (
-              <NavLink key={id} to={to} end={to === '/erp/pessoal'} className={`nav-item ${active ? 'on' : ''}`}>
-                <Icon name={icon} /><span>{label}</span>
-              </NavLink>
-            )
-          })}
-        </div>
-      ) : null}
       <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 8, borderTop: '1px solid #1A1E1C', paddingTop: 12 }}>
         {auth.canSee('config') ? (
           <NavLink to="/erp/config" className={`nav-item ${loc.pathname.startsWith('/erp/config') ? 'on' : ''}`}>
@@ -162,11 +138,10 @@ const BOTTOM = ['hoje', 'leads', 'prospeccao', 'tarefas']
 function BottomNav({ counts, onMenu, menuOpen }) {
   const auth = useAuth()
   const loc = useLocation()
-  const { dono } = usePfDono()
   const all = NAV.flatMap(([, items]) => items)
   const items = BOTTOM.map((id) => all.find((x) => x[0] === id)).filter((x) => x && (!x[4] || auth.canSee(x[4])))
   return (
-    <nav className="bottom-nav" aria-label="Navegação rápida" style={{ gridTemplateColumns: `repeat(${items.length + 1 + (dono ? 1 : 0)}, minmax(0, 1fr))` }}>
+    <nav className="bottom-nav" aria-label="Navegação rápida" style={{ gridTemplateColumns: `repeat(${items.length + 1}, minmax(0, 1fr))` }}>
       {items.map(([id, label, to, icon, , countKey]) => {
         const on = !menuOpen && loc.pathname.startsWith(to)
         const n = countKey ? counts[countKey] : 0
@@ -177,12 +152,6 @@ function BottomNav({ counts, onMenu, menuOpen }) {
           </NavLink>
         )
       })}
-      {dono ? (
-        <NavLink to="/erp/pessoal" className={`bn-item ${!menuOpen && loc.pathname.startsWith('/erp/pessoal') ? 'on' : ''}`}>
-          <span className="bn-ic"><Icon name="money" size={19} /></span>
-          <span>Pessoal</span>
-        </NavLink>
-      ) : null}
       <button type="button" className={`bn-item ${menuOpen ? 'on' : ''}`} onClick={onMenu} aria-expanded={menuOpen}>
         <span className="bn-ic"><Icon name="menu" size={19} /></span>
         <span>Menu</span>
@@ -265,7 +234,7 @@ function CommandPalette({ onClose, onNew }) {
   const auth = useAuth()
 
   const pages = useMemo(() => NAV.flatMap(([, items]) => items)
-    .filter(([, , , , m]) => !m || auth.canSee(m))
+    .filter(([, , , , m]) => !m || podeVer(auth, m))
     .map(([id, label, to, icon]) => ({ kind: 'Ir para', label, icon, run: () => nav(to) }))
     .concat(auth.canSee('config') ? [{ kind: 'Ir para', label: 'Configurações', icon: 'sliders', run: () => nav('/erp/config') }] : []), [auth, nav])
   const actions = useMemo(() => [
@@ -537,7 +506,6 @@ export function Shell() {
   useEffect(() => { if (title) document.title = `${title} · ERP Zinkra` }, [title])
 
   return (
-    <PfDonoProvider uid={auth.uid}>
     <ErpCtx.Provider value={ctx}>
       <div className="shell">
         <Sidebar counts={counts.data || {}} open={drawer} onClose={() => setDrawer(false)} />
@@ -557,6 +525,5 @@ export function Shell() {
       {quick?.kind === 'expense' ? <QuickExpense defaults={quick.defaults} onClose={() => setQuick(null)} /> : null}
       {quick?.kind === 'idea' ? <QuickIdea onClose={() => setQuick(null)} /> : null}
     </ErpCtx.Provider>
-    </PfDonoProvider>
   )
 }

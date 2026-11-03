@@ -29,24 +29,13 @@ const Reunioes = lazy(() => import('./pages/Reunioes'))
 const Pagar = lazy(() => import('./pages/Pagar'))
 const Receber = lazy(() => import('./pages/Receber'))
 const Fluxo = lazy(() => import('./pages/Fluxo'))
+const Conciliacao = lazy(() => import('./pages/Conciliacao'))
 const Ideias = lazy(() => import('./pages/Ideias'))
 const Playbooks = lazy(() => import('./pages/Playbooks'))
 const Parceiros = lazy(() => import('./pages/Parceiros'))
 const Relatorios = lazy(() => import('./pages/Relatorios'))
 const Config = lazy(() => import('./pages/Config'))
 const Conta = lazy(() => import('./pages/Conta'))
-// módulo Pessoal: fora do PAGE_LOADERS de propósito (o código só baixa quando o dono abre)
-const PessoalLayout = lazy(() => import('./pessoal/Layout'))
-const PessoalInicio = lazy(() => import('./pessoal/Inicio'))
-const PessoalPrimeirosPassos = lazy(() => import('./pessoal/PrimeirosPassos'))
-const PessoalConfig = lazy(() => import('./pessoal/Configuracoes'))
-const PessoalReceber = lazy(() => import('./pessoal/Receber'))
-const PessoalContas = lazy(() => import('./pessoal/Contas'))
-const PessoalLancamentos = lazy(() => import('./pessoal/Lancamentos'))
-const PessoalParcelamentos = lazy(() => import('./pessoal/Parcelamentos'))
-const PessoalDividas = lazy(() => import('./pessoal/Dividas'))
-const PessoalGeral = lazy(() => import('./pessoal/Geral'))
-
 
 // pré-carrega o código de todas as telas em segundo plano, para a troca de tela ser imediata
 export const PAGE_LOADERS = [
@@ -70,6 +59,7 @@ export const PAGE_LOADERS = [
   () => import('./pages/Pagar'),
   () => import('./pages/Receber'),
   () => import('./pages/Fluxo'),
+  () => import('./pages/Conciliacao'),
   () => import('./pages/Ideias'),
   () => import('./pages/Playbooks'),
   () => import('./pages/Parceiros'),
@@ -259,24 +249,13 @@ function Gate() {
         <Route path="financeiro/pagar" element={<Guard module="financeiro"><Pagar /></Guard>} />
         <Route path="financeiro/receber" element={<Guard module="financeiro"><Receber /></Guard>} />
         <Route path="financeiro/fluxo" element={<Guard module="financeiro"><Fluxo /></Guard>} />
+        <Route path="financeiro/conciliacao" element={<Conciliacao />} />
         <Route path="ideias" element={<Guard module="ideias"><Ideias /></Guard>} />
         <Route path="playbooks" element={<Guard module="playbooks"><Playbooks /></Guard>} />
         <Route path="parceiros" element={<Guard module="parceiros"><Parceiros /></Guard>} />
         <Route path="relatorios" element={<Guard module="relatorios"><Relatorios /></Guard>} />
         <Route path="config" element={<Guard module="config"><Config /></Guard>} />
         <Route path="conta" element={<Conta />} />
-        <Route path="pessoal" element={<PessoalLayout />}>
-          <Route index element={<PessoalInicio />} />
-          <Route path="receber" element={<PessoalReceber />} />
-          <Route path="contas" element={<PessoalContas />} />
-          <Route path="lancamentos" element={<PessoalLancamentos />} />
-          <Route path="parcelamentos" element={<PessoalParcelamentos />} />
-          <Route path="dividas" element={<PessoalDividas />} />
-          <Route path="visao-geral" element={<PessoalGeral />} />
-          <Route path="primeiros-passos" element={<PessoalPrimeirosPassos />} />
-          <Route path="config" element={<PessoalConfig />} />
-          <Route path="*" element={<Navigate to="/erp/pessoal" replace />} />
-        </Route>
         <Route path="*" element={<Navigate to="/erp" replace />} />
       </Route>
     </Routes>

@@ -113,3 +113,7 @@ Confira os limites atuais do plano gratuito (tamanho do banco e pausa por inativ
 | `src/erp/pages/*` | Uma tela por arquivo |
 | `supabase/erp-schema.sql` | Tabelas, permissões, gatilhos e automações do banco |
 | `api/erp-ai.js` · `api/erp-invite.js` | Assistente com IA e convite de usuários (servidor) |
+
+## 6. Financeiro dos projetos e Conciliação (nov/2026)
+
+Rode no SQL Editor, nesta ordem: `supabase/remover-modulo-pessoal.sql` (guarda cópia em `pessoal_arquivo_*` antes de apagar), `supabase/erp-financeiro-projetos.sql`, `supabase/erp-banco.sql`. Chaves do Pluggy (opcionais) estão descritas no README e no `.env.example`.
