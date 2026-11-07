@@ -5,7 +5,7 @@
 
 import { brl, today, addDays } from './format'
 
-export const TIPOS_VALOR = { base: 'Valor base', adicional: 'Adicional', melhoria: 'Melhoria', mensalidade: 'Mensalidade' }
+export const TIPOS_VALOR = { base: 'Valor base', adicional: 'Adicional', melhoria: 'Melhoria', mensalidade: 'Mensalidade', desconto: 'Desconto' }
 export const FORMAS_RECEBIMENTO = ['Pix', 'Transferência', 'Boleto', 'Cartão', 'Dinheiro']
 
 const soma = (lista) => (lista || []).reduce((a, x) => a + (Number(x.amount_cents) || 0), 0)
@@ -23,8 +23,10 @@ export function mesesCobrados(item, hoje = today()) {
 }
 
 // Quanto o item vale até hoje: valor fechado, ou valor mensal vezes os meses já cobrados.
+// Desconto é guardado como número positivo, mas ABATE o total do projeto (vale negativo na conta).
 export function valorDoItem(item, hoje = today()) {
   const v = Number(item.amount_cents) || 0
+  if (item.kind === 'desconto') return -v
   return item.kind === 'mensalidade' ? v * mesesCobrados(item, hoje) : v
 }
 
@@ -174,7 +176,7 @@ export function faturado(w, hoje = today()) {
   for (const v of fin.valores || []) {
     const origem = rotuloProjeto(v.project_id)
     if (v.kind === 'mensalidade') datasDeCobranca(v, hoje).forEach((d) => fat.push({ origem, data: d, valor: valor(v) }))
-    else fat.push({ origem, data: v.on_date, valor: valor(v) })
+    else fat.push({ origem, data: v.on_date, valor: valorDoItem(v, hoje) })
   }
   for (const r of fin.recebimentos || []) rec.push({ origem: rotuloProjeto(r.project_id), data: r.received_on, valor: valor(r) })
 
@@ -292,6 +294,17 @@ export function calcularCarteira(f, projetos) {
     lucroPrevisto: t.lucroPrevisto + fin.lucroPrevisto,
   }), { valorTotal: 0, recebido: 0, faltaReceber: 0, comissaoAPagar: 0, lucroPrevisto: 0 })
   return { linhas, totais }
+}
+
+// Regra do financeiro: TODO valor pertence a um projeto. Parcela do modelo antigo (Contas a receber) só
+// vale se o contrato dela estiver ligado a algum projeto; as demais (avulsas ou de contrato solto) ficam
+// fora do faturamento e do caixa e aparecem num aviso, para o Danilo mover para um projeto ou arquivar.
+export function separarSemProjeto(receivables = [], projects = []) {
+  const contratosDeProjeto = new Set(projects.map((p) => p.contract_id).filter(Boolean))
+  const vinculadas = []
+  const semProjeto = []
+  for (const r of receivables) (r.contract_id && contratosDeProjeto.has(r.contract_id) ? vinculadas : semProjeto).push(r)
+  return { vinculadas, semProjeto }
 }
 
 // Para o fluxo de caixa e o painel: evita contar duas vezes o mesmo dinheiro.

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { calcularProjeto, calcularCarteira, linhaDoTempo, validarValor, avisoRecebimento, avisoAbatimento, semDuplicidade, mesesCobrados, valorDoItem, resumoComanda, faturamento, datasDeCobranca, resumoSaas, faturado, previsaoDoSaldo, saldoPrevistoAte } from './financeiro'
+import { calcularProjeto, calcularCarteira, linhaDoTempo, validarValor, avisoRecebimento, avisoAbatimento, semDuplicidade, mesesCobrados, valorDoItem, resumoComanda, faturamento, datasDeCobranca, resumoSaas, faturado, previsaoDoSaldo, saldoPrevistoAte, separarSemProjeto } from './financeiro'
 
 // Valores abaixo são só de teste (nada disso vai para o banco).
 const v = (amount_cents, extra = {}) => ({ amount_cents, ...extra })
@@ -307,5 +307,65 @@ describe('previsão de receber o saldo do projeto', () => {
   it('só entra no a receber o saldo com previsão até a data', () => {
     expect(saldoPrevistoAte(linhas, '2026-12-03')).toBe(60000)
     expect(saldoPrevistoAte(linhas, '2026-11-10')).toBe(0)
+  })
+})
+
+
+// ---------------------------------------------------------------------------
+// Desconto na comanda e regra "todo valor pertence a um projeto"
+// ---------------------------------------------------------------------------
+describe('desconto na comanda', () => {
+  it('abate o total do projeto e entra na falta de receber', () => {
+    const fin = calcularProjeto({ valores: [v(350000, { kind: 'base' }), v(120000, { kind: 'adicional' }), v(20000, { kind: 'desconto' })], recebimentos: [v(100000)] })
+    expect(fin.valorTotal).toBe(450000)
+    expect(fin.faltaReceber).toBe(350000)
+  })
+  it('a comissão percentual acompanha o total já com desconto', () => {
+    const fin = calcularProjeto({ valores: [v(100000, { kind: 'base' }), v(10000, { kind: 'desconto' })], parceiro: { kind: 'percentual', pct: 10 } })
+    expect(fin.comissaoTotal).toBe(9000)
+  })
+  it('valorDoItem devolve negativo para desconto', () => expect(valorDoItem(v(5000, { kind: 'desconto' }))).toBe(-5000))
+})
+
+describe('parcelas antigas sem projeto', () => {
+  const projetos = [{ id: 'p1', contract_id: 'c1' }, { id: 'p2', contract_id: null }]
+  const r = (id, contract_id) => ({ id, contract_id, amount_cents: 100 })
+  it('só vale parcela cujo contrato está ligado a um projeto', () => {
+    const { vinculadas, semProjeto } = separarSemProjeto([r('a', 'c1'), r('b', 'c9'), r('c', null)], projetos)
+    expect(vinculadas.map((x) => x.id)).toEqual(['a'])
+    expect(semProjeto.map((x) => x.id)).toEqual(['b', 'c'])
+  })
+  it('sem projetos, tudo fica sem projeto', () => expect(separarSemProjeto([r('a', 'c1')], []).semProjeto).toHaveLength(1))
+})
+
+describe('faturamento com os números reais de nov/2026 (valores de teste)', () => {
+  const hoje = '2026-11-07'
+  const projeto = (id, client_id, name) => ({ id, client_id, name })
+  const w = {
+    clients: [{ id: 'cA', name: 'Adeilton' }, { id: 'cK', name: 'King Mídia' }, { id: 'cD', name: 'Daniele' }],
+    projects: [projeto('pA', 'cA', 'Indoor'), projeto('pK', 'cK', 'TVs'), projeto('pD', 'cD', 'Site')],
+    receivables: [], contracts: [],
+    fin: {
+      valores: [
+        v(470000, { project_id: 'pA', kind: 'base', on_date: '2026-10-20' }),
+        v(320000, { project_id: 'pK', kind: 'base', on_date: '2026-08-10' }),
+        v(48000, { project_id: 'pD', kind: 'base', on_date: '2026-10-05' }),
+      ],
+      recebimentos: [
+        v(375000, { project_id: 'pA', received_on: '2026-11-01' }),
+        v(260000, { project_id: 'pK', received_on: '2026-09-01' }),
+        v(48000, { project_id: 'pD', received_on: '2026-10-06' }),
+      ],
+    },
+  }
+  it('soma Adeilton 4.700 + André 3.200 + Daniele 480 = 8.380', () => expect(faturado(w, hoje).total).toBe(838000))
+  it('André pago 2.600 fica com saldo de R$ 600; novo pagamento de R$ 300 reduz para R$ 300', () => {
+    const dados = (extra = []) => ({ valores: w.fin.valores.filter((x) => x.project_id === 'pK'), recebimentos: [...w.fin.recebimentos.filter((x) => x.project_id === 'pK'), ...extra] })
+    expect(calcularProjeto(dados()).faltaReceber).toBe(60000)
+    expect(calcularProjeto(dados([v(30000, { project_id: 'pK' })])).faltaReceber).toBe(30000)
+  })
+  it('parcela antiga sem projeto não entra no faturamento (já separada na carga)', () => {
+    const { vinculadas } = separarSemProjeto([{ id: 'x', contract_id: 'c-solto', amount_cents: 120000, due_on: '2026-10-01' }], w.projects)
+    expect(faturado({ ...w, receivables: vinculadas }, hoje).total).toBe(838000)
   })
 })

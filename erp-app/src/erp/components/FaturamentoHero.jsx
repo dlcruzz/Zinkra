@@ -46,6 +46,12 @@ export default function FaturamentoHero({ w }) {
             : 'O primeiro valor fechado ou recebido começa a contar aqui.'}
         </span>
       </div>
+      {w.semProjeto?.length ? (
+        <div className="note y">
+          {w.semProjeto.length} lançamento(s) antigo(s) sem projeto ({brl0(w.semProjeto.reduce((a, r) => a + (Number(r.amount_cents) || 0), 0))}) ficaram fora deste número, porque todo valor precisa pertencer a um projeto.{' '}
+          <Link to="/erp/financeiro/receber">Mover para um projeto ou arquivar</Link>
+        </div>
+      ) : null}
       <ul className="fat-grid">
         {janelas.map((j, i) => {
           const v = variacao(j.valor, j.anterior)

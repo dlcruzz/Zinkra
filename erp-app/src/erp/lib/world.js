@@ -3,7 +3,7 @@
 // é mais simples e barato do que manter dezenas de views no banco.
 import { useData, fetchRows, onChange } from './data'
 import { getPipelines } from './automations'
-import { calcularCarteira, semDuplicidade, saldoPrevistoAte } from './financeiro'
+import { calcularCarteira, semDuplicidade, saldoPrevistoAte, separarSemProjeto } from './financeiro'
 import { addDays, today, inRange, startOfMonth, endOfMonth, startOfWeek } from './format'
 
 const TABLES = ['leads', 'activities', 'tasks', 'projects', 'receivables', 'payables', 'proposals', 'proposal_items',
@@ -61,8 +61,10 @@ async function loadWorldFresh() {
     safe(fetchRows('project_comandas', { order: null })),
   ])
   const settings = Object.fromEntries(settingsRows.map((r) => [r.key, r.value]))
+  // todo valor pertence a um projeto: parcela antiga sem projeto fica fora das contas e vira aviso (w.semProjeto)
+  const { vinculadas, semProjeto } = separarSemProjeto(receivables, projects)
   const world = {
-    P, leads, activities, tasks, projects, receivables, payables, proposals, items, contracts, clients, goals, meetings,
+    semProjeto, P, leads, activities, tasks, projects, receivables: vinculadas, payables, proposals, items, contracts, clients, goals, meetings,
     timeEntries, commissions, terms: [], ideas, dismissals, settings, playbooks, partners, milestones,
   }
   const comProjetos = comFinanceiroDosProjetos(world, {

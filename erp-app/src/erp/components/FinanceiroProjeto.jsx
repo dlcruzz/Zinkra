@@ -41,6 +41,16 @@ export function useFinanceiroProjeto(projectId, clientId = null) {
   }, [...TABELAS_FIN, 'project_fin_log', 'clients', 'receivables'], [projectId, clientId])
 }
 
+// Comanda aberta do projeto (cria se não existir). Usada também pelo lançamento avulso em Contas a receber.
+export async function comandaDoProjeto(project) {
+  const lista = await fetchRows('project_comandas', { where: (q) => q.eq('project_id', project.id), order: 'created_at', ascending: true }).catch(() => null)
+  if (lista === null) return null // banco sem o arquivo erp-comandas.sql: o item cai sem comanda
+  const aberta = lista.find((c) => c.status === 'aberta') || lista[0]
+  if (aberta) return aberta.id
+  const nova = await insert('project_comandas', { project_id: project.id, client_id: project.client_id || null, title: project.name })
+  return nova.id
+}
+
 const rotuloItem = (v) => `${TIPOS_VALOR[v.kind] || 'Valor'}${v.description ? ` · ${v.description}` : ''}`
 
 export default function FinanceiroProjeto({ project, onChanged }) {
@@ -252,7 +262,7 @@ function descreverLog(l) {
 function Evento({ e, itens, canDelete, onDelete }) {
   const r = e.row
   const cfg = {
-    valor: { cor: 'blue', icone: 'plus', titulo: `${rotuloItem(r)}${r.kind === 'mensalidade' ? ' (por mês)' : ''}`, sinal: '+', tabela: 'project_valores', texto: 'este valor' },
+    valor: { cor: r.kind === 'desconto' ? 'red' : 'blue', icone: r.kind === 'desconto' ? 'zap' : 'plus', titulo: `${rotuloItem(r)}${r.kind === 'mensalidade' ? ' (por mês)' : ''}`, sinal: r.kind === 'desconto' ? '−' : '+', tabela: 'project_valores', texto: 'este valor' },
     recebimento: { cor: 'green', icone: 'down', titulo: `Recebimento${r.method ? ` · ${r.method}` : ''}${r.valor_id && itens[r.valor_id] ? ` · ref. ${itens[r.valor_id]}` : ''}${r.notes ? ` · ${r.notes}` : ''}`, sinal: '+', tabela: 'project_recebimentos', texto: 'este recebimento' },
     pagamento: { cor: 'yel', icone: 'send', titulo: `Pagamento de comissão${r.notes ? ` · ${r.notes}` : ''}`, sinal: '−', tabela: 'project_comissao_pagamentos', texto: 'este pagamento de comissão' },
     abatimento: { cor: 'red', icone: 'zap', titulo: `Abatimento · ${r.reason}`, sinal: '−', tabela: 'project_comissao_abatimentos', texto: 'este abatimento' },
@@ -332,9 +342,10 @@ function LancamentoModal({ tipo, editar, project, fin, itens, temComandas, garan
         <Field label={mensal ? 'Começa a cobrar em' : 'Data'}><input type="date" className="in" value={f.data} onChange={(e) => set('data')(e.target.value)} /></Field>
         {mensal ? <Field label="Termina em (opcional)"><input type="date" className="in" value={f.fim} onChange={(e) => set('fim')(e.target.value)} /></Field> : null}
         {tipo === 'recebimento' ? <Field label="Forma"><Select value={f.forma} onChange={(v) => set('forma')(v || 'Pix')} options={FORMAS_RECEBIMENTO} /></Field> : null}
-        {tipo === 'adicional' ? <Field label="Descrição"><input className="in" placeholder="Ex.: página extra, integração, plano mensal" value={f.desc} onChange={(e) => set('desc')(e.target.value)} /></Field> : null}
+        {tipo === 'adicional' ? <Field label="Descrição"><input className="in"  placeholder={f.kind === 'desconto' ? 'Ex.: desconto combinado na entrega' : 'Ex.: página extra, integração, plano mensal'} value={f.desc} onChange={(e) => set('desc')(e.target.value)} /></Field> : null}
         {tipo === 'abatimento' ? <Field label="Motivo"><input className="in" placeholder="Ex.: melhoria do sistema" value={f.motivo} onChange={(e) => set('motivo')(e.target.value)} /></Field> : null}
         {tipo === 'recebimento' || tipo === 'pagamento' ? <Field label="Observação"><input className="in" value={f.obs} onChange={(e) => set('obs')(e.target.value)} /></Field> : null}
+        {tipo === 'adicional' && f.kind === 'desconto' ? <div className="note info">O desconto abate o valor total do projeto. Informe o valor sem sinal.</div> : null}
         {mensal ? <div className="note info">A mensalidade soma no total do projeto uma vez por mês, a partir da data de início.</div> : null}
         {editar ? <div className="note info">O valor antigo e o novo ficam guardados no histórico da comanda.</div> : null}
         {aviso ? <div className="note y">{aviso} Você pode salvar mesmo assim.</div> : null}

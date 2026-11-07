@@ -2,22 +2,24 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useMeta } from '../components/Shell'
 import { useAuth } from '../lib/auth'
-import { useData, fetchRows, insert, update, notify, useSettings } from '../lib/data'
+import { useData, fetchRows, insert, update, archive, notify, useSettings } from '../lib/data'
 import { markReceived } from '../lib/automations'
 import { brl, brl0, dm, today, addDays, startOfMonth, endOfMonth, daysFromToday, waLink, fillTemplate } from '../lib/format'
-import { PageHead, Tabs, Loading, ErrorBox, Badge, Modal, Field, Select, MoneyInput, AsyncButton, Empty, Stat } from '../components/ui'
+import { PageHead, Tabs, Loading, ErrorBox, Badge, Modal, Field, Select, MoneyInput, AsyncButton, Empty, Stat, useConfirm } from '../components/ui'
 import { FRONTS, METHODS } from '../lib/constants'
-import { calcularCarteira, semDuplicidade } from '../lib/financeiro'
+import { calcularCarteira, semDuplicidade, separarSemProjeto, TIPOS_VALOR, validarValor } from '../lib/financeiro'
 import { carregarFinanceiro } from '../components/FinanceiroLista'
-import { TABELAS_FIN } from '../components/FinanceiroProjeto'
+import { TABELAS_FIN, comandaDoProjeto } from '../components/FinanceiroProjeto'
 import { toCsv, download } from '../lib/csv'
 import { Icon } from '../lib/icons'
 
+// Todo valor pertence a um projeto: parcela antiga sem projeto fica fora das contas e aparece no aviso "Sem projeto".
 // Projeto no financeiro novo substitui as parcelas antigas do contrato dele: elas não entram na conta duas vezes.
 function visiveis(data) {
-  if (!data.fin) return { rows: data.rows, escondidas: 0 }
-  const rows = semDuplicidade({ projects: data.projects, receivables: data.rows, payables: [], commissions: [] }, data.fin).receivables
-  return { rows, escondidas: data.rows.length - rows.length }
+  const { vinculadas, semProjeto } = separarSemProjeto(data.rows, data.projects)
+  if (!data.fin) return { rows: vinculadas, escondidas: 0, semProjeto }
+  const rows = semDuplicidade({ projects: data.projects, receivables: vinculadas, payables: [], commissions: [] }, data.fin).receivables
+  return { rows, escondidas: vinculadas.length - rows.length, semProjeto }
 }
 
 export default function Receber() {
@@ -28,6 +30,8 @@ export default function Receber() {
   const [tab, setTab] = useState(sp.get('f') || 'abertas')
   const [sel, setSel] = useState(null)
   const [adding, setAdding] = useState(false)
+  const [mover, setMover] = useState(null)
+  const confirm = useConfirm()
   const [method, setMethod] = useState('Pix')
   const [date, setDate] = useState(today())
   const [copied, setCopied] = useState(false)
@@ -41,7 +45,7 @@ export default function Receber() {
   }), ['receivables', 'clients', 'projects', ...TABELAS_FIN])
 
   const t = today()
-  const { rows: todos, escondidas } = useMemo(() => (data ? visiveis(data) : { rows: [], escondidas: 0 }), [data])
+  const { rows: todos, escondidas, semProjeto } = useMemo(() => (data ? visiveis(data) : { rows: [], escondidas: 0, semProjeto: [] }), [data])
   const list = useMemo(() => {
     if (!data) return []
     const r = todos
@@ -95,7 +99,7 @@ export default function Receber() {
     <div className="page">
       <PageHead title="Contas a receber" sub="Parcelas e mensalidades dos contratos e o saldo a receber dos projetos.">
         <button type="button" className="btn" onClick={exportCsv}><Icon name="download" size={14} />CSV</button>
-        {auth.canEdit('financeiro') ? <button type="button" className="btn p" onClick={() => setAdding(true)}>Lançamento avulso</button> : null}
+        {auth.canEdit('financeiro') ? <button type="button" className="btn p" onClick={() => setAdding(true)}>Lançar em um projeto</button> : null}
       </PageHead>
 
       <div className="card stats">
@@ -104,6 +108,34 @@ export default function Receber() {
         <Stat label="A vencer no mês" value={brl0(sum(monthOpen))} sub={`${monthOpen.length} cobrança(s)`} />
         <Stat label="Recebido no mês" value={brl0(sum(monthRec))} valueClass="ok" sub={`${monthRec.length} pagamento(s)`} />
       </div>
+
+      {semProjeto.length ? (
+        <div className="card" style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div className="row" style={{ justifyContent: 'space-between' }}>
+            <h2>Sem projeto</h2>
+            <span className="lbl">{brl(sum(semProjeto))} fora do faturamento e do caixa · todo valor precisa pertencer a um projeto</span>
+          </div>
+          <div className="tbl-wrap"><table className="tbl">
+            <thead><tr><th>Cliente</th><th>Referência</th><th>Data</th><th className="r">Valor</th><th /></tr></thead>
+            <tbody>
+              {semProjeto.map((x) => (
+                <tr key={x.id}>
+                  <td data-l="Cliente" style={{ fontWeight: 500 }}>{client(x.client_id)?.name || '—'}</td>
+                  <td data-l="Referência" className="lbl">{x.description}{x.part_label ? ` (${x.part_label})` : ''}</td>
+                  <td data-l="Data" className="num">{x.received_on ? `recebida ${dm(x.received_on)}` : `vence ${dm(x.due_on)}`}</td>
+                  <td data-l="Valor" className="num r">{brl(x.amount_cents)}</td>
+                  <td className="r">{auth.canEdit('financeiro') ? (
+                    <div className="row" style={{ justifyContent: 'flex-end' }}>
+                      <button type="button" className="btn s p" onClick={() => setMover(x)}>Mover para projeto</button>
+                      <button type="button" className="btn s" onClick={async () => { if (await confirm(`Arquivar "${x.description}" de ${brl(x.amount_cents)}? Dá para desfazer logo depois.`, { ok: 'Arquivar' })) await archive('receivables', x.id) }}>Arquivar</button>
+                    </div>
+                  ) : null}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table></div>
+        </div>
+      ) : null}
 
       {saldos.length ? (
         <div className="card" style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -184,7 +216,8 @@ export default function Receber() {
         ) : null}
       </div>
 
-      {adding ? <NewReceivable clients={data.clients} onClose={() => setAdding(false)} /> : null}
+      {adding ? <LancarNoProjeto projects={data.projects} clients={data.clients} onClose={() => setAdding(false)} /> : null}
+      {mover ? <LancarNoProjeto projects={data.projects} clients={data.clients} origem={mover} onClose={() => setMover(null)} /> : null}
     </div>
   )
 }
@@ -206,24 +239,45 @@ function EditDue({ r }) {
   )
 }
 
-function NewReceivable({ clients, onClose }) {
-  const [f, setF] = useState({ client_id: '', description: '', amount_cents: 0, due_on: today(), front: 'sites', received: false })
+// Lançamento sempre dentro de um projeto (obrigatório). Com `origem`, move uma parcela antiga sem projeto:
+// cria o item na comanda, o recebimento (se já foi recebida) e arquiva a parcela antiga.
+function LancarNoProjeto({ projects, clients, origem = null, onClose }) {
+  const dono = origem ? projects.find((p) => p.client_id && p.client_id === origem.client_id) : null
+  const [f, setF] = useState({
+    project_id: dono?.id || '', kind: origem ? 'base' : 'adicional', description: origem?.description || '',
+    amount_cents: origem?.amount_cents || 0, data: origem?.received_on || origem?.due_on || today(), received: Boolean(origem?.received_on),
+    method: origem?.method || 'Pix',
+  })
+  const [erro, setErro] = useState('')
+  const set = (k) => (v) => setF((x) => ({ ...x, [k]: v }))
+  const nomeCliente = (id) => clients.find((c) => c.id === id)?.name
+  const opcoes = projects.map((p) => [p.id, `${nomeCliente(p.client_id) || 'Sem cliente'} · ${p.name}`])
+  const salvar = async () => {
+    const e = !f.project_id ? 'Escolha o projeto: todo valor precisa pertencer a um projeto.' : validarValor(f.amount_cents)
+    setErro(e)
+    if (e) return
+    const projeto = projects.find((p) => p.id === f.project_id)
+    const comandaId = await comandaDoProjeto(projeto)
+    const item = await insert('project_valores', { project_id: projeto.id, kind: f.kind, description: f.description.trim() || null, amount_cents: f.amount_cents, on_date: f.data, ...(comandaId ? { comanda_id: comandaId } : {}) })
+    if (f.received && f.kind !== 'desconto') {
+      await insert('project_recebimentos', { project_id: projeto.id, amount_cents: f.amount_cents, received_on: origem?.received_on || f.data, method: f.method, notes: origem ? 'Movido de Contas a receber' : null, ...(comandaId ? { comanda_id: comandaId, valor_id: item?.id || null } : {}) })
+    }
+    if (origem) await archive('receivables', origem.id, { quiet: true })
+    notify(origem ? 'Movido para o projeto.' : 'Lançado no projeto.', 'ok')
+    onClose()
+  }
   return (
-    <Modal title="Lançamento avulso" onClose={onClose} footer={<><button type="button" className="btn" onClick={onClose}>Cancelar</button><AsyncButton className="btn p" onClick={async () => {
-      if (!f.description || !f.amount_cents) return notify('Informe descrição e valor.', 'err')
-      const { received, ...rest } = f
-      await insert('receivables', { ...rest, client_id: f.client_id || null, received_on: received ? today() : null, method: received ? 'Pix' : null })
-      notify('Lançado.', 'ok'); onClose()
-    }}>Salvar</AsyncButton></>}>
-      <p className="lbl">Para parcelas de projeto e mensalidades, prefira criar o contrato no cliente: as cobranças se geram sozinhas.</p>
+    <Modal title={origem ? 'Mover para um projeto' : 'Lançar em um projeto'} onClose={onClose} footer={<><button type="button" className="btn" onClick={onClose}>Cancelar</button><AsyncButton className="btn p" onClick={salvar}>Salvar</AsyncButton></>}>
+      <p className="lbl">{origem ? 'A parcela antiga sai de Contas a receber e passa a valer dentro da comanda do projeto escolhido.' : 'O valor entra na comanda do projeto, soma no faturamento e aparece em Contas a receber como saldo do projeto.'}</p>
       <div className="fields">
-        <Field label="Cliente"><Select value={f.client_id} onChange={(v) => setF({ ...f, client_id: v || '' })} placeholder="—" options={clients.map((c) => [c.id, c.name])} /></Field>
-        <Field label="Descrição"><input className="in" value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} /></Field>
-        <Field label="Valor"><MoneyInput value={f.amount_cents} onChange={(v) => setF({ ...f, amount_cents: v })} /></Field>
-        <Field label="Vencimento"><input type="date" className="in" value={f.due_on} onChange={(e) => setF({ ...f, due_on: e.target.value })} /></Field>
-        <Field label="Frente"><Select value={f.front} onChange={(v) => setF({ ...f, front: v })} options={FRONTS} /></Field>
+        <Field label="Projeto"><Select value={f.project_id} onChange={(v) => set('project_id')(v || '')} placeholder="Escolha o projeto" options={opcoes} /></Field>
+        <Field label="Tipo"><Select value={f.kind} onChange={(v) => set('kind')(v || 'adicional')} options={Object.fromEntries(Object.entries(TIPOS_VALOR).filter(([k]) => k !== 'mensalidade'))} /></Field>
+        <Field label="Descrição"><input className="in" value={f.description} onChange={(e) => set('description')(e.target.value)} /></Field>
+        <Field label="Valor"><MoneyInput value={f.amount_cents} onChange={set('amount_cents')} /></Field>
+        <Field label="Data"><input type="date" className="in" value={f.data} onChange={(e) => set('data')(e.target.value)} /></Field>
       </div>
-      <label className="check"><input type="checkbox" checked={f.received} onChange={(e) => setF({ ...f, received: e.target.checked })} />Já recebido</label>
+      {f.kind !== 'desconto' ? <label className="check"><input type="checkbox" checked={f.received} onChange={(e) => set('received')(e.target.checked)} />Já recebido</label> : null}
+      {erro ? <div className="note r">{erro}</div> : null}
     </Modal>
   )
 }
