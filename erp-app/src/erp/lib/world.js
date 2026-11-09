@@ -4,13 +4,15 @@
 import { useData, fetchRows, onChange } from './data'
 import { getPipelines } from './automations'
 import { calcularCarteira, semDuplicidade, saldoPrevistoAte, separarSemProjeto } from './financeiro'
+import { entradasDasCaixinhas, saldosCaixinhas, pagaveisDeCompras } from './caixinhas'
 import { addDays, today, inRange, startOfMonth, endOfMonth, startOfWeek } from './format'
 
 const TABLES = ['leads', 'activities', 'tasks', 'projects', 'receivables', 'payables', 'proposals', 'proposal_items',
   'contracts', 'clients', 'goals', 'meetings', 'time_entries', 'commissions', 'pipeline_stages', 'ideas',
   'insight_dismissals', 'settings', 'playbooks', 'partners', 'milestones',
   'project_valores', 'project_recebimentos', 'project_comissao', 'project_comissao_pagamentos', 'project_comissao_abatimentos',
-  'saas_produtos', 'saas_assinaturas', 'saas_recebimentos', 'project_comandas']
+  'saas_produtos', 'saas_assinaturas', 'saas_recebimentos', 'project_comandas',
+  'caixinhas_config', 'caixinha_repasses', 'caixinha_movimentos', 'compras', 'compras_reservas']
 
 const safe = (p) => p.catch(() => [])
 
@@ -28,7 +30,8 @@ async function loadWorldFresh() {
   const since = addDays(today(), -400)
   const [P, leads, activities, tasks, projects, receivables, payables, proposals, items, contracts, clients, goals,
     meetings, timeEntries, commissions, ideas, dismissals, settingsRows, playbooks, partners, milestones,
-    finValores, finRecebimentos, finParceiros, finPagamentos, finAbatimentos, saasProdutos, saasAssinaturas, saasRecebimentos, finComandas] = await Promise.all([
+    finValores, finRecebimentos, finParceiros, finPagamentos, finAbatimentos, saasProdutos, saasAssinaturas, saasRecebimentos, finComandas,
+    cxConfigs, cxRepasses, cxMovimentos, compras, comprasReservas] = await Promise.all([
     getPipelines(),
     safe(fetchRows('leads', { limit: 5000 })),
     safe(fetchRows('activities', { where: (q) => q.gte('happened_at', since), order: 'happened_at', limit: 10000 })),
@@ -59,6 +62,11 @@ async function loadWorldFresh() {
     safe(fetchRows('saas_assinaturas', { order: null })),
     safe(fetchRows('saas_recebimentos', { order: null })),
     safe(fetchRows('project_comandas', { order: null })),
+    safe(fetchRows('caixinhas_config', { order: 'vigente_desde', ascending: true })),
+    safe(fetchRows('caixinha_repasses', { order: null })),
+    safe(fetchRows('caixinha_movimentos', { order: 'feito_em' })),
+    safe(fetchRows('compras', { order: 'created_at' })),
+    safe(fetchRows('compras_reservas', { order: null })),
   ])
   const settings = Object.fromEntries(settingsRows.map((r) => [r.key, r.value]))
   // todo valor pertence a um projeto: parcela antiga sem projeto fica fora das contas e vira aviso (w.semProjeto)
@@ -70,7 +78,8 @@ async function loadWorldFresh() {
   const comProjetos = comFinanceiroDosProjetos(world, {
     valores: finValores, recebimentos: finRecebimentos, parceiros: finParceiros, pagamentos: finPagamentos, abatimentos: finAbatimentos, comandas: finComandas,
   })
-  return comSaas(comProjetos, { produtos: saasProdutos, assinaturas: saasAssinaturas, recebimentos: saasRecebimentos })
+  const comSaasW = comSaas(comProjetos, { produtos: saasProdutos, assinaturas: saasAssinaturas, recebimentos: saasRecebimentos })
+  return comCaixinhas(comSaasW, { configs: cxConfigs, repasses: cxRepasses, movimentos: cxMovimentos, compras, reservas: comprasReservas })
 }
 
 // Financeiro SaaS: cada recebimento de produto vira uma entrada já recebida no caixa (uma vez só).
@@ -78,6 +87,20 @@ export function comSaas(w, saas) {
   const entradas = saas.recebimentos.map((r) => ({ id: 'saas-rec-' + r.id, contract_id: null, front: 'sistemas',
     amount_cents: r.amount_cents, due_on: r.received_on, received_on: r.received_on }))
   return { ...w, saas, receivables: [...w.receivables, ...entradas] }
+}
+
+// Caixinhas: a divisão de cada entrada é CALCULADA aqui (nada é copiado para o banco).
+// Compra paga vira uma única saída da empresa no fluxo de caixa (categoria Compras).
+export function comCaixinhas(w, cx) {
+  const nomeCliente = (id) => (w.clients || []).find((c) => c.id === id)?.name || 'Sem cliente'
+  const rotulo = (tipo, r) => {
+    if (tipo === 'saas') return `SaaS · ${(w.saas?.produtos || []).find((p) => p.id === r.produto_id)?.name || 'produto'}`
+    const p = (w.projects || []).find((x) => x.id === r.project_id)
+    return p ? `${nomeCliente(p.client_id)} · ${p.name}` : 'Projeto removido'
+  }
+  const entradas = entradasDasCaixinhas({ fin: w.fin || {}, saas: w.saas || {}, linhas: w.carteira?.linhas || [], configs: cx.configs, repasses: cx.repasses, rotulo })
+  const saldos = saldosCaixinhas({ entradas, movimentos: cx.movimentos, compras: cx.compras, reservas: cx.reservas })
+  return { ...w, payables: [...w.payables, ...pagaveisDeCompras(cx.compras)], caixinhas: { ...cx, entradas, saldos } }
 }
 
 // Financeiro dos projetos entra no caixa SEM contar duas vezes:

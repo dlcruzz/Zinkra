@@ -31,6 +31,8 @@ const Receber = lazy(() => import('./pages/Receber'))
 const Fluxo = lazy(() => import('./pages/Fluxo'))
 const Conciliacao = lazy(() => import('./pages/Conciliacao'))
 const FinanceiroSaas = lazy(() => import('./pages/FinanceiroSaas'))
+const Caixinhas = lazy(() => import('./pages/Caixinhas'))
+const Compras = lazy(() => import('./pages/Compras'))
 const Ideias = lazy(() => import('./pages/Ideias'))
 const Playbooks = lazy(() => import('./pages/Playbooks'))
 const Parceiros = lazy(() => import('./pages/Parceiros'))
@@ -62,6 +64,8 @@ export const PAGE_LOADERS = [
   () => import('./pages/Fluxo'),
   () => import('./pages/Conciliacao'),
   () => import('./pages/FinanceiroSaas'),
+  () => import('./pages/Caixinhas'),
+  () => import('./pages/Compras'),
   () => import('./pages/Ideias'),
   () => import('./pages/Playbooks'),
   () => import('./pages/Parceiros'),
@@ -253,6 +257,8 @@ function Gate() {
         <Route path="financeiro/fluxo" element={<Guard module="financeiro"><Fluxo /></Guard>} />
         <Route path="financeiro/conciliacao" element={<Conciliacao />} />
         <Route path="financeiro/saas" element={<Guard module="financeiro"><FinanceiroSaas /></Guard>} />
+        <Route path="financeiro/caixinhas" element={<Guard module="financeiro"><Caixinhas /></Guard>} />
+        <Route path="financeiro/compras" element={<Guard module="financeiro"><Compras /></Guard>} />
         <Route path="ideias" element={<Guard module="ideias"><Ideias /></Guard>} />
         <Route path="playbooks" element={<Guard module="playbooks"><Playbooks /></Guard>} />
         <Route path="parceiros" element={<Guard module="parceiros"><Parceiros /></Guard>} />

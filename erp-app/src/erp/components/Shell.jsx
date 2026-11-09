@@ -49,6 +49,8 @@ const NAV = [
     ['receber', 'Contas a receber', '/erp/financeiro/receber', 'up', 'financeiro', 'recv'],
     ['fluxo', 'Fluxo de caixa', '/erp/financeiro/fluxo', 'trend', 'financeiro'],
     ['saas', 'Financeiro SaaS', '/erp/financeiro/saas', 'spark', 'financeiro'],
+    ['caixinhas', 'Caixinhas', '/erp/financeiro/caixinhas', 'money', 'financeiro'],
+    ['compras', 'Compras', '/erp/financeiro/compras', 'bulb', 'financeiro'],
     ['conciliacao', 'Conciliação', '/erp/financeiro/conciliacao', 'shield', 'banco'],
   ]],
   ['Empresa', [
