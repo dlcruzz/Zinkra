@@ -1,5 +1,8 @@
 // Captação de clientes: locais (Brasil), montagem do prompt para o Claude e leitura do resultado.
 import { parseCsv } from './csv'
+import { fetchCityInfo, splitHood } from './geo'
+import { normalizePhone, igHandle } from './format'
+import { yes } from './csv'
 
 export const UFS = [
   ['AC', 'Acre'], ['AL', 'Alagoas'], ['AP', 'Amapá'], ['AM', 'Amazonas'], ['BA', 'Bahia'], ['CE', 'Ceará'],
@@ -36,24 +39,9 @@ export function knownHoods(city, uf) {
 }
 export const regionOf = (city, uf, hood) => (uf === 'SP' && city === 'São Paulo' ? SP_REGION[hood] || null : null)
 
-// Municípios de uma UF pela API pública do IBGE (com cache no navegador)
-const cityCache = new Map()
+// Municípios de uma UF pela API pública do IBGE (com cache no navegador). Para população e porte: fetchCityInfo (geo.js)
 export async function fetchCities(uf) {
-  if (!uf) return []
-  if (cityCache.has(uf)) return cityCache.get(uf)
-  let list = []
-  try {
-    const raw = localStorage.getItem(`erp_cidades_${uf}`)
-    if (raw) list = JSON.parse(raw)
-  } catch { /* sem storage */ }
-  if (!list.length) {
-    const r = await fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${uf}/municipios?orderBy=nome`)
-    if (!r.ok) throw new Error('IBGE indisponível')
-    list = (await r.json()).map((m) => m.nome)
-    try { localStorage.setItem(`erp_cidades_${uf}`, JSON.stringify(list)) } catch { /* sem storage */ }
-  }
-  cityCache.set(uf, list)
-  return list
+  return (await fetchCityInfo(uf)).map((c) => c.nome)
 }
 
 export const fold = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim()
@@ -62,7 +50,10 @@ export const termKey = (t) => `${fold(t.niche)}|${fold(t.neighborhood)}|${locKey
 
 // o texto exato que o Claude digita no Google Maps (e devolve em "Onde achei")
 export function termQuery({ niche, neighborhood, city, uf }) {
-  return neighborhood ? `${niche} em ${neighborhood}, ${city} - ${uf}` : `${niche} em ${city} - ${uf}`
+  if (!neighborhood) return `${niche} em ${city} - ${uf}`
+  // sub-bairro é guardado como "Sub (Pai)": no Maps vira "Sub, Pai, Cidade - UF"
+  const { name, parent } = splitHood(neighborhood)
+  return parent ? `${niche} em ${name}, ${parent}, ${city} - ${uf}` : `${niche} em ${neighborhood}, ${city} - ${uf}`
 }
 
 export function batchCode() {
@@ -193,7 +184,8 @@ Escritório Exemplo\t-\t@escritorioexemplo\tNão\tCentro\t${terms[0]?.query || '
 }
 
 // Mini prompt para descobrir bairros de uma cidade nova
-export function hoodsPrompt(city, uf) {
+export function hoodsPrompt(city, uf, parent = '') {
+  if (parent) return `Liste os sub-bairros, vilas, jardins, conjuntos e as ruas ou avenidas comerciais principais dentro de ${parent}, em ${city} - ${uf}, para eu dividir a busca de empresas em partes menores. Responda só com os nomes, um por linha, sem numeração e sem comentários. No máximo 40.`
   return `Liste os principais bairros e regiões comerciais de ${city} - ${uf}, onde existe mais comércio, clínicas e escritórios. Responda só com os nomes, um por linha, sem numeração e sem comentários. No máximo 40.`
 }
 
@@ -205,6 +197,7 @@ const HEAD = {
   has_site: /site/,
   neighborhood: /bairro|regiao/,
   where: /onde|termo|busca|origem/,
+  maps: /link|maps|mapa/,
 }
 export async function readResultFile(file) {
   if (/\.xlsx$/i.test(file.name)) {
@@ -234,7 +227,7 @@ export function parseResult(text) {
     missing,
     rows: rows.map((r) => ({
       company: val(r, 'company'), phone: val(r, 'phone'), instagram: val(r, 'instagram'),
-      site: val(r, 'has_site'), neighborhood: val(r, 'neighborhood'), where: val(r, 'where'),
+      site: val(r, 'has_site'), neighborhood: val(r, 'neighborhood'), where: val(r, 'where'), maps: val(r, 'maps'),
     })).filter((o) => o.company || o.phone || o.where),
   }
 }
@@ -246,10 +239,67 @@ export function matchTerm(row, terms) {
     const exact = terms.find((t) => fold(t.query) === w)
     if (exact) return exact
     const loose = [...terms].sort((a, b) => (b.neighborhood || '').length - (a.neighborhood || '').length)
-      .find((t) => t.neighborhood && w.includes(fold(t.neighborhood)))
+      .find((t) => t.neighborhood && w.includes(fold(splitHood(t.neighborhood).name)))
     if (loose) return loose
   }
   const b = fold(row.neighborhood)
   if (b) return terms.find((t) => t.neighborhood && fold(t.neighborhood) === b) || null
   return terms.length === 1 ? terms[0] : null
+}
+
+// ---------------------------------------------------------------- análise da importação (de onde sai cada linha)
+// Cada linha do resultado cai em UMA situação, e a soma fecha com o total lido:
+//   vazio ("SEM RESULTADOS") · site (tem site e o lote é só sem site) · semcontato · dup · novo
+// `incluirSemContato`: empresa achada no Maps sem telefone e sem Instagram entra no CRM mesmo assim
+// (fica sem WhatsApp, mas conta como captada e dá para ligar/achar o contato depois).
+export function analisarImportacao({ rows, terms = [], leads = [], onlyNoSite = false, incluirSemContato = true, city = '' }) {
+  const phones = new Map(), igs = new Map(), nomes = new Map()
+  for (const l of leads) {
+    const p = normalizePhone(l.phone).slice(-8)
+    if (p.length === 8) phones.set(p, l)
+    const ig = igHandle(l.instagram).toLowerCase()
+    if (ig) igs.set(ig, l)
+    if (l.company && fold(l.city) === fold(city)) nomes.set(fold(l.company), l)
+  }
+  const seen = new Set()
+  const per = new Map(terms.map((t) => [t.id, { term: t, rows: 0, fresh: 0, dup: 0, site: 0, sem: 0 }]))
+  const out = (rows || []).map((r) => {
+    const term = matchTerm(r, terms)
+    const info = term ? per.get(term.id) : null
+    if (fold(r.company) === fold(NO_RESULT)) return { r, term, kind: 'vazio', entra: false }
+    if (info) info.rows++
+    const p = normalizePhone(r.phone).slice(-8)
+    const ig = igHandle(r.instagram).toLowerCase()
+    let kind = 'novo'
+    let dupOf = null
+    if (onlyNoSite && yes(r.site)) kind = 'site'
+    else if ((p.length === 8 && (phones.has(p) || seen.has('p' + p))) || (ig && (igs.has(ig) || seen.has('i' + ig)))) { kind = 'dup'; dupOf = phones.get(p) || igs.get(ig) || null }
+    else if (p.length < 8 && !ig) {
+      // sem telefone nem Instagram: só dá para saber se é repetido pelo nome
+      if (r.company && (seen.has('n' + fold(r.company)) || nomes.has(fold(r.company)))) { kind = 'dup'; dupOf = nomes.get(fold(r.company)) || null }
+      else kind = 'semcontato'
+    }
+    if (p.length === 8) seen.add('p' + p)
+    if (ig) seen.add('i' + ig)
+    if (r.company) seen.add('n' + fold(r.company))
+    const entra = kind === 'novo' || (kind === 'semcontato' && incluirSemContato)
+    if (info) {
+      if (entra) info.fresh++
+      else if (kind === 'dup') info.dup++
+      else if (kind === 'site') info.site++
+      else if (kind === 'semcontato') info.sem++
+    }
+    return { r, term, kind, entra, dupOf }
+  })
+  const cnt = (k) => out.filter((x) => x.kind === k).length
+  const funil = {
+    lidas: out.length,
+    vazio: cnt('vazio'),
+    site: cnt('site'),
+    dup: cnt('dup'),
+    semcontato: cnt('semcontato'),
+    novos: out.filter((x) => x.entra).length,
+    comTelefone: out.filter((x) => x.kind === 'novo').length,
+  }
+  return { out, per: Array.from(per.values()), touched: new Set(out.filter((x) => x.term).map((x) => x.term.id)), funil }
 }

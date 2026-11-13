@@ -13,8 +13,9 @@ import { today, dm, igHandle, normalizePhone, pct } from '../lib/format'
 import { yes } from '../lib/csv'
 import {
   UFS, UF_NAME, knownHoods, regionOf, fetchCities, fold, locKey, termQuery, batchCode, buildPrompt, buildInstagramPrompt, hoodsPrompt,
-  readResultFile, parseResult, matchTerm, NO_RESULT, COLS,
+  readResultFile, parseResult, matchTerm, NO_RESULT, COLS, analisarImportacao,
 } from '../lib/captacao'
+import { fetchCityInfo, fetchBairros, tierOf, locaisDosNos, filhosDe, subName, splitHood, SATURADO } from '../lib/geo'
 import { PageHead, Loading, ErrorBox, Bar, Badge, Select, AsyncButton, Field, Empty, Tabs, Modal, Stat, Seg } from '../components/ui'
 import { Icon } from '../lib/icons'
 import { supabase } from '../lib/supabase'
@@ -40,7 +41,7 @@ function BookmarkletLink() {
 const isIgBatch = (b) => (b?.terms || []).some((t) => t.source === 'instagram')
 
 const CITY_WHOLE = '(cidade inteira)'
-const hoodLabel = (h) => h || CITY_WHOLE
+const hoodLabel = (h) => (h ? splitHood(h).name : CITY_WHOLE)
 
 export default function Captacao() {
   useMeta('Comercial', 'Captação')
@@ -153,7 +154,7 @@ function Setup() {
 }
 
 // ------------------------------------------------------------------ status de cada local para um nicho
-function useLocations(loc, batches, niche, city, uf, extra) {
+function useLocations(loc, batches, niche, city, uf, extra, geoLocs = [], tier = '') {
   return useMemo(() => {
     const open = new Set(batches.filter((b) => b.status === 'aguardando').map((b) => b.id))
     const mine = new Map((loc.mine || []).map((t) => [fold(t.neighborhood), t]))
@@ -162,15 +163,20 @@ function useLocations(loc, batches, niche, city, uf, extra) {
       const k = fold(hood)
       if (!map.has(k)) map.set(k, { neighborhood: hood, region: region || regionOf(city, uf, hood) || (hood ? 'Bairros' : 'Cidade'), term: mine.get(k) || null })
     }
+    // cidade grande: a cidade inteira vai para o fim (o certo é buscar por distrito e bairro)
+    if (tier !== 'grande') add('')
     knownHoods(city, uf).forEach((h) => add(h.neighborhood, h.region))
     ;(loc.hoods || []).forEach((h) => add(h.neighborhood, h.region))
-    extra.forEach((h) => add(h))
-    if (!map.size || mine.has('')) add('')
+    geoLocs.forEach((h) => add(h.neighborhood, h.region))
+    extra.forEach((h) => (typeof h === 'string' ? add(h) : add(h.neighborhood, h.region)))
+    if (tier === 'grande' || !map.size || mine.has('')) add('')
     return Array.from(map.values()).map((l) => ({
       ...l,
       status: l.term?.done ? 'feito' : l.term?.batch_id && open.has(l.term.batch_id) ? 'lote' : 'falta',
+      // lotado: a busca devolveu muita empresa, então provavelmente tem mais gente escondida nesse local
+      lotado: Boolean(l.term?.done && Number(l.term?.leads_found) >= SATURADO),
     }))
-  }, [loc, batches, niche, city, uf, extra])
+  }, [loc, batches, niche, city, uf, extra, geoLocs, tier])
 }
 
 function useDebounced(value, ms) {
@@ -193,16 +199,35 @@ function Nova({ data, preset, onImport, onAuto }) {
   const [extra, setExtra] = useState([])
   const [newHoods, setNewHoods] = useState('')
   const [sel, setSel] = useState(null) // null = seleção automática
-  const [cities, setCities] = useState([])
+  const [cityList, setCityList] = useState([])
+  const [geo, setGeo] = useState({}) // bairros por cidade (cache em memória)
+  const [geoWant, setGeoWant] = useState(false)
+  const [aberto, setAberto] = useState(() => new Set()) // locais cujos sub-bairros foram abertos
+  const [filtro, setFiltro] = useState('')
+  const [subTxt, setSubTxt] = useState({})
   const [result, setResult] = useState(null)
   const [copied, setCopied] = useState('')
 
   useEffect(() => {
     let alive = true
-    fetchCities(uf).then((l) => alive && setCities(l)).catch(() => alive && setCities([]))
+    fetchCityInfo(uf).then((l) => alive && setCityList(l)).catch(() => alive && setCityList([]))
     return () => { alive = false }
   }, [uf])
-  useEffect(() => { setSel(null); setExtra([]); setResult(null) }, [niche, city, uf])
+  useEffect(() => { setSel(null); setExtra([]); setResult(null); setAberto(new Set()); setGeoWant(false); setFiltro('') }, [niche, city, uf])
+  const cities = useMemo(() => cityList.map((c) => c.nome), [cityList])
+  const info = useMemo(() => (city ? cityList.find((c) => fold(c.nome) === fold(city)) || null : null), [cityList, city])
+  const tier = info ? tierOf(info.pop) : null
+  const gkey = info ? `${uf}|${info.id}` : ''
+  const geoWanted = Boolean(info && (tier?.dividir || geoWant))
+  useEffect(() => {
+    if (!info || !geoWanted || geo[gkey]) return
+    setGeo((g) => ({ ...g, [gkey]: { loading: true, nodes: [] } }))
+    fetchBairros({ ibgeId: info.id, city: info.nome, uf })
+      .then((r) => setGeo((g) => ({ ...g, [gkey]: r })))
+      .catch(() => setGeo((g) => ({ ...g, [gkey]: { error: true, nodes: [] } })))
+  }, [gkey, geoWanted]) // eslint-disable-line react-hooks/exhaustive-deps
+  const geoNodes = geo[gkey]?.nodes || []
+  const geoLocs = useMemo(() => locaisDosNos(geoNodes, aberto), [geoNodes, aberto])
 
   const niches = useMemo(() => {
     const m = new Map()
@@ -221,7 +246,7 @@ function Nova({ data, preset, onImport, onAuto }) {
     return { ...(await rpc('captacao_locais', { p_uf: uf, p_city: dCity, p_niche: dNiche }, { quiet: true })), _k: k }
   }, ['search_terms'], [uf, dCity, dNiche])
   const locReady = locRaw?._k === `${uf}|${cityName}|${nicheName}`
-  const locs = useLocations(locReady ? locRaw : {}, batches, nicheName, cityName, uf, extra)
+  const locs = useLocations(locReady ? locRaw : {}, batches, nicheName, cityName, uf, extra, geoLocs, tier?.key || '')
   const auto = useMemo(() => locs.filter((l) => l.status === 'falta').slice(0, size).map((l) => fold(l.neighborhood)), [locs, size])
   const chosen = nicheName && cityName ? sel || auto : []
   const isSel = (l) => chosen.includes(fold(l.neighborhood))
@@ -237,6 +262,24 @@ function Nova({ data, preset, onImport, onAuto }) {
     return Array.from(g.entries())
   }, [locs])
   const noHoods = !locs.some((l) => l.neighborhood)
+  const lotados = locs.filter((l) => l.lotado && l.neighborhood)
+  const kidLabel = (k) => (k.level === 3 ? subName(k.name, k.parent) : k.name)
+  const marcar = (keys) => setSel(Array.from(new Set([...chosen, ...keys])))
+  // abre as partes menores de um local lotado e já marca as que ainda não foram buscadas
+  const abrirPartes = (hood) => {
+    const nm = splitHood(hood).name
+    setAberto((s) => new Set(s).add(fold(nm)))
+    const keys = filhosDe(geoNodes, nm).map((k) => fold(kidLabel(k))).filter((k) => locs.find((x) => fold(x.neighborhood) === k)?.status !== 'feito')
+    marcar(keys)
+  }
+  const addSubs = (hood) => {
+    const nm = splitHood(hood).name
+    const add = String(subTxt[hood] || '').split(/[,;\n]/).map((s) => s.trim()).filter(Boolean)
+    if (!add.length) return
+    const novos = add.map((s) => ({ neighborhood: subName(s, nm), region: `Dentro de ${nm}` }))
+    setExtra((x) => [...x, ...novos]); setSubTxt((s) => ({ ...s, [hood]: '' }))
+    marcar(novos.map((n) => fold(n.neighborhood)))
+  }
 
   // outras cidades da UF onde esse nicho ainda tem busca pendente
   const elsewhere = locReady && nicheName ? locRaw.elsewhere || [] : []
@@ -405,6 +448,12 @@ function Nova({ data, preset, onImport, onAuto }) {
         {data.P ? <NichePick data={data} current={nicheName} onUse={(n) => setNiche(n)} /> : null}
         <PlacePick data={data} niche={nicheName} current={cityName ? { city: cityName, uf } : null}
           onUse={(p) => { setUf(p.uf); setCity(p.city) }} />
+        {info && tier ? (
+          <div className="note y" style={{ display: 'flex', gap: 12, justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
+            <span><b>{tier.label}.</b> {tier.hint}</span>
+            {!tier.dividir && !geoWanted ? <button type="button" className="btn s" onClick={() => setGeoWant(true)}>Abrir bairros e distritos</button> : null}
+          </div>
+        ) : null}
         <div className="row" style={{ gap: 18, flexWrap: 'wrap' }}>
           <div className="row" style={{ gap: 6 }} role="radiogroup" aria-label="Onde captar">
             <span className="lbl">Onde captar</span>
@@ -435,9 +484,52 @@ function Nova({ data, preset, onImport, onAuto }) {
                 </div>
               </div>
             </div>
-            {groups.map(([region, list]) => (
+            {geoWanted ? (
+              <span className="lbl">{geo[gkey]?.loading ? `Buscando os distritos e bairros de ${cityName} (IBGE e Wikidata)…`
+                : geo[gkey]?.error ? 'Não consegui buscar os bairros agora. Cadastre à mão mais abaixo ou tente de novo em instantes.'
+                  : geoNodes.length ? `${geoNodes.filter((n) => n.level < 3).length} distritos e bairros encontrados (${geo[gkey]?.source}). Sub-bairros disponíveis: ${geoNodes.filter((n) => n.level === 3).length}.`
+                    : `Não achei bairros cadastrados de ${cityName} nas bases públicas. Cadastre à mão ou use o prompt de bairros.`}</span>
+            ) : null}
+            {lotados.length ? (
+              <div className="note y stack-s" style={{ gap: 8 }}>
+                <span><b>{lotados.length} local(is) lotado(s)</b>: a busca devolveu {SATURADO} ou mais empresas, então ainda deve ter gente escondida. Detalhe em partes menores:</span>
+                {lotados.slice(0, 8).map((l) => {
+                  const nm = splitHood(l.neighborhood).name
+                  const kids = filhosDe(geoNodes, nm)
+                  const faltam = kids.filter((k) => locs.find((x) => fold(x.neighborhood) === fold(kidLabel(k)))?.status !== 'feito').length
+                  return (
+                    <div key={l.neighborhood} className="stack-s" style={{ gap: 4 }}>
+                      <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+                        <b>{nm}</b><span className="lbl num">{l.term.leads_found} empresas</span>
+                        {kids.length && faltam ? <button type="button" className="btn s" onClick={() => abrirPartes(l.neighborhood)}>Abrir e marcar {faltam} parte(s) menor(es)</button> : null}
+                        {kids.length && !faltam ? <span className="lbl">Todas as partes menores já foram buscadas.</span> : null}
+                      </div>
+                      {!kids.length ? (
+                        <div className="row" style={{ gap: 6 }}>
+                          <input className="in grow" value={subTxt[l.neighborhood] || ''} onChange={(e) => setSubTxt((s) => ({ ...s, [l.neighborhood]: e.target.value }))}
+                            placeholder={`Sub-bairros, vilas ou ruas de ${nm} (vírgula ou um por linha)`}
+                            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addSubs(l.neighborhood) } }} />
+                          <button type="button" className="btn s" onClick={() => addSubs(l.neighborhood)}>Adicionar</button>
+                          <button type="button" className="btn s g" onClick={() => copy(hoodsPrompt(cityName, uf, nm), 'sub-' + nm)}>{copied === 'sub-' + nm ? 'Copiado' : 'Prompt de sub-bairros'}</button>
+                        </div>
+                      ) : null}
+                    </div>
+                  )
+                })}
+              </div>
+            ) : null}
+            {locs.some((l) => !l.neighborhood && l.lotado) && !geoWanted ? <div className="note y">A cidade inteira veio lotada. <button type="button" className="btn s" onClick={() => setGeoWant(true)}>Abrir bairros e distritos</button></div> : null}
+            {locs.length > 24 ? <input className="in" style={{ maxWidth: 320 }} value={filtro} onChange={(e) => setFiltro(e.target.value)} placeholder="Filtrar bairro ou distrito…" aria-label="Filtrar bairros" /> : null}
+            {groups.map(([region, all]) => {
+              const list = filtro ? all.filter((l) => fold(hoodLabel(l.neighborhood)).includes(fold(filtro)) || fold(region).includes(fold(filtro))) : all
+              if (!list.length) return null
+              const falta = all.filter((l) => l.status === 'falta')
+              return (
               <div key={region} className="stack-s" style={{ gap: 8 }}>
-                <span className="lbl" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em' }}>{region}</span>
+                <div className="row" style={{ justifyContent: 'space-between' }}>
+                  <span className="lbl" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em' }}>{region} <span className="num">{all.filter((l) => l.status === 'feito').length}/{all.length}</span></span>
+                  {falta.length > 1 ? <button type="button" className="btn s g" onClick={() => marcar(falta.map((l) => fold(l.neighborhood)))}>Marcar o que falta ({falta.length})</button> : null}
+                </div>
                 <div className="row" style={{ flexWrap: 'wrap', gap: 6 }}>
                   {list.map((l) => {
                     const on = isSel(l)
@@ -445,17 +537,18 @@ function Nova({ data, preset, onImport, onAuto }) {
                       : l.status === 'lote' ? { borderStyle: 'solid', borderColor: '#5A4A22', color: '#E5A23A' } : {}
                     return (
                       <button key={l.neighborhood || '_'} type="button" className={`chip ${on ? 'on' : ''}`} style={on ? undefined : style} onClick={() => toggle(l)}
-                        title={l.status === 'feito' ? `Feito${l.term?.done_at ? ' em ' + dm(l.term.done_at.slice(0, 10)) : ''}${l.term?.leads_found != null ? ` · ${l.term.leads_found} leads` : ''}` : l.status === 'lote' ? 'Já está em um lote aguardando importação' : 'Ainda não buscado'}>
-                        {on ? <Icon name="check" size={12} /> : null}{hoodLabel(l.neighborhood)}
+                        title={l.status === 'feito' ? `Feito${l.term?.done_at ? ' em ' + dm(l.term.done_at.slice(0, 10)) : ''}${l.term?.leads_found != null ? ` · ${l.term.leads_found} empresas` : ''}${l.lotado ? ' · LOTADO: detalhe em partes menores' : ''}` : l.status === 'lote' ? 'Já está em um lote aguardando importação' : 'Ainda não buscado'}>
+                        {on ? <Icon name="check" size={12} /> : null}{hoodLabel(l.neighborhood)}{l.lotado ? ' ⚠' : ''}
                         {l.status === 'feito' && l.term?.leads_found != null ? <span className="num" style={{ fontSize: 11, opacity: 0.8 }}>{l.term.leads_found}</span> : null}
                       </button>
                     )
                   })}
                 </div>
               </div>
-            ))}
+              )
+            })}
             <div className="stack-s" style={{ gap: 8 }}>
-              <span style={{ fontSize: 13, fontWeight: 500 }}>{noHoods ? `Ainda não há bairros de ${cityName}. Busque a cidade inteira ou cadastre bairros.` : 'Adicionar bairros'}</span>
+              <span style={{ fontSize: 13, fontWeight: 500 }}>{noHoods ? `Ainda não há bairros de ${cityName}. Busque a cidade inteira ou cadastre bairros.` : 'Adicionar bairros que não apareceram'}</span>
               <div className="row">
                 <textarea className="ta grow" rows={2} style={{ height: 'auto', minHeight: 34, resize: 'vertical' }} value={newHoods} onChange={(e) => setNewHoods(e.target.value)}
                   placeholder="Ex.: Cambuí, Taquaral, Barão Geraldo (vírgula ou um por linha)"
@@ -753,6 +846,7 @@ function ImportModal({ batch, data, preload, onClose }) {
   const [fileName, setFileName] = useState(preload?.length ? 'captação automática (Google)' : '')
   const [owner, setOwner] = useState(auth.isTotal('crm') ? '' : auth.uid)
   const [queueToday, setQueueToday] = useState(false)
+  const [incluirSem, setIncluirSem] = useState(true)
   const [doneMap, setDoneMap] = useState({})
   const [busy, setBusy] = useState(false)
   const bTerms = batch.terms || []
@@ -771,45 +865,15 @@ function ImportModal({ batch, data, preload, onClose }) {
     setFileName((f) => (f && f !== name ? 'várias colagens' : name))
   }
 
-  const analysis = useMemo(() => {
-    if (!parsed) return null
-    const phones = new Map(), igs = new Map()
-    data.leads.forEach((l) => {
-      const p = normalizePhone(l.phone).slice(-8)
-      if (p.length === 8) phones.set(p, l)
-      const ig = igHandle(l.instagram).toLowerCase()
-      if (ig) igs.set(ig, l)
-    })
-    const seen = new Set()
-    const per = new Map(bTerms.map((t) => [t.id, { term: t, rows: 0, fresh: 0, dup: 0 }]))
-    const out = parsed.rows.map((r) => {
-      const term = matchTerm(r, bTerms)
-      const info = term ? per.get(term.id) : null
-      if (fold(r.company) === fold(NO_RESULT)) return { r, term, kind: 'vazio' }
-      if (info) info.rows++
-      const p = normalizePhone(r.phone).slice(-8)
-      const ig = igHandle(r.instagram).toLowerCase()
-      let kind = 'novo'
-      if (batch.only_no_site && yes(r.site)) kind = 'site'
-      else if (p.length < 8 && !ig) kind = 'semcontato'
-      else if ((p.length === 8 && (phones.has(p) || seen.has('p' + p))) || (ig && (igs.has(ig) || seen.has('i' + ig)))) kind = 'dup'
-      if (p.length === 8) seen.add('p' + p)
-      if (ig) seen.add('i' + ig)
-      if (info && kind === 'novo') info.fresh++
-      if (info && kind === 'dup') info.dup++
-      return { r, term, kind, dupOf: kind === 'dup' ? phones.get(p) || igs.get(ig) : null }
-    })
-    // termos que apareceram no resultado (inclusive "SEM RESULTADOS") ficam marcados como feitos
-    const touched = new Set(out.filter((x) => x.term).map((x) => x.term.id))
-    return { out, per: Array.from(per.values()), touched }
-  }, [parsed, data.leads, bTerms, batch.only_no_site])
+  const analysis = useMemo(() => (parsed ? analisarImportacao({ rows: parsed.rows, terms: bTerms, leads: data.leads, onlyNoSite: batch.only_no_site, incluirSemContato: incluirSem, city: batch.city }) : null),
+    [parsed, data.leads, bTerms, batch.only_no_site, batch.city, incluirSem])
 
   useEffect(() => {
     if (analysis) setDoneMap(Object.fromEntries(bTerms.map((t) => [t.id, analysis.touched.has(t.id)])))
   }, [analysis]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const fresh = analysis ? analysis.out.filter((x) => x.kind === 'novo') : []
-  const cnt = (k) => (analysis ? analysis.out.filter((x) => x.kind === k).length : 0)
+  const fresh = analysis ? analysis.out.filter((x) => x.entra) : []
+  const cnt = (k) => (analysis ? analysis.funil[k] ?? 0 : 0)
   const unmatched = analysis ? analysis.out.filter((x) => !x.term && x.kind !== 'vazio').length : 0
 
   const run = async () => {
@@ -825,7 +889,7 @@ function ImportModal({ batch, data, preload, onClose }) {
         has_site: r.site ? yes(r.site) : false,
         origin: ig ? `Instagram · ${term?.neighborhood || batch.city}` : term?.query || r.where || 'Captação',
         search_term_id: term?.id || null,
-        notes: `Captação · lote ${batch.code}`,
+        notes: `Captação · lote ${batch.code}${!r.phone && !r.instagram ? ' · sem telefone no Google Maps' : ''}${r.maps ? ' · ' + r.maps : ''}`,
         owner_id: owner || null, ...st,
         ...(queueToday ? { next_step_at: today(), next_step: 'Primeiro contato (M1)', next_step_code: 'M1' } : {}),
       }))
@@ -836,7 +900,7 @@ function ImportModal({ batch, data, preload, onClose }) {
       }
       const now = new Date().toISOString()
       for (const p of ig ? [] : analysis.per) {
-        if (doneMap[p.term.id]) await update('search_terms', p.term.id, { done: true, leads_found: p.fresh + p.dup, batch_id: batch.id, reserved_at: null }, { quiet: true, silent: true })
+        if (doneMap[p.term.id]) await update('search_terms', p.term.id, { done: true, leads_found: p.rows, batch_id: batch.id, reserved_at: null }, { quiet: true, silent: true })
         else await update('search_terms', p.term.id, { batch_id: null, reserved_at: null }, { quiet: true, silent: true })
       }
       await update('capture_batches', batch.id, { status: 'importado', leads_created: created, leads_dup: cnt('dup'), imported_at: now }, { quiet: true, silent: true })
@@ -872,31 +936,37 @@ function ImportModal({ batch, data, preload, onClose }) {
           <textarea className="ta num" rows={2} placeholder="Colar mais resultados (outra busca do botão)…" aria-label="Colar mais resultados"
             onPaste={(e) => { const tx = e.clipboardData.getData('text'); if (tx) { e.preventDefault(); load(tx, 'texto colado'); notify('Resultados somados.', 'ok') } }} />
           {parsed.missing.length ? <div className="note y">Não achei a(s) coluna(s): {parsed.missing.map((m) => ({ company: 'Empresa', phone: 'Telefone', where: 'Onde achei' }[m])).join(', ')}. Confira o cabeçalho.</div> : null}
-          <div className="row lbl" style={{ gap: 14, flexWrap: 'wrap' }}>
-            <span>{fileName} · <b className="num">{parsed.rows.length}</b> linhas</span>
-            <span className="ok">novos <b className="num">{fresh.length}</b></span>
-            <span>já no CRM ou repetidos <b className="num">{cnt('dup')}</b></span>
-            {cnt('site') ? <span>com site (ignorados) <b className="num">{cnt('site')}</b></span> : null}
-            {cnt('semcontato') ? <span>sem telefone nem Instagram <b className="num">{cnt('semcontato')}</b></span> : null}
-            {(() => {
-              const semTel = analysis.out.filter((x) => x.kind !== 'vazio' && !normalizePhone(x.r.phone)).length
-              const tot = analysis.out.filter((x) => x.kind !== 'vazio').length
-              return tot && semTel / tot > 0.5 ? <span className="b" style={{ color: 'var(--atencao, #c57a00)' }}>⚠ {semTel} sem telefone</span> : null
-            })()}
+          <div className="card pick" style={{ gap: 6 }}>
+            <span className="lbl">{fileName} · de onde saiu cada linha</span>
+            <div className="row" style={{ gap: 18, flexWrap: 'wrap' }}>
+              <span><b className="num">{cnt('lidas')}</b> linhas lidas</span>
+              <span className="ok">→ <b className="num">{fresh.length}</b> entram no CRM</span>
+            </div>
+            <div className="row lbl" style={{ gap: 14, flexWrap: 'wrap' }}>
+              <span>com telefone ou Instagram <b className="num">{cnt('comTelefone')}</b></span>
+              <span>sem contato <b className="num">{cnt('semcontato')}</b>{incluirSem ? ' (entram)' : ' (ficam de fora)'}</span>
+              <span>já no CRM ou repetidas <b className="num">{cnt('dup')}</b></span>
+              {cnt('site') ? <span>com site (lote só sem site) <b className="num">{cnt('site')}</b></span> : null}
+              {cnt('vazio') ? <span>buscas sem resultado <b className="num">{cnt('vazio')}</b></span> : null}
+            </div>
+            {cnt('semcontato') ? (
+              <label className="check"><input type="checkbox" checked={incluirSem} onChange={(e) => setIncluirSem(e.target.checked)} />
+                Importar também as {cnt('semcontato')} que o Google Maps não tem telefone nem Instagram (entram no CRM sem WhatsApp, com o link do Maps na observação)</label>
+            ) : null}
           </div>
           {(() => {
             const semTel = analysis.out.filter((x) => x.kind !== 'vazio' && !normalizePhone(x.r.phone)).length
             const tot = analysis.out.filter((x) => x.kind !== 'vazio').length
-            return tot && semTel / tot > 0.5 ? <div className="note y">Vieram {semTel} de {tot} leads sem telefone. Isso quer dizer que o Google Maps não tem o número cadastrado para essas empresas. Dá para prospectar pelo Instagram quando houver, ou abrir o Maps e ligar manualmente.</div> : null
+            return tot && semTel / tot > 0.5 ? <div className="note y">Vieram {semTel} de {tot} empresas sem telefone. Isso quer dizer que o Google Maps não tem o número cadastrado para elas (comum em barbeiro e profissional autônomo). Dá para prospectar pelo Instagram quando houver, ou abrir o card no Maps e ligar.</div> : null
           })()}
           {unmatched ? <div className="note y">{unmatched} linha(s) não bateram com nenhuma busca do lote pelo "Onde achei". Elas entram mesmo assim, sem marcar busca.</div> : null}
           <div className="tbl-wrap"><table className="tbl">
-            <thead><tr><th>Busca</th><th className="r">Linhas</th><th className="r">Novos</th><th className="r">Repetidos</th>{ig ? null : <th>Marcar como feita</th>}</tr></thead>
+            <thead><tr><th>Busca</th><th className="r">Linhas</th><th className="r">Novos</th><th className="r">Repetidos</th><th className="r">Sem contato</th>{ig ? null : <th>Marcar como feita</th>}</tr></thead>
             <tbody>
               {analysis.per.map((p) => (
                 <tr key={p.term.id}>
-                  <td>{p.term.query}</td>
-                  <td className="num r">{p.rows}</td><td className="num r">{p.fresh}</td><td className="num r">{p.dup}</td>
+                  <td>{p.term.query}{p.rows >= SATURADO ? <span className="b" style={{ marginLeft: 8 }} title="A busca devolveu muita empresa: ainda deve ter mais nesse local">lotado ⚠</span> : null}</td>
+                  <td className="num r">{p.rows}</td><td className="num r">{p.fresh}</td><td className="num r">{p.dup}</td><td className="num r">{p.sem}</td>
                   {ig ? null : <td><label className="check"><input type="checkbox" checked={!!doneMap[p.term.id]} onChange={(e) => setDoneMap({ ...doneMap, [p.term.id]: e.target.checked })} />
                     {analysis.touched.has(p.term.id) ? 'feita' : <span className="lbl">não veio no resultado</span>}</label></td>}
                 </tr>
@@ -913,7 +983,7 @@ function ImportModal({ batch, data, preload, onClose }) {
                   <td>{x.r.instagram ? igHandle(x.r.instagram) : '—'}</td>
                   <td className="lbl">{yes(x.r.site) ? 'Sim' : 'Não'}</td>
                   <td className="lbl">{x.r.neighborhood || x.term?.neighborhood || '—'}</td>
-                  <td>{x.kind === 'novo' ? <Badge kind="g">novo</Badge> : x.kind === 'dup' ? (x.dupOf ? <Link to={`/erp/leads/${x.dupOf.id}`} target="_blank" className="b">já no CRM</Link> : <span className="b">repetido</span>)
+                  <td>{x.kind === 'novo' ? <Badge kind="g">novo</Badge> : x.kind === 'semcontato' && x.entra ? <Badge kind="g">novo (sem telefone)</Badge> : x.kind === 'dup' ? (x.dupOf ? <Link to={`/erp/leads/${x.dupOf.id}`} target="_blank" className="b">já no CRM</Link> : <span className="b">repetido</span>)
                     : x.kind === 'site' ? <span className="b">tem site</span> : <span className="b">sem contato</span>}</td>
                 </tr>
               ))}

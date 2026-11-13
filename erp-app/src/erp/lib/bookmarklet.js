@@ -59,13 +59,18 @@ function captar() {
       return
     }
     box('<b>Captar Zinkra</b><p style="margin:8px 0 0">Rolando a lista para carregar todos os resultados…</p>')
+    // o Maps carrega a lista aos poucos: só para quando aparece "chegou ao final" ou quando 5 rolagens seguidas não trazem ninguém novo
     let last = 0
-    for (let i = 0; i < 25; i++) {
+    let parado = 0
+    for (let i = 0; i < 90; i++) {
       feed.scrollTop = feed.scrollHeight
-      await sleep(1300)
+      await sleep(1600)
       const n = feed.querySelectorAll('div[role="article"]').length
-      if (/final da lista|end of the list/i.test(feed.innerText) || (n === last && i > 2)) break
+      if (/final da lista|end of the list|chegou ao final/i.test(feed.innerText)) break
+      parado = n === last ? parado + 1 : 0
+      if (parado >= 5) break
       last = n
+      box(`<b>Captar Zinkra</b><p style="margin:8px 0 0">Carregando a lista… <b style="color:#15C45A">${n}</b> resultados até agora.</p>`)
     }
     feed.scrollTop = 0
     await sleep(500)
@@ -74,6 +79,7 @@ function captar() {
     const total = document.querySelectorAll('div[role="feed"] div[role="article"]').length
     const stored = []
     const seen = new Set()
+    const pulou = { fechado: 0, semnome: 0, repetido: 0, semPainel: 0 }
     let added = 0
     for (let i = 0; i < total; i++) {
       box(`<b>Captar Zinkra</b>
@@ -86,22 +92,26 @@ function captar() {
       const rawName = (link && link.getAttribute('aria-label')) || a.getAttribute('aria-label') || ''
       // tira sufixos tipo "·Link acessado" que o Chrome marca em links já clicados
       const company = rawName.replace(/\s*[·•]\s*Link acessado\s*$/i, '').replace(/\s*[·•]\s*Visited link\s*$/i, '').trim()
-      if (!company || /fechado permanentemente|permanently closed|fechado temporariamente/i.test(a.innerText || '')) continue
+      if (!company) { pulou.semnome++; continue }
+      if (/fechado permanentemente|permanently closed|fechado temporariamente/i.test(a.innerText || '')) { pulou.fechado++; continue }
       let site = [...a.querySelectorAll('a[href^="http"]')].map((x) => x.href).find((h) => !NOT_SITE.test(h)) || ''
       let hood = ''
       let phone = ''
       if (link) {
         // nome esperado para a gente saber que o painel JÁ é desta empresa (primeiras letras)
         const esperado = company.toLowerCase().slice(0, 6)
-        link.click()
-        // espera o h1 do painel aparecer e bater com o nome que a gente clicou (até 7 s)
+        // espera o h1 do painel aparecer e bater com o nome que a gente clicou (até 7 s); se não abrir, tenta clicar de novo
         let paineOk = false
-        for (let t = 0; t < 35; t++) {
-          await sleep(200)
-          const h1 = document.querySelector('h1.DUwDvf')
-          const nomePainel = (h1?.innerText || '').toLowerCase()
-          if (h1 && document.querySelector('[data-item-id="address"]') && (!esperado || nomePainel.startsWith(esperado))) { paineOk = true; break }
+        for (let tentativa = 0; tentativa < 2 && !paineOk; tentativa++) {
+          link.click()
+          for (let t = 0; t < 35; t++) {
+            await sleep(200)
+            const h1 = document.querySelector('h1.DUwDvf')
+            const nomePainel = (h1?.innerText || '').toLowerCase()
+            if (h1 && document.querySelector('[data-item-id="address"]') && (!esperado || nomePainel.startsWith(esperado))) { paineOk = true; break }
+          }
         }
+        if (!paineOk) pulou.semPainel++
         if (paineOk) {
           await sleep(200)
           phone = phoneFromPanel()
@@ -117,18 +127,21 @@ function captar() {
         await sleep(200)
       }
       const ig = site && (site.match(/instagram\.com\/([A-Za-z0-9._]+)/i) || [])[1]
-      const key = (company + '|' + phone).toLowerCase()
-      if (seen.has(key)) continue
+      // o identificador do lugar (!1s0x…) separa filiais com o mesmo nome; sem ele, vale nome + telefone
+      const placeId = ((link && link.href) || '').match(/!1s([^!?]+)/)
+      const key = placeId ? placeId[1] : (company + '|' + phone).toLowerCase()
+      if (seen.has(key)) { pulou.repetido++; continue }
       seen.add(key)
-      stored.push({ company, phone, instagram: ig ? '@' + ig : '', site: site && !NOT_SITE.test(site) ? 'Sim' : 'Não', hood, where })
+      stored.push({ company, phone, instagram: ig ? '@' + ig : '', site: site && !NOT_SITE.test(site) ? 'Sim' : 'Não', hood, where, maps: link ? link.href.slice(0, 400) : '' })
       added++
     }
     if (!added) stored.push({ company: 'SEM RESULTADOS', phone: '', instagram: '', site: '', hood: '', where })
     const comTel = stored.filter((r) => r.phone).length
-    const tsv = ['Empresa\tTelefone/WhatsApp\tInstagram\tSite atual?\tBairro\tOnde achei']
-      .concat(stored.map((r) => [r.company, r.phone, r.instagram, r.site, r.hood, r.where].map(clean).join('\t'))).join('\n')
+    const tsv = ['Empresa\tTelefone/WhatsApp\tInstagram\tSite atual?\tBairro\tOnde achei\tLink no Maps']
+      .concat(stored.map((r) => [r.company, r.phone, r.instagram, r.site, r.hood, r.where, r.maps].map(clean).join('\t'))).join('\n')
     const d = box(`<b>Captar Zinkra</b>
       <p style="margin:8px 0 2px"><b style="color:#15C45A">${added}</b> resultado(s) · ${comTel} com telefone</p>
+      <p style="margin:0 0 4px;color:#8A938E;font-size:12.5px">A lista tinha ${total} cards. Ficaram de fora: ${pulou.fechado} fechados, ${pulou.repetido} repetidos, ${pulou.semnome} sem nome. ${pulou.semPainel ? pulou.semPainel + ' não abriram o painel (entram sem telefone). ' : ''}${added >= 100 ? 'Lista grande: divida em bairros menores.' : ''}</p>
       <p style="margin:0 0 10px;color:#8A938E;font-size:12.5px">${where.replace(/</g, '&lt;')}</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button id="zk-c" style="background:#15C45A;color:#04130A;border:0;border-radius:8px;padding:8px 12px;font-weight:600;cursor:pointer">Copiar</button>
