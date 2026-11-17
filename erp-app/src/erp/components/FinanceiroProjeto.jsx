@@ -6,8 +6,9 @@ import { brl, dmy, hm, today } from '../lib/format'
 import { calcularProjeto, resumoComanda, linhaDoTempo, validarValor, avisoRecebimento, avisoAbatimento, ALERTAS, TIPOS_VALOR, FORMAS_RECEBIMENTO } from '../lib/financeiro'
 import { Card, Kpi, Loading, ErrorBox, Modal, Field, Select, MoneyInput, AsyncButton, useConfirm, Badge } from './ui'
 import { Icon } from '../lib/icons'
+import { CartaoCampos, ComissaoCampos, cartaoDoBanco, comissaoDoBanco, cartaoParaBanco, comissaoParaBanco, gravarCartao, gravarComissao } from './CartaoComissao'
 
-export const TABELAS_FIN = ['project_valores', 'project_recebimentos', 'project_comissao', 'project_comissao_pagamentos', 'project_comissao_abatimentos', 'project_comandas']
+export const TABELAS_FIN = ['project_valores', 'project_recebimentos', 'project_comissao', 'project_comissao_pagamentos', 'project_comissao_abatimentos', 'project_comandas', 'project_cartao']
 
 const FALTA_TABELA = /does not exist|schema cache|Could not find the table/i
 
@@ -21,7 +22,7 @@ export function useFinanceiroProjeto(projectId, clientId = null) {
   return useData(async () => {
     const where = (q) => q.eq('project_id', projectId)
     try {
-      const [valores, recebimentos, parceiros, pagamentos, abatimentos, partners, comandas, historico, cliente, legados] = await Promise.all([
+      const [valores, recebimentos, parceiros, pagamentos, abatimentos, partners, comandas, historico, cliente, legados, cartoes] = await Promise.all([
         fetchRows('project_valores', { where, order: 'on_date' }),
         fetchRows('project_recebimentos', { where, order: 'received_on' }),
         fetchRows('project_comissao', { where, order: 'created_at' }),
@@ -32,8 +33,10 @@ export function useFinanceiroProjeto(projectId, clientId = null) {
         opcional(fetchRows('project_fin_log', { where, order: 'feito_em', limit: 40 })),
         clientId ? fetchOne('clients', clientId).catch(() => null) : null,
         clientId ? fetchRows('receivables', { where: (q) => q.eq('client_id', clientId), order: 'due_on', ascending: true }).catch(() => []) : [],
+        opcional(fetchRows('project_cartao', { where, order: 'created_at' })),
       ])
-      return { valores, recebimentos, parceiro: parceiros[0] || null, pagamentos, abatimentos, partners, comandas, historico, cliente, legados }
+      // cartoes === null: o banco ainda não tem o arquivo erp-cartao-comissao.sql (o resto segue funcionando)
+      return { valores, recebimentos, parceiro: parceiros[0] || null, pagamentos, abatimentos, partners, comandas, historico, cliente, legados, cartoes, cartao: cartoes?.[0] || null }
     } catch (e) {
       if (FALTA_TABELA.test(e?.message || '')) return { semTabelas: true }
       throw e
@@ -123,7 +126,7 @@ export default function FinanceiroProjeto({ project, onChanged }) {
       ) : null}
 
       <section className="grid-kpi" aria-label="Saldos do projeto">
-        <Kpi label="Valor total" value={brl(fin.valorTotal)} hint={`${data.valores.length} item(ns) de valor`} />
+        <Kpi label="Valor total" value={brl(fin.valorTotal)} hint={fin.temCartao ? `cai na conta ${brl(fin.valorLiquido)} · taxa do cartão ${brl(fin.taxaCartao)}` : `${data.valores.length} item(ns) de valor`} />
         <Kpi label="Recebido" value={brl(fin.recebido)} accent={fin.recebido > 0 && fin.faltaReceber === 0} bar={fin.valorTotal ? (fin.recebido / fin.valorTotal) * 100 : 0} />
         <Kpi label="Falta receber" value={brl(fin.faltaReceber)} hint={fin.excedenteRecebido ? `recebido ${brl(fin.excedenteRecebido)} acima do total` : undefined} hintClass="lbl warn" />
         <Kpi label="Comissão a pagar" value={brl(fin.comissaoAPagar)} danger={false}
@@ -207,20 +210,37 @@ export default function FinanceiroProjeto({ project, onChanged }) {
           ) : null}
         </div>
         <div className="stack" style={{ flex: '1 1 280px', minWidth: 0 }}>
+          <Card pad title={<h2>Cartão de crédito</h2>} action={canEdit && data.cartoes !== null ? <button type="button" className="btn s" onClick={() => setModal('cartao')}>{data.cartao ? 'Editar' : 'Definir'}</button> : null}>
+            {data.cartoes === null ? <p className="lbl">Rode <span className="num">supabase/erp-cartao-comissao.sql</span> no SQL Editor do Supabase para controlar a taxa da maquininha.</p>
+              : data.cartao ? (
+                <dl className="kv">
+                  <dt>Parcelas</dt><dd className="num">{data.cartao.parcelas}x</dd>
+                  <dt>Taxa total</dt><dd className="num">{String(Number(data.cartao.taxa_pct)).replace('.', ',')}%</dd>
+                  <dt>Taxa em reais</dt><dd className="num">{brl(fin.taxaCartao)}</dd>
+                  <dt>Cai na conta</dt><dd className="num">{brl(fin.valorLiquido)}</dd>
+                </dl>
+              ) : <p className="lbl">Pagamento sem cartão. Se o cliente parcelar no cartão, defina aqui: a taxa vira custo, o faturamento continua cheio e a divisão do caixa usa só o que cai.</p>}
+          </Card>
           <Card pad title={<h2>Parceiro e comissão</h2>} action={canEdit ? <button type="button" className="btn s" onClick={() => setModal('parceiro')}>{data.parceiro ? 'Editar' : 'Definir'}</button> : null}>
             {data.parceiro ? (
               <dl className="kv">
-                <dt>Parceiro</dt><dd>{data.parceiro.partner_name}</dd>
-                <dt>Tipo</dt><dd>{data.parceiro.kind === 'fixa' ? 'Valor fechado' : `${String(data.parceiro.pct).replace('.', ',')}% do total`}</dd>
+                <dt>Parceiro</dt><dd>{data.parceiro.partner_id ? <Link to="/erp/parceiros">{data.parceiro.partner_name}</Link> : data.parceiro.partner_name}</dd>
+                <dt>Tipo</dt><dd>{data.parceiro.kind === 'fixa' ? 'Valor fechado' : `${String(data.parceiro.pct).replace('.', ',')}% ${data.parceiro.base === 'bruto' ? 'do valor cheio' : fin.temCartao ? 'do que cai na conta' : 'do total'}`}</dd>
                 <dt>Comissão total</dt><dd className="num">{brl(fin.comissaoTotal)}</dd>
+                <dt>Já paga</dt><dd className="num">{brl(fin.comissaoPaga)}</dd>
+                <dt>Falta pagar</dt><dd className="num">{brl(fin.comissaoAPagar)}</dd>
               </dl>
             ) : <p className="lbl">Sem parceiro. Defina um para controlar comissão, pagamentos e abatimentos.</p>}
           </Card>
           <Card pad title={<h2>Resultado</h2>}>
             <dl className="kv">
-              <dt>Lucro previsto</dt><dd className="num ok">{brl(fin.lucroPrevisto)}</dd>
+              <dt>Faturado (valor cheio)</dt><dd className="num">{brl(fin.valorTotal)}</dd>
+              {fin.temCartao ? <><dt>Taxa do cartão</dt><dd className="num">− {brl(fin.taxaCartao)}</dd></> : null}
+              {fin.temParceiro ? <><dt>Comissão</dt><dd className="num">− {brl(fin.comissaoTotal)}</dd></> : null}
+              {fin.abatido ? <><dt>Abatimentos</dt><dd className="num">+ {brl(fin.abatido)}</dd></> : null}
+              <dt>Sobra para a Zinkra</dt><dd className="num ok">{brl(fin.lucroPrevisto)}</dd>
             </dl>
-            <span className="lbl" style={{ display: 'block', marginTop: 8 }}>Valor total − comissão total + abatimentos.</span>
+            <span className="lbl" style={{ display: 'block', marginTop: 8 }}>É esta sobra (e não o valor cheio) que as caixinhas dividem, conforme o dinheiro cai.</span>
           </Card>
           {data.historico ? (
             <Card pad title={<h2>Histórico de alterações</h2>} action={<span className="lbl">{data.historico.length ? 'mais recentes' : ''}</span>}>
@@ -234,7 +254,8 @@ export default function FinanceiroProjeto({ project, onChanged }) {
         </div>
       </div>
 
-      {modal === 'parceiro' ? <ParceiroModal project={project} atual={data.parceiro} partners={data.partners} onClose={fechar} /> : null}
+      {modal === 'parceiro' ? <ParceiroModal project={project} atual={data.parceiro} partners={data.partners} fin={fin} onClose={fechar} /> : null}
+      {modal === 'cartao' ? <CartaoModal project={project} atual={data.cartao} fin={fin} onClose={fechar} /> : null}
       {modal === 'previsao' && comanda ? <PrevisaoModal comanda={comanda} onClose={fechar} /> : null}
       {['recebimento', 'adicional', 'pagamento', 'abatimento'].includes(modal) || modal?.editar
         ? <LancamentoModal tipo={modal?.editar ? 'adicional' : modal} editar={modal?.editar} project={project} fin={fin} itens={data.valores}
@@ -244,7 +265,7 @@ export default function FinanceiroProjeto({ project, onChanged }) {
 }
 
 const TABELA_LOG = {
-  project_valores: 'Item', project_recebimentos: 'Recebimento', project_comissao: 'Comissão',
+  project_valores: 'Item', project_recebimentos: 'Recebimento', project_comissao: 'Comissão', project_cartao: 'Cartão',
   project_comissao_pagamentos: 'Pagamento de comissão', project_comissao_abatimentos: 'Abatimento', project_comandas: 'Comanda',
 }
 
@@ -374,43 +395,46 @@ function PrevisaoModal({ comanda, onClose }) {
   )
 }
 
-function ParceiroModal({ project, atual, partners, onClose }) {
-  const [f, setF] = useState({
-    nome: atual?.partner_name || '', partner_id: atual?.partner_id || null, kind: atual?.kind || 'fixa',
-    valor: atual?.amount_cents || 0, pct: atual?.pct ?? 30,
-  })
+function ParceiroModal({ project, atual, partners, fin, onClose }) {
+  const [f, setF] = useState(() => (atual ? comissaoDoBanco(atual) : { ...comissaoDoBanco(null), usa: true }))
   const [erro, setErro] = useState('')
-  const escolher = (nome) => {
-    const p = partners.find((x) => x.name.toLowerCase() === nome.trim().toLowerCase())
-    setF((x) => ({ ...x, nome, partner_id: p?.id || null }))
-  }
   const salvar = async () => {
-    const e = !f.nome.trim() ? 'Informe o nome do parceiro.'
-      : f.kind === 'fixa' ? validarValor(f.valor)
-      : !(Number(f.pct) > 0 && Number(f.pct) <= 100) ? 'O percentual precisa estar entre 0 e 100.' : ''
+    const { linha, erro: e } = comissaoParaBanco(f)
     setErro(e)
     if (e) return
-    const row = { project_id: project.id, partner_id: f.partner_id, partner_name: f.nome.trim(), kind: f.kind,
-      amount_cents: f.kind === 'fixa' ? f.valor : 0, pct: f.kind === 'percentual' ? Number(f.pct) : 0 }
-    if (atual) await update('project_comissao', atual.id, row)
-    else await insert('project_comissao', row)
-    notify('Comissão salva.', 'ok')
+    await gravarComissao(project.id, linha, atual, partners)
+    notify(linha ? 'Comissão salva e ligada ao parceiro.' : 'Comissão removida.', 'ok')
     onClose()
   }
   return (
     <Modal title="Parceiro e comissão" size="sm" onClose={onClose}
       footer={<><button type="button" className="btn" onClick={onClose}>Cancelar</button><AsyncButton className="btn p" onClick={salvar}>Salvar</AsyncButton></>}>
       <div className="stack">
-        <Field label="Parceiro">
-          <input className="in" list="fin-parceiros" value={f.nome} autoFocus onChange={(e) => escolher(e.target.value)} placeholder="Nome do parceiro" />
-          <datalist id="fin-parceiros">{partners.map((p) => <option key={p.id} value={p.name} />)}</datalist>
-        </Field>
-        <Field label="Tipo de comissão">
-          <Select value={f.kind} onChange={(v) => setF({ ...f, kind: v || 'fixa' })} options={{ fixa: 'Valor fechado', percentual: 'Percentual sobre o total' }} />
-        </Field>
-        {f.kind === 'fixa'
-          ? <Field label="Valor da comissão"><MoneyInput value={f.valor} onChange={(v) => setF({ ...f, valor: v })} /></Field>
-          : <Field label="Percentual (%)"><input className="in num" inputMode="decimal" value={f.pct} onChange={(e) => setF({ ...f, pct: e.target.value.replace(',', '.').replace(/[^\d.]/g, '') })} /></Field>}
+        <ComissaoCampos value={f} onChange={setF} partners={partners} total={fin.valorTotal} liquido={fin.valorLiquido} />
+        {atual ? <span className="lbl">Desmarque a caixa para tirar a comissão deste projeto.</span> : null}
+        {erro ? <div className="note r">{erro}</div> : null}
+      </div>
+    </Modal>
+  )
+}
+
+function CartaoModal({ project, atual, fin, onClose }) {
+  const [f, setF] = useState(() => (atual ? cartaoDoBanco(atual) : { ...cartaoDoBanco(null), usa: true }))
+  const [erro, setErro] = useState('')
+  const salvar = async () => {
+    const { linha, erro: e } = cartaoParaBanco(f, fin.valorTotal)
+    setErro(e)
+    if (e) return
+    await gravarCartao(project.id, linha, atual)
+    notify(linha ? 'Cartão salvo. A taxa entrou como custo do projeto.' : 'Cartão removido do projeto.', 'ok')
+    onClose()
+  }
+  return (
+    <Modal title="Pagamento no cartão de crédito" size="sm" onClose={onClose}
+      footer={<><button type="button" className="btn" onClick={onClose}>Cancelar</button><AsyncButton className="btn p" onClick={salvar}>Salvar</AsyncButton></>}>
+      <div className="stack">
+        <CartaoCampos value={f} onChange={setF} total={fin.valorTotal} />
+        {atual ? <span className="lbl">Desmarque a caixa para tirar o cartão deste projeto.</span> : null}
         {erro ? <div className="note r">{erro}</div> : null}
       </div>
     </Modal>

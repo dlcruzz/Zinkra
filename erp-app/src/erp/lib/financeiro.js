@@ -30,35 +30,61 @@ export function valorDoItem(item, hoje = today()) {
   return item.kind === 'mensalidade' ? v * mesesCobrados(item, hoje) : v
 }
 
-// parceiro: { kind: 'fixa' | 'percentual', amount_cents, pct } ou null (projeto sem parceiro)
-export function comissaoTotal(parceiro, valorTotal) {
+// Cartão de crédito: a taxa da maquininha é custo. O projeto continua FATURADO pelo valor cheio;
+// o que cai na conta é o valor menos a taxa. cartao: { parcelas, taxa_pct, base_cents } ou null.
+// A taxa é a TOTAL cobrada nas parcelas (ex.: 3,1563%). Conta em milionésimos para não depender de vírgula flutuante.
+export function taxaDoCartao(cartao, valorTotal) {
+  if (!cartao || !(valorTotal > 0)) return 0
+  const noCartao = Number(cartao.base_cents) > 0 ? Math.min(Number(cartao.base_cents), valorTotal) : valorTotal
+  const milionesimos = Math.round((Number(cartao.taxa_pct) || 0) * 10000)
+  return Math.round((noCartao * milionesimos) / 1000000)
+}
+
+// De quanto foi a taxa a partir do que caiu na conta: devolve a taxa em % com 4 casas (ex.: 3200 → 3099 = 3,1563).
+export function taxaPelaCaida(valorNoCartao, caiuNaConta) {
+  const v = Number(valorNoCartao), c = Number(caiuNaConta)
+  if (!(v > 0) || !(c >= 0) || c > v) return 0
+  return Math.round(((v - c) / v) * 1000000) / 10000
+}
+
+// parceiro: { kind: 'fixa' | 'percentual', amount_cents, pct, base } ou null (projeto sem parceiro).
+// Percentual: sobre o que CAIU na conta (base 'liquido', o padrão) ou sobre o valor cheio (base 'bruto').
+export function comissaoTotal(parceiro, valorTotal, valorLiquido = valorTotal) {
   if (!parceiro) return 0
   if (parceiro.kind === 'percentual') {
     const pontosBase = Math.round((Number(parceiro.pct) || 0) * 100)
-    return Math.round((valorTotal * pontosBase) / 10000)
+    const base = parceiro.base === 'bruto' ? valorTotal : valorLiquido
+    return Math.round((base * pontosBase) / 10000)
   }
   return Number(parceiro.amount_cents) || 0
 }
 
-// dados: { valores, recebimentos, parceiro, pagamentos, abatimentos } (listas de linhas com amount_cents)
+// dados: { valores, recebimentos, parceiro, pagamentos, abatimentos, cartao } (listas de linhas com amount_cents)
 export function calcularProjeto(dados = {}) {
-  const { valores = [], recebimentos = [], parceiro = null, pagamentos = [], abatimentos = [], hoje = today() } = dados
+  const { valores = [], recebimentos = [], parceiro = null, pagamentos = [], abatimentos = [], cartao = null, hoje = today() } = dados
   const valorTotal = valores.reduce((a, x) => a + valorDoItem(x, hoje), 0)
+  const taxaCartao = taxaDoCartao(cartao, valorTotal)
+  // o que o cliente paga e o que realmente cai na conta (valor cheio menos a taxa da maquininha)
+  const valorLiquido = valorTotal - taxaCartao
   const recebido = soma(recebimentos)
-  const diferenca = valorTotal - recebido
+  const diferenca = valorLiquido - recebido
   const temParceiro = Boolean(parceiro)
   // sem parceiro não existe comissão: pagamentos e abatimentos soltos são ignorados
-  const comissao = temParceiro ? comissaoTotal(parceiro, valorTotal) : 0
+  const comissao = temParceiro ? comissaoTotal(parceiro, valorTotal, valorLiquido) : 0
   const comissaoPaga = temParceiro ? soma(pagamentos) : 0
   const abatido = temParceiro ? soma(abatimentos) : 0
   const saldoComissao = comissao - comissaoPaga - abatido
 
   const alertas = []
-  if (recebido > valorTotal) alertas.push('recebido_acima_do_total')
+  if (recebido > valorLiquido) alertas.push('recebido_acima_do_total')
   if (temParceiro && saldoComissao < 0) alertas.push(comissaoPaga > comissao ? 'comissao_paga_a_mais' : 'abatimento_maior_que_saldo')
 
   return {
     valorTotal,
+    temCartao: Boolean(cartao),
+    parcelas: cartao ? Number(cartao.parcelas) || 1 : 0,
+    taxaCartao,
+    valorLiquido,
     recebido,
     faltaReceber: Math.max(0, diferenca),
     excedenteRecebido: Math.max(0, -diferenca),
@@ -69,14 +95,15 @@ export function calcularProjeto(dados = {}) {
     // nunca fica negativa na tela: o que passou do saldo aparece em creditoComParceiro
     comissaoAPagar: Math.max(0, saldoComissao),
     creditoComParceiro: Math.max(0, -saldoComissao),
-    lucroPrevisto: valorTotal - comissao + abatido,
+    // sobra para a Zinkra: valor cheio − taxa do cartão − comissão (+ o que o parceiro devolveu em abatimento)
+    lucroPrevisto: valorLiquido - comissao + abatido,
     quitado: valorTotal > 0 && diferenca <= 0 && (!temParceiro || saldoComissao <= 0),
     alertas,
   }
 }
 
 export const ALERTAS = {
-  recebido_acima_do_total: 'O total recebido passou do valor do projeto. Confira os lançamentos.',
+  recebido_acima_do_total: 'O total recebido passou do que devia cair na conta (valor do projeto menos a taxa do cartão). Confira os lançamentos.',
   abatimento_maior_que_saldo: 'Os abatimentos passaram do que faltava pagar de comissão: o parceiro ficou devendo para você.',
   comissao_paga_a_mais: 'Já foi pago mais comissão do que o combinado.',
 }
@@ -210,10 +237,13 @@ export function faturado(w, hoje = today()) {
   })
   const total = soma(feitosFat.map((l) => ({ amount_cents: l.valor })))
   const recebido = soma(feitosRec.map((l) => ({ amount_cents: l.valor })))
+  // taxa do cartão: foi faturado o valor cheio, mas esta parte nunca vai cair na conta (é custo, não é saldo a receber)
+  const taxasCartao = (w.carteira?.linhas || []).reduce((a, l) => a + (l.fin?.taxaCartao || 0), 0)
   return {
     total,
     recebido,
-    falta: Math.max(0, total - recebido),
+    taxasCartao,
+    falta: Math.max(0, total - taxasCartao - recebido),
     lancamentos: feitosFat.map((l) => ({ amount_cents: l.valor, received_on: l.data })),
     porOrigem: [...origens.values()].sort((a, b) => b.faturado - a.faturado),
   }
@@ -265,6 +295,7 @@ export function dadosDoProjeto(f, projectId) {
     parceiro: (f.parceiros || []).find((r) => r.project_id === projectId) || null,
     pagamentos: doProj(f.pagamentos),
     abatimentos: doProj(f.abatimentos),
+    cartao: (f.cartoes || []).find((r) => r.project_id === projectId) || null,
   }
 }
 
@@ -288,11 +319,12 @@ export function calcularCarteira(f, projetos) {
     .map((p) => ({ projeto: p, fin: calcularProjeto(dadosDoProjeto(f, p.id)), previsao: previsaoDoSaldo(f, p.id) }))
   const totais = linhas.reduce((t, { fin }) => ({
     valorTotal: t.valorTotal + fin.valorTotal,
+    taxaCartao: t.taxaCartao + fin.taxaCartao,
     recebido: t.recebido + fin.recebido,
     faltaReceber: t.faltaReceber + fin.faltaReceber,
     comissaoAPagar: t.comissaoAPagar + fin.comissaoAPagar,
     lucroPrevisto: t.lucroPrevisto + fin.lucroPrevisto,
-  }), { valorTotal: 0, recebido: 0, faltaReceber: 0, comissaoAPagar: 0, lucroPrevisto: 0 })
+  }), { valorTotal: 0, taxaCartao: 0, recebido: 0, faltaReceber: 0, comissaoAPagar: 0, lucroPrevisto: 0 })
   return { linhas, totais }
 }
 
@@ -320,4 +352,80 @@ export function semDuplicidade(w, f) {
     payables: w.payables.filter((p) => !pagaveisComissao.has(p.id)),
     contratos,
   }
+}
+
+// ------------------------------------------------------------------
+// Situação de pagamento: "o cliente está em dia?" (só LÊ o que já existe: não cria nem duplica valor).
+// ------------------------------------------------------------------
+const diasEntre = (de, ate) => Math.round((Date.parse(ate + 'T12:00:00') - Date.parse(de + 'T12:00:00')) / 864e5)
+
+// Data desde a qual falta pagar: a previsão que o Danilo definiu; se não houver e o projeto for só de
+// mensalidade, a primeira cobrança que o recebido ainda não cobre; senão não há data (null).
+export function vencimentoDoSaldo({ valores = [], recebimentos = [], previsao = null, hoje = today() }) {
+  if (previsao) return previsao
+  if (!valores.length || !valores.every((v) => v.kind === 'mensalidade')) return null
+  const cobrancas = valores.flatMap((v) => datasDeCobranca(v, hoje).map((d) => ({ d, v: Number(v.amount_cents) || 0 }))).sort((a, b) => a.d.localeCompare(b.d))
+  const pago = soma(recebimentos)
+  let acumulado = 0
+  for (const c of cobrancas) {
+    acumulado += c.v
+    if (acumulado > pago) return c.d
+  }
+  return null
+}
+
+// estado: sem_valor | pago | em_dia (falta, mas ainda não venceu) | atrasado | aberto (falta e não há data)
+export function situacaoDoProjeto(fin, dados = {}, hoje = today()) {
+  if (!(fin.valorTotal > 0)) return { estado: 'sem_valor', falta: 0, dias: 0, ate: null }
+  if (fin.faltaReceber <= 0) return { estado: 'pago', falta: 0, dias: 0, ate: null }
+  const ate = vencimentoDoSaldo({ ...dados, hoje })
+  if (!ate) return { estado: 'aberto', falta: fin.faltaReceber, dias: 0, ate: null }
+  const dias = diasEntre(ate, hoje)
+  return dias > 0 ? { estado: 'atrasado', falta: fin.faltaReceber, dias, ate } : { estado: 'em_dia', falta: fin.faltaReceber, dias: 0, ate }
+}
+
+// Um cliente: pagamento de cada projeto dele (modelo novo) + parcelas antigas que ainda valem.
+// `w` é o mundo já sem duplicidade: w.receivables só traz parcela antiga NÃO trocada pelo modelo novo,
+// e os recebimentos dos projetos entram só pela carteira (nunca duas vezes).
+export function resumoDoCliente(w, clienteId, hoje = today()) {
+  const projetos = (w.carteira?.linhas || [])
+    .filter((l) => l.projeto.client_id === clienteId)
+    .map((l) => ({
+      ...l,
+      situacao: situacaoDoProjeto(l.fin, { ...dadosDoProjeto(w.fin || {}, l.projeto.id), previsao: l.previsao }, hoje),
+    }))
+  const antigas = (w.receivables || []).filter((r) => r.client_id === clienteId && !/^(proj|saas)-rec-/.test(String(r.id)))
+  const antigasAbertas = antigas.filter((r) => !r.received_on)
+  const antigasVencidas = antigasAbertas.filter((r) => r.due_on && r.due_on < hoje)
+  const diasAntigas = antigasVencidas.reduce((m, r) => Math.max(m, diasEntre(r.due_on, hoje)), 0)
+  const diasProjetos = projetos.reduce((m, l) => Math.max(m, l.situacao.dias), 0)
+  const dias = Math.max(diasAntigas, diasProjetos)
+  const atrasado = antigasVencidas.length > 0 || projetos.some((l) => l.situacao.estado === 'atrasado')
+  const semData = projetos.some((l) => l.situacao.estado === 'aberto')
+  const falta = projetos.reduce((a, l) => a + l.fin.faltaReceber, 0) + soma(antigasAbertas)
+  const recebido = projetos.reduce((a, l) => a + l.fin.recebido, 0) + soma(antigas.filter((r) => r.received_on))
+  // em_dia: nada vencido; a_receber: há saldo sem data para cobrar; atrasado: tem algo vencido
+  const estado = atrasado ? 'atrasado' : semData ? 'a_receber' : 'em_dia'
+  return { projetos, antigas, falta, recebido, dias, estado, temFinanceiro: projetos.length > 0 || antigas.length > 0 }
+}
+
+// Comissão de cada parceiro nos projetos (para a tela de Parceiros): quanto combinado, pago, abatido e a pagar.
+export function comissoesPorParceiro(w) {
+  const nome = (s) => String(s || '').trim().toLowerCase()
+  const porProjeto = new Map((w.carteira?.linhas || []).map((l) => [l.projeto.id, l]))
+  const linhas = (w.fin?.parceiros || []).map((c) => {
+    const l = porProjeto.get(c.project_id)
+    return l ? { parceiroId: c.partner_id || null, nome: c.partner_name, chave: c.partner_id || 'n:' + nome(c.partner_name), projeto: l.projeto, fin: l.fin } : null
+  }).filter(Boolean)
+  const mapa = new Map()
+  for (const x of linhas) {
+    const g = mapa.get(x.chave) || { chave: x.chave, parceiroId: x.parceiroId, nome: x.nome, combinado: 0, pago: 0, abatido: 0, aPagar: 0, projetos: [] }
+    g.combinado += x.fin.comissaoTotal
+    g.pago += x.fin.comissaoPaga
+    g.abatido += x.fin.abatido
+    g.aPagar += x.fin.comissaoAPagar
+    g.projetos.push(x)
+    mapa.set(x.chave, g)
+  }
+  return [...mapa.values()].sort((a, b) => b.aPagar - a.aPagar || a.nome.localeCompare(b.nome))
 }

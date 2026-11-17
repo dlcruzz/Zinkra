@@ -8,6 +8,10 @@ import { brl0, dm, dmy, today, daysSince, waLink, igLink, igHandle, localDay, re
 import { PageHead, Tabs, Loading, ErrorBox, Badge, Modal, Field, Select, MoneyInput, AsyncButton, Empty, useConfirm } from '../components/ui'
 import { CLIENT_STATUS, PROJECT_STAGES, PROJECT_STAGE_CLASS, FRONTS, MEETING_TYPES } from '../lib/constants'
 import { Icon } from '../lib/icons'
+import { useWorld } from '../lib/world'
+import { resumoDoCliente, taxaDoCartao } from '../lib/financeiro'
+import { comandaDoProjeto } from '../components/FinanceiroProjeto'
+import { CartaoCampos, ComissaoCampos, CARTAO_VAZIO, COMISSAO_VAZIA, cartaoParaBanco, comissaoParaBanco, gravarCartao, gravarComissao, carregarParceiros } from '../components/CartaoComissao'
 
 export default function Clientes() {
   useMeta('Operação', 'Clientes')
@@ -18,6 +22,8 @@ export default function Clientes() {
   const [tab, setTab] = useState('contratos')
   const [modal, setModal] = useState(null)
   const selId = sp.get('id')
+  // o financeiro vem do MESMO cálculo do faturamento: o que o cliente pagou de um projeto entra uma vez só
+  const mundo = useWorld()
 
   const { data, loading, error, reload } = useData(async () => {
     const [clients, contracts, receivables, projects, meetings, contacts, activities] = await Promise.all([
@@ -35,22 +41,24 @@ export default function Clientes() {
   const rows = useMemo(() => {
     if (!data) return []
     const t = today()
+    const w = mundo.data
     return data.clients.map((c) => {
       const cts = data.contracts.filter((k) => k.client_id === c.id && k.active)
-      const recv = data.receivables.filter((r) => r.client_id === c.id)
-      const overdue = recv.filter((r) => !r.received_on && r.due_on < t)
+      // pagamento: projetos (modelo novo) + parcelas antigas que ainda valem, sem contar nada duas vezes
+      const pag = w ? resumoDoCliente(w, c.id, t) : { projetos: [], antigas: [], falta: 0, recebido: 0, dias: 0, estado: 'em_dia', temFinanceiro: false }
       const mrr = cts.filter((k) => k.kind === 'recurring' && (!k.ends_on || k.ends_on >= t)).reduce((a, k) => a + k.monthly_cents, 0)
       const lastTouch = [...data.meetings.filter((m) => m.client_id === c.id).map((m) => localDay(m.starts_at)), ...data.activities.filter((a) => a.client_id === c.id).map((a) => localDay(a.happened_at)), c.since].filter((d) => d && d <= t).sort().pop()
       const lateProj = data.projects.some((p) => p.client_id === c.id && p.due_on && p.due_on < t && !['entregue', 'manutencao'].includes(p.stage))
-      const health = overdue.some((r) => daysSince(r.due_on) > 15) || (lateProj && overdue.length) ? 'rk' : overdue.length || lateProj || daysSince(lastTouch) > 60 ? 'at' : 'ok'
+      const atrasado = pag.estado === 'atrasado'
+      const health = pag.dias > 15 || (lateProj && atrasado) ? 'rk' : atrasado || lateProj || daysSince(lastTouch) > 60 ? 'at' : 'ok'
       return {
-        ...c, cts, mrr, overdue, lastTouch, health,
+        ...c, cts, mrr, pag, lastTouch, health,
         services: cts.map((k) => k.title).join(', '),
-        total: recv.filter((r) => r.received_on).reduce((a, r) => a + r.amount_cents, 0),
-        open: recv.filter((r) => !r.received_on).reduce((a, r) => a + r.amount_cents, 0),
+        total: pag.recebido,
+        open: pag.falta,
       }
     })
-  }, [data])
+  }, [data, mundo.data])
 
   useEffect(() => { if (rows.length && !selId) setSp({ id: (rows.find((r) => r.status === filter) || rows[0]).id }, { replace: true }) }, [rows.length]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (sp.get('upsell') && selId && !modal) setModal('upsell') }, [sp, selId]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -73,7 +81,7 @@ export default function Clientes() {
       <div className="cols">
         <div className="card" style={{ flex: '3 1 520px', minWidth: 0, overflow: 'hidden' }}>
           <div className="tbl-wrap"><table className="tbl">
-            <thead><tr><th>Cliente</th><th>Serviços ativos</th><th className="r">Recorrente</th><th>Desde</th><th>Saúde</th></tr></thead>
+            <thead><tr><th>Cliente</th><th>Serviços ativos</th><th className="r">Recorrente</th><th>Desde</th><th>Pagamento</th><th>Saúde</th></tr></thead>
             <tbody>
               {list.map((c) => (
                 <tr key={c.id} className={`click ${c.id === selId ? 'on' : ''}`} onClick={() => { setSp({ id: c.id }); setTab('contratos') }}>
@@ -81,10 +89,11 @@ export default function Clientes() {
                   <td className="lbl ellipsis" style={{ maxWidth: 260, color: 'var(--tx-3)' }}>{c.services || '—'}</td>
                   <td className="num r">{c.mrr ? brl0(c.mrr) : '—'}</td>
                   <td className="num lbl">{c.since ? `${c.since.slice(5, 7)}/${c.since.slice(2, 4)}` : '—'}</td>
+                  <td><PagBadge pag={c.pag} /></td>
                   <td><Badge kind={H[c.health][1]}>{H[c.health][0]}</Badge></td>
                 </tr>
               ))}
-              {!list.length ? <tr><td colSpan={5}><Empty icon="building">Nenhum cliente aqui. Clientes nascem quando uma proposta é aceita ou um lead é marcado como ganho.</Empty></td></tr> : null}
+              {!list.length ? <tr><td colSpan={6}><Empty icon="building">Nenhum cliente aqui. Clientes nascem quando uma proposta é aceita ou um lead é marcado como ganho.</Empty></td></tr> : null}
             </tbody>
           </table></div>
         </div>
@@ -100,13 +109,14 @@ export default function Clientes() {
               <div className="row">
                 {sel.phone ? <a className="btn s ic" href={waLink(sel.phone)} aria-label="WhatsApp"><Icon name="wa" size={13} /></a> : null}
                 {sel.instagram ? <a className="btn s ic" href={igLink(sel.instagram)} target="_blank" rel="noreferrer" aria-label={igHandle(sel.instagram)}>IG</a> : null}
+                <PagBadge pag={sel.pag} />
                 <Badge kind={H[sel.health][1]}>{H[sel.health][0]}</Badge>
               </div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
               {[['Recorrente', sel.mrr ? brl0(sel.mrr) : '—'], ['Total recebido', brl0(sel.total)], ['Em aberto', brl0(sel.open)]].map(([l, v]) => (
                 <div key={l} style={{ padding: 10, borderRadius: 8, background: 'var(--s3)', border: '1px solid var(--line)', display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <span className="lbl">{l}</span><span className="num" style={l === 'Em aberto' && sel.overdue.length ? { color: 'var(--red)' } : undefined}>{v}</span>
+                  <span className="lbl">{l}</span><span className="num" style={l === 'Em aberto' && sel.pag.estado === 'atrasado' ? { color: 'var(--red)' } : undefined}>{v}</span>
                 </div>
               ))}
             </div>
@@ -131,15 +141,27 @@ export default function Clientes() {
             ) : null}
             {tab === 'projetos' ? (
               <div>
-                {data.projects.filter((p) => p.client_id === sel.id).map((p) => (
-                  <Link key={p.id} to={`/erp/projetos/${p.id}`} className="li" style={{ color: 'var(--tx)' }}><span>{p.name}</span><Badge kind={PROJECT_STAGE_CLASS[p.stage]}>{PROJECT_STAGES[p.stage]}</Badge></Link>
-                ))}
+                {data.projects.filter((p) => p.client_id === sel.id).map((p) => {
+                  const l = sel.pag.projetos.find((x) => x.projeto.id === p.id)
+                  return (
+                    <Link key={p.id} to={`/erp/projetos/${p.id}`} className="li" style={{ color: 'var(--tx)' }}>
+                      <div className="stack-s" style={{ gap: 3 }}>
+                        <span>{p.name}</span>
+                        {l ? <span className="lbl num">{`${brl0(l.fin.recebido)} de ${brl0(l.fin.valorLiquido)}${l.fin.temCartao ? ' (já sem a taxa do cartão)' : ''}`}{l.situacao.ate && l.situacao.estado !== 'pago' ? ` · previsto ${dm(l.situacao.ate)}` : ''}</span> : <span className="lbl">sem valor lançado no financeiro</span>}
+                      </div>
+                      <span className="row" style={{ flexWrap: 'nowrap' }}>
+                        {l ? <SituacaoBadge s={l.situacao} /> : null}
+                        <Badge kind={PROJECT_STAGE_CLASS[p.stage]}>{PROJECT_STAGES[p.stage]}</Badge>
+                      </span>
+                    </Link>
+                  )
+                })}
                 {!data.projects.some((p) => p.client_id === sel.id) ? <p className="lbl">Nenhum projeto.</p> : null}
               </div>
             ) : null}
             {tab === 'faturas' ? (
               <div>
-                {data.receivables.filter((r) => r.client_id === sel.id).map((r) => (
+                {sel.pag.antigas.map((r) => (
                   <div key={r.id} className="li">
                     <span>{r.description} <span className="lbl num">{r.part_label}</span></span>
                     <span className="row" style={{ flexWrap: 'nowrap' }}>
@@ -148,7 +170,7 @@ export default function Clientes() {
                     </span>
                   </div>
                 ))}
-                {!data.receivables.some((r) => r.client_id === sel.id) ? <p className="lbl">Nenhuma fatura.</p> : null}
+                {!sel.pag.antigas.length ? <p className="lbl">Nenhuma fatura antiga. Os pagamentos dos projetos estão na aba Projetos (e no Financeiro de cada projeto).</p> : null}
               </div>
             ) : null}
             {tab === 'reunioes' ? (
@@ -180,6 +202,21 @@ export default function Clientes() {
       {modal === 'upsell' && sel ? <Upsell client={sel} onClose={() => { setModal(null); if (sp.get('upsell')) setSp({ id: sel.id }) }} /> : null}
     </div>
   )
+}
+
+const SITUACAO = { pago: ['Pago', 'g'], em_dia: ['Em dia', 'g'], atrasado: ['Atrasado', 'r'], aberto: ['A receber', 'y'] }
+function SituacaoBadge({ s }) {
+  if (!s || s.estado === 'sem_valor') return null
+  const [rotulo, tipo] = SITUACAO[s.estado]
+  return <Badge kind={tipo}>{s.estado === 'atrasado' ? `${rotulo} ${s.dias}d` : rotulo}</Badge>
+}
+
+// Pagamento do cliente: em dia, a receber (falta, sem data) ou atrasado. Só LÊ o financeiro, não lança nada.
+function PagBadge({ pag }) {
+  if (!pag?.temFinanceiro) return <span className="lbl">—</span>
+  if (pag.estado === 'atrasado') return <Badge kind="r">{pag.dias ? `Atrasado ${pag.dias}d` : 'Atrasado'}</Badge>
+  if (pag.estado === 'a_receber') return <Badge kind="y">A receber</Badge>
+  return <Badge kind="g">Em dia</Badge>
 }
 
 function ClientForm({ client, onDone }) {
@@ -278,29 +315,63 @@ function NewContract({ client, onClose }) {
 
 export function NewProject({ client, onClose, onSaved }) {
   const auth = useAuth()
+  const comFin = auth.canEdit('financeiro')
   const { data } = useData(async () => ({
     templates: await fetchRows('project_templates', { order: 'name', ascending: true }),
     clients: client ? [] : await fetchRows('clients', { order: 'name', ascending: true }),
-  }), ['project_templates'])
+    partners: comFin ? await carregarParceiros() : [],
+  }), ['project_templates', 'partners'])
   const [f, setF] = useState({ name: '', template: '', client_id: client?.id || '', value_cents: 0, starts_on: today(), due_on: '', owner_id: auth.uid })
+  const [cartao, setCartao] = useState({ ...CARTAO_VAZIO })
+  const [comissao, setComissao] = useState({ ...COMISSAO_VAZIA })
+  const [erro, setErro] = useState('')
+  const liquido = f.value_cents - taxaDoCartao(cartaoParaBanco(cartao, f.value_cents).linha, f.value_cents)
   return (
     <Modal title="Novo projeto" onClose={onClose} footer={<><button type="button" className="btn" onClick={onClose}>Cancelar</button><AsyncButton className="btn p" onClick={async () => {
       if (!f.name.trim()) return notify('Dê um nome ao projeto.', 'err')
+      // todo projeto é de um cliente: o financeiro, a cobrança e o "em dia" dependem disso
+      if (!f.client_id) { setErro('Escolha o cliente do projeto. Todo projeto precisa estar ligado a um cliente.'); return }
+      const c = comFin && f.value_cents > 0 ? cartaoParaBanco(cartao, f.value_cents) : { linha: null, erro: '' }
+      const m = comFin ? comissaoParaBanco(comissao) : { linha: null, erro: '' }
+      const e = c.erro || m.erro
+      setErro(e)
+      if (e) return
       const tpl = data?.templates.find((x) => x.id === f.template)
       const p = await createProjectFromTemplate(f.template || null, {
-        name: f.name.trim(), client_id: f.client_id || null, value_cents: f.value_cents, starts_on: f.starts_on,
+        name: f.name.trim(), client_id: f.client_id, value_cents: f.value_cents, starts_on: f.starts_on,
         due_on: f.due_on || undefined, owner_id: f.owner_id, type: tpl?.name || null,
       })
+      // financeiro: o valor vira o item base da comanda; cartão e comissão já nascem ligados ao projeto
+      if (comFin && f.value_cents > 0) {
+        try {
+          const comandaId = await comandaDoProjeto(p)
+          await insert('project_valores', { project_id: p.id, kind: 'base', description: 'Valor combinado', amount_cents: f.value_cents, on_date: f.starts_on || today(), ...(comandaId ? { comanda_id: comandaId } : {}) })
+          if (c.linha) await gravarCartao(p.id, c.linha, null)
+          if (m.linha) await gravarComissao(p.id, m.linha, null, data?.partners || [])
+        } catch (err) {
+          notify(`Projeto criado, mas o financeiro não foi salvo por inteiro (${err?.message || 'erro'}). Confira a aba Financeiro do projeto.`, 'err')
+        }
+      }
       notify(f.template ? 'Projeto criado com tarefas, checklist e marcos do template.' : 'Projeto criado.', 'ok'); onSaved?.(p); onClose()
     }}>Criar projeto</AsyncButton></>}>
-      <div className="fields">
-        <Field label="Nome"><input className="in" autoFocus value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder={client ? `Ex.: Site ${client.name}` : ''} /></Field>
-        <Field label="Template"><Select value={f.template} onChange={(v) => setF({ ...f, template: v || '' })} placeholder="sem template" options={(data?.templates || []).map((t) => [t.id, t.name])} /></Field>
-        {!client ? <Field label="Cliente"><Select value={f.client_id} onChange={(v) => setF({ ...f, client_id: v || '' })} placeholder="interno (sem cliente)" options={(data?.clients || []).map((c) => [c.id, c.name])} /></Field> : null}
-        <Field label="Valor"><MoneyInput value={f.value_cents} onChange={(v) => setF({ ...f, value_cents: v })} /></Field>
-        <Field label="Início"><input type="date" className="in" value={f.starts_on} onChange={(e) => setF({ ...f, starts_on: e.target.value })} /></Field>
-        <Field label="Prazo" hint="vazio = calculado pelo template"><input type="date" className="in" value={f.due_on} onChange={(e) => setF({ ...f, due_on: e.target.value })} /></Field>
-        <Field label="Responsável"><Select value={f.owner_id} onChange={(v) => setF({ ...f, owner_id: v })} options={auth.members.map((m) => [m.id, m.name])} /></Field>
+      <div className="stack">
+        <div className="fields">
+          <Field label="Nome"><input className="in" autoFocus value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder={client ? `Ex.: Site ${client.name}` : ''} /></Field>
+          <Field label="Template"><Select value={f.template} onChange={(v) => setF({ ...f, template: v || '' })} placeholder="sem template" options={(data?.templates || []).map((t) => [t.id, t.name])} /></Field>
+          {!client ? <Field label="Cliente (obrigatório)"><Select value={f.client_id} onChange={(v) => { setF({ ...f, client_id: v || '' }); setErro('') }} placeholder="escolha o cliente" options={(data?.clients || []).map((c) => [c.id, c.name])} /></Field> : null}
+          <Field label="Valor"><MoneyInput value={f.value_cents} onChange={(v) => setF({ ...f, value_cents: v })} /></Field>
+          <Field label="Início"><input type="date" className="in" value={f.starts_on} onChange={(e) => setF({ ...f, starts_on: e.target.value })} /></Field>
+          <Field label="Prazo" hint="vazio = calculado pelo template"><input type="date" className="in" value={f.due_on} onChange={(e) => setF({ ...f, due_on: e.target.value })} /></Field>
+          <Field label="Responsável"><Select value={f.owner_id} onChange={(v) => setF({ ...f, owner_id: v })} options={auth.members.map((m) => [m.id, m.name])} /></Field>
+        </div>
+        {comFin && f.value_cents > 0 ? (
+          <>
+            <h3 className="lbl" style={{ margin: 0 }}>Como o cliente vai pagar</h3>
+            <CartaoCampos value={cartao} onChange={setCartao} total={f.value_cents} />
+            <ComissaoCampos value={comissao} onChange={setComissao} partners={data?.partners || []} total={f.value_cents} liquido={liquido} />
+          </>
+        ) : null}
+        {erro ? <div className="note r">{erro}</div> : null}
       </div>
     </Modal>
   )

@@ -22,16 +22,17 @@ export default function ProjetoDetalhe() {
   const { data, loading, error, reload } = useData(async () => {
     const p = await fetchOne('projects', id)
     if (!p) return { p: null }
-    const [tasks, checklist, milestones, meetings, client, time] = await Promise.all([
+    const [tasks, checklist, milestones, meetings, client, time, clients] = await Promise.all([
       fetchRows('tasks', { where: (q) => q.eq('project_id', id), order: 'sort', ascending: true }),
       fetchRows('project_checklist', { where: (q) => q.eq('project_id', id), order: 'sort', ascending: true }),
       fetchRows('milestones', { where: (q) => q.eq('project_id', id), order: 'sort', ascending: true }),
       fetchRows('meetings', { where: (q) => q.eq('project_id', id), order: 'starts_at' }).catch(() => []),
       p.client_id ? fetchOne('clients', p.client_id).catch(() => null) : null,
       fetchRows('time_entries', { order: 'started_at' }).catch(() => []),
+      fetchRows('clients', { select: 'id, name', order: 'name', ascending: true }).catch(() => []),
     ])
     const tids = new Set(tasks.map((x) => x.id))
-    return { p, tasks, checklist, milestones, meetings, client, time: time.filter((e) => e.project_id === id || tids.has(e.task_id)) }
+    return { p, tasks, checklist, milestones, meetings, client, clients, time: time.filter((e) => e.project_id === id || tids.has(e.task_id)) }
   }, ['projects', 'tasks', 'project_checklist', 'milestones', 'time_entries', 'meetings'], [id])
 
   useMeta('Operação / Projetos', data?.p?.name || 'Projeto')
@@ -39,7 +40,7 @@ export default function ProjetoDetalhe() {
   if (loading || !data) return <div className="page"><Loading rows={8} /></div>
   if (!data.p) return <div className="page"><div className="empty">Projeto não encontrado. <Link to="/erp/projetos">Voltar</Link></div></div>
 
-  const { p, tasks, checklist, milestones, meetings, client, time } = data
+  const { p, tasks, checklist, milestones, meetings, client, clients, time } = data
   const canEdit = auth.isTotal('projetos') || p.owner_id === auth.uid
   const done = tasks.filter((x) => x.status === 'done').length
   const mins = time.reduce((a, e) => a + (e.minutes || 0), 0)
@@ -50,7 +51,7 @@ export default function ProjetoDetalhe() {
     <div className="page">
       <Link to="/erp/projetos" className="lbl" style={{ color: 'var(--mut)' }}>← Voltar para projetos</Link>
       <PageHead title={<span className="row" style={{ gap: 10 }}>{p.name} <Badge kind={PROJECT_STAGE_CLASS[p.stage]}>{PROJECT_STAGES[p.stage]}</Badge></span>}
-        sub={<>{client ? <>Cliente: <Link to={`/erp/clientes?id=${client.id}`}>{client.name}</Link> · </> : 'Interno · '}{p.type || FRONTS[p.front]}{p.value_cents ? ` · ${brl0(p.value_cents)}` : ''} · responsável {auth.memberName(p.owner_id)}{p.due_on ? ` · prazo ${dm(p.due_on)} (${due < 0 ? `${-due} dias atrasado` : due === 0 ? 'hoje' : `faltam ${due} dias`})` : ''}</>}>
+        sub={<>{client ? <>Cliente: <Link to={`/erp/clientes?id=${client.id}`}>{client.name}</Link> · </> : <><b className="warn">Sem cliente: escolha em Dados</b> · </>}{p.type || FRONTS[p.front]}{p.value_cents ? ` · ${brl0(p.value_cents)}` : ''} · responsável {auth.memberName(p.owner_id)}{p.due_on ? ` · prazo ${dm(p.due_on)} (${due < 0 ? `${-due} dias atrasado` : due === 0 ? 'hoje' : `faltam ${due} dias`})` : ''}</>}>
         {canEdit ? (
           <button type="button" className="btn" onClick={() => (running ? stopTimer(erp.timer.entry) : startTimer({ project_id: p.id, note: p.name }))}>
             <Icon name={running ? 'stop' : 'play'} size={13} />{running ? 'Parar cronômetro' : 'Iniciar cronômetro'}
@@ -78,7 +79,7 @@ export default function ProjetoDetalhe() {
               </div>
             </Card>
             <Links p={p} canEdit={canEdit} />
-            <Card pad title={<h2>Dados</h2>}><Meta p={p} canEdit={canEdit} /></Card>
+            <Card pad title={<h2>Dados</h2>}><Meta p={p} canEdit={canEdit} clients={clients} /></Card>
             {auth.isTotal('projetos') ? <button type="button" className="btn s g" style={{ width: 'max-content' }} onClick={async () => { if (await confirm('Arquivar este projeto e esconder suas tarefas?', { ok: 'Arquivar', danger: true })) { await archive('projects', p.id); nav('/erp/projetos') } }}><Icon name="trash" size={13} />Arquivar projeto</button> : null}
           </div>
         </div>
@@ -226,14 +227,17 @@ function Links({ p, canEdit }) {
   )
 }
 
-function Meta({ p, canEdit }) {
+function Meta({ p, canEdit, clients = [] }) {
   const auth = useAuth()
-  const [f, setF] = useState({ starts_on: p.starts_on || '', due_on: p.due_on || '', value_cents: p.value_cents, est_hours: p.est_hours || '', owner_id: p.owner_id, front: p.front, name: p.name })
-  useEffect(() => setF({ starts_on: p.starts_on || '', due_on: p.due_on || '', value_cents: p.value_cents, est_hours: p.est_hours || '', owner_id: p.owner_id, front: p.front, name: p.name }), [p])
+  const [f, setF] = useState({ starts_on: p.starts_on || '', due_on: p.due_on || '', value_cents: p.value_cents, est_hours: p.est_hours || '', owner_id: p.owner_id, front: p.front, name: p.name, client_id: p.client_id || '' })
+  useEffect(() => setF({ starts_on: p.starts_on || '', due_on: p.due_on || '', value_cents: p.value_cents, est_hours: p.est_hours || '', owner_id: p.owner_id, front: p.front, name: p.name, client_id: p.client_id || '' }), [p])
   if (!canEdit) return <dl className="kv"><dt>Início</dt><dd>{dmy(p.starts_on)}</dd><dt>Prazo</dt><dd>{dmy(p.due_on)}</dd><dt>Valor</dt><dd>{brl0(p.value_cents)}</dd></dl>
   return (
     <div className="stack">
       <Field label="Nome"><input className="in" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></Field>
+      <Field label="Cliente (obrigatório)" hint={f.client_id ? undefined : 'O financeiro e o "em dia" do cliente dependem deste vínculo'}>
+        <Select value={f.client_id} onChange={(v) => setF({ ...f, client_id: v || '' })} placeholder="escolha o cliente" options={clients.map((c) => [c.id, c.name])} />
+      </Field>
       <div className="fields">
         <Field label="Início"><input type="date" className="in" value={f.starts_on} onChange={(e) => setF({ ...f, starts_on: e.target.value })} /></Field>
         <Field label="Prazo"><input type="date" className="in" value={f.due_on} onChange={(e) => setF({ ...f, due_on: e.target.value })} /></Field>
@@ -242,7 +246,10 @@ function Meta({ p, canEdit }) {
         <Field label="Frente"><Select value={f.front} onChange={(v) => setF({ ...f, front: v })} options={FRONTS} /></Field>
         <Field label="Responsável"><Select value={f.owner_id} onChange={(v) => setF({ ...f, owner_id: v })} options={auth.members.map((m) => [m.id, m.name])} /></Field>
       </div>
-      <AsyncButton className="btn" onClick={() => update('projects', p.id, { ...f, starts_on: f.starts_on || null, due_on: f.due_on || null, est_hours: f.est_hours || null }).then(() => notify('Salvo.', 'ok'))}>Salvar dados</AsyncButton>
+      <AsyncButton className="btn" onClick={() => {
+        if (!f.client_id) return notify('Escolha o cliente do projeto. Todo projeto precisa estar ligado a um cliente.', 'err')
+        return update('projects', p.id, { ...f, starts_on: f.starts_on || null, due_on: f.due_on || null, est_hours: f.est_hours || null }).then(() => notify('Salvo.', 'ok'))
+      }}>Salvar dados</AsyncButton>
     </div>
   )
 }

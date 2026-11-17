@@ -143,3 +143,21 @@ describe('extrato', () => {
     expect(ex[0]).toMatchObject({ sinal: -1, valor: 5000, titulo: 'Contratar social media', detalhe: 'Para: Primeiro mês', tipo: 'saque' })
   })
 })
+
+describe('cartão + comissão: separa só o que caiu na conta', () => {
+  // projeto de R$ 3.200 no cartão, caiu R$ 3.099, comissão de 30% do que caiu (R$ 929,70)
+  const fin = { valorTotal: 320000, valorLiquido: 309900, comissaoTotal: 92970 }
+  it('a comissão proporcional usa o líquido', () => {
+    expect(comissaoDoRecebimento(309900, fin)).toBe(92970)
+    expect(comissaoDoRecebimento(154950, fin)).toBe(46485)
+  })
+  it('as caixinhas dividem R$ 2.169,30, nunca os R$ 3.200', () => {
+    const e = entradasDasCaixinhas({
+      fin: { recebimentos: [{ id: 'r1', project_id: 'p1', amount_cents: 309900, received_on: '2026-11-18' }] },
+      linhas: [{ projeto: { id: 'p1' }, fin }], configs: [cfg], hoje: '2026-11-30',
+    })
+    expect(e[0]).toMatchObject({ bruto: 309900, comissao: 92970, base: 216930 })
+    expect(total(e[0].partes)).toBe(216930)
+    expect(e[0].partes).toEqual({ gastar: 86773, guardar: 32539, caixa: 54232, invest: 43386 })
+  })
+})

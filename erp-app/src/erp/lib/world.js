@@ -10,7 +10,7 @@ import { addDays, today, inRange, startOfMonth, endOfMonth, startOfWeek } from '
 const TABLES = ['leads', 'activities', 'tasks', 'projects', 'receivables', 'payables', 'proposals', 'proposal_items',
   'contracts', 'clients', 'goals', 'meetings', 'time_entries', 'commissions', 'pipeline_stages', 'ideas',
   'insight_dismissals', 'settings', 'playbooks', 'partners', 'milestones',
-  'project_valores', 'project_recebimentos', 'project_comissao', 'project_comissao_pagamentos', 'project_comissao_abatimentos',
+  'project_valores', 'project_recebimentos', 'project_comissao', 'project_comissao_pagamentos', 'project_comissao_abatimentos', 'project_cartao',
   'saas_produtos', 'saas_assinaturas', 'saas_recebimentos', 'project_comandas',
   'caixinhas_config', 'caixinha_repasses', 'caixinha_movimentos', 'compras', 'compras_reservas']
 
@@ -30,7 +30,7 @@ async function loadWorldFresh() {
   const since = addDays(today(), -400)
   const [P, leads, activities, tasks, projects, receivables, payables, proposals, items, contracts, clients, goals,
     meetings, timeEntries, commissions, ideas, dismissals, settingsRows, playbooks, partners, milestones,
-    finValores, finRecebimentos, finParceiros, finPagamentos, finAbatimentos, saasProdutos, saasAssinaturas, saasRecebimentos, finComandas,
+    finValores, finRecebimentos, finParceiros, finPagamentos, finAbatimentos, finCartoes, saasProdutos, saasAssinaturas, saasRecebimentos, finComandas,
     cxConfigs, cxRepasses, cxMovimentos, compras, comprasReservas] = await Promise.all([
     getPipelines(),
     safe(fetchRows('leads', { limit: 5000 })),
@@ -58,6 +58,7 @@ async function loadWorldFresh() {
     safe(fetchRows('project_comissao', { order: null })),
     safe(fetchRows('project_comissao_pagamentos', { order: null })),
     safe(fetchRows('project_comissao_abatimentos', { order: null })),
+    safe(fetchRows('project_cartao', { order: null })),
     safe(fetchRows('saas_produtos', { order: null })),
     safe(fetchRows('saas_assinaturas', { order: null })),
     safe(fetchRows('saas_recebimentos', { order: null })),
@@ -76,7 +77,7 @@ async function loadWorldFresh() {
     timeEntries, commissions, terms: [], ideas, dismissals, settings, playbooks, partners, milestones,
   }
   const comProjetos = comFinanceiroDosProjetos(world, {
-    valores: finValores, recebimentos: finRecebimentos, parceiros: finParceiros, pagamentos: finPagamentos, abatimentos: finAbatimentos, comandas: finComandas,
+    valores: finValores, recebimentos: finRecebimentos, parceiros: finParceiros, pagamentos: finPagamentos, abatimentos: finAbatimentos, comandas: finComandas, cartoes: finCartoes,
   })
   const comSaasW = comSaas(comProjetos, { produtos: saasProdutos, assinaturas: saasAssinaturas, recebimentos: saasRecebimentos })
   return comCaixinhas(comSaasW, { configs: cxConfigs, repasses: cxRepasses, movimentos: cxMovimentos, compras, reservas: comprasReservas })

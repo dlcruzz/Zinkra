@@ -38,7 +38,7 @@ export default function Projetos() {
       const done = ts.filter((x) => x.status === 'done').length
       const taskIds = new Set(ts.map((x) => x.id))
       const mins = data.time.filter((e) => e.project_id === p.id || taskIds.has(e.task_id)).reduce((a, e) => a + (e.minutes || 0), 0)
-      return { ...p, total: ts.length, done, mins, client: data.clients.find((c) => c.id === p.client_id)?.name || 'Interno' }
+      return { ...p, total: ts.length, done, mins, client: data.clients.find((c) => c.id === p.client_id)?.name || '', semCliente: !p.client_id }
     })
   }, [data, front, auth])
 
@@ -55,7 +55,7 @@ export default function Projetos() {
     return (
       <div key={p.id} className="kcard" draggable={auth.canEdit('projetos')} onDragStart={() => setDrag(p)} onDragEnd={() => setDrag(null)}
         onClick={() => nav(`/erp/projetos/${p.id}`)} role="link" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter') nav(`/erp/projetos/${p.id}`) }}>
-        <div className="stack-s" style={{ gap: 3 }}><span style={{ fontWeight: 500 }}>{p.name}</span><span className="lbl">{p.client}</span></div>
+        <div className="stack-s" style={{ gap: 3 }}><span style={{ fontWeight: 500 }}>{p.name}</span><span className={p.semCliente ? 'warn' : 'lbl'}>{p.client || 'Sem cliente'}</span></div>
         <div className="row" style={{ gap: 6 }}>{p.type ? <span className="tagx">{p.type}</span> : null}<span className="tagx num">{p.value_cents ? brl0(p.value_cents) : FRONTS[p.front]}</span></div>
         <div className="stack-s" style={{ gap: 5 }}>
           <div className="row lbl" style={{ justifyContent: 'space-between' }}><span>{p.done} de {p.total} tarefas</span>
@@ -74,6 +74,10 @@ export default function Projetos() {
         <label className="check"><input type="checkbox" checked={showDone} onChange={(e) => setShowDone(e.target.checked)} />Mostrar entregues</label>
         {auth.canEdit('projetos') ? <button type="button" className="btn p" onClick={() => setCreating(true)}>Novo projeto</button> : null}
       </PageHead>
+
+      {rows.some((p) => p.semCliente && !p.archived_at && p.stage !== 'entregue') ? (
+        <div className="note y">{rows.filter((p) => p.semCliente && !p.archived_at && p.stage !== 'entregue').length} projeto(s) sem cliente. Abra cada um, escolha o cliente em Dados e salve: sem isso o pagamento não aparece na ficha do cliente.</div>
+      ) : null}
 
       {view === 'kanban' ? (
         <div className="kanban"><div className="kanban-in">
@@ -100,7 +104,7 @@ export default function Projetos() {
           <tbody>
             {rows.filter((p) => showDone || p.stage !== 'entregue').sort((a, b) => (a.due_on || '9') < (b.due_on || '9') ? -1 : 1).map((p) => (
               <tr key={p.id} className="click" onClick={() => nav(`/erp/projetos/${p.id}`)}>
-                <td style={{ fontWeight: 500 }}>{p.name}</td><td>{p.client}</td>
+                <td style={{ fontWeight: 500 }}>{p.name}</td><td>{p.client || <span className="warn">Sem cliente</span>}</td>
                 <td><Badge kind={PROJECT_STAGE_CLASS[p.stage]}>{PROJECT_STAGES[p.stage]}</Badge></td>
                 <td>{auth.memberName(p.owner_id)}</td>
                 <td className="num r">{p.done}/{p.total}</td>

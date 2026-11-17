@@ -9,12 +9,17 @@ import { PageHead, Loading, ErrorBox, Badge, Modal, Field, AsyncButton, Empty, S
 import { COMMISSION_STATUS, COMMISSION_CLASS } from '../lib/constants'
 import { PayModal } from './Pagar'
 import { Icon } from '../lib/icons'
+import { useWorld } from '../lib/world'
+import { comissoesPorParceiro } from '../lib/financeiro'
+import { brl } from '../lib/format'
 
 export default function Parceiros() {
   useMeta('Empresa', 'Parceiros')
   const auth = useAuth()
   const [modal, setModal] = useState(null)
   const [paying, setPaying] = useState(null)
+  // comissões combinadas nos projetos (financeiro do projeto): quanto foi pago a cada parceiro e quanto falta
+  const mundo = useWorld()
   const { data, loading, error, reload } = useData(async () => {
     const [partners, commissions, leads, clients, payables] = await Promise.all([
       fetchRows('partners', { order: 'name', ascending: true }),
@@ -32,6 +37,9 @@ export default function Parceiros() {
   const sum = (l) => l.reduce((a, c) => a + c.amount_cents, 0)
   const toPay = data.commissions.filter((c) => c.status === 'a_pagar')
   const expected = data.commissions.filter((c) => c.status === 'prevista')
+  const grupos = mundo.data ? comissoesPorParceiro(mundo.data) : []
+  const clienteDe = (projeto) => mundo.data?.clients?.find((c) => c.id === projeto.client_id)?.name || 'Sem cliente'
+  const doParceiro = (p) => grupos.find((g) => (g.parceiroId && g.parceiroId === p.id) || (!g.parceiroId && g.nome.trim().toLowerCase() === p.name.trim().toLowerCase()))
   const paidYear = data.commissions.filter((c) => c.status === 'paga' && (c.updated_at || '').startsWith(year))
 
   return (
@@ -47,11 +55,12 @@ export default function Parceiros() {
         <Stat label="Comissão prevista" value={brl0(sum(expected))} sub="aguarda o cliente pagar" />
         <Stat label="Liberada para pagar" value={brl0(sum(toPay))} valueClass={toPay.length ? 'warn' : ''} />
         <Stat label="Paga no ano" value={brl0(sum(paidYear))} />
+        <Stat label="A pagar (projetos)" value={brl(grupos.reduce((a, g) => a + g.aPagar, 0))} valueClass={grupos.some((g) => g.aPagar > 0) ? 'warn' : ''} sub="comissão dos projetos" />
       </div>
 
       <Card title="Parceiros">
         <div className="tbl-wrap"><table className="tbl">
-          <thead><tr><th>Parceiro</th><th>Origem</th><th className="r">%</th><th className="r">Indicados</th><th className="r">Fechados</th><th className="r">Comissão total</th><th /></tr></thead>
+          <thead><tr><th>Parceiro</th><th>Origem</th><th className="r">%</th><th className="r">Indicados</th><th className="r">Fechados</th><th className="r">Comissão total</th><th className="r">Pago (projetos)</th><th className="r">A pagar (projetos)</th><th /></tr></thead>
           <tbody>
             {data.partners.map((p) => {
               const ind = data.leads.filter((l) => l.partner_id === p.id)
@@ -60,6 +69,7 @@ export default function Parceiros() {
                 <tr key={p.id} style={!p.active ? { opacity: 0.5 } : undefined}>
                   <td style={{ fontWeight: 500 }}>{p.name}</td><td>{p.origin || '—'}</td><td className="num r">{Number(p.pct)}%</td>
                   <td className="num r">{ind.length}</td><td className="num r">{ind.filter((l) => l.won_at).length}</td><td className="num r">{brl0(sum(com))}</td>
+                  <td className="num r">{doParceiro(p) ? brl(doParceiro(p).pago) : '—'}</td><td className="num r">{doParceiro(p) ? brl(doParceiro(p).aPagar) : '—'}</td>
                   <td><div className="row" style={{ flexWrap: 'nowrap', gap: 4 }}>
                     {p.phone ? <a className="btn s ic g" href={waLink(p.phone, `Oi ${p.name.split(' ')[0]}, tudo bem? Passando para agradecer pelas indicações. Se lembrar de alguém que precise de site ou sistema, pode mandar que eu cuido de tudo.`)} aria-label="WhatsApp"><Icon name="wa" size={13} /></a> : null}
                     {auth.canEdit('parceiros') ? <button type="button" className="btn s ic g" aria-label="Editar" onClick={() => setModal(p)}><Icon name="edit" size={13} /></button> : null}
@@ -67,12 +77,37 @@ export default function Parceiros() {
                 </tr>
               )
             })}
-            {!data.partners.length ? <tr><td colSpan={7}><Empty icon="users">Nenhum parceiro. Cadastre quem indica clientes; no lead, escolha "Indicado por" e a comissão se calcula sozinha.</Empty></td></tr> : null}
+            {!data.partners.length ? <tr><td colSpan={9}><Empty icon="users">Nenhum parceiro. Cadastre quem indica clientes; no lead, escolha "Indicado por" e a comissão se calcula sozinha.</Empty></td></tr> : null}
           </tbody>
         </table></div>
       </Card>
 
-      <Card title="Comissões" action={<Link to="/erp/financeiro/pagar" style={{ fontSize: 12 }}>Ver no Contas a pagar</Link>}>
+      <Card title="Comissões dos projetos" action={<span className="lbl">o que foi combinado em cada projeto e o que já foi pago</span>}>
+        <div className="tbl-wrap"><table className="tbl">
+          <thead><tr><th>Parceiro / projeto</th><th className="r">Comissão</th><th className="r">Já paga</th><th className="r">Abatido</th><th className="r">Falta pagar</th></tr></thead>
+          <tbody>
+            {grupos.map((g) => (
+              <React.Fragment key={g.chave}>
+                <tr style={{ background: 'var(--s3)' }}>
+                  <td style={{ fontWeight: 600 }}>{g.nome}{!g.parceiroId ? <span className="lbl"> · não cadastrado em Parceiros</span> : null}</td>
+                  <td className="num r">{brl(g.combinado)}</td><td className="num r">{brl(g.pago)}</td><td className="num r">{g.abatido ? brl(g.abatido) : '—'}</td>
+                  <td className={`num r ${g.aPagar > 0 ? 'warn' : ''}`}>{brl(g.aPagar)}</td>
+                </tr>
+                {g.projetos.map((x) => (
+                  <tr key={x.projeto.id}>
+                    <td style={{ paddingLeft: 24 }}><Link to={`/erp/projetos/${x.projeto.id}`}>{clienteDe(x.projeto)} · {x.projeto.name}</Link></td>
+                    <td className="num r">{brl(x.fin.comissaoTotal)}</td><td className="num r">{brl(x.fin.comissaoPaga)}</td><td className="num r">{x.fin.abatido ? brl(x.fin.abatido) : '—'}</td>
+                    <td className="num r">{x.fin.comissaoAPagar ? brl(x.fin.comissaoAPagar) : <Badge kind="g">paga</Badge>}</td>
+                  </tr>
+                ))}
+              </React.Fragment>
+            ))}
+            {!grupos.length ? <tr><td colSpan={5} className="lbl">Nenhuma comissão definida nos projetos. Na aba Financeiro de um projeto, use "Parceiro e comissão"; o pagamento registrado lá aparece aqui.</td></tr> : null}
+          </tbody>
+        </table></div>
+      </Card>
+
+      <Card title="Comissões (modelo antigo)" action={<Link to="/erp/financeiro/pagar" style={{ fontSize: 12 }}>Ver no Contas a pagar</Link>}>
         <div className="tbl-wrap"><table className="tbl">
           <thead><tr><th>Referência</th><th>Cliente</th><th>Parceiro</th><th className="r">Base</th><th className="r">Comissão</th><th>Status</th><th /></tr></thead>
           <tbody>

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { calcularProjeto, calcularCarteira, linhaDoTempo, validarValor, avisoRecebimento, avisoAbatimento, semDuplicidade, mesesCobrados, valorDoItem, resumoComanda, faturamento, datasDeCobranca, resumoSaas, faturado, previsaoDoSaldo, saldoPrevistoAte, separarSemProjeto } from './financeiro'
+import { calcularProjeto, calcularCarteira, linhaDoTempo, validarValor, avisoRecebimento, avisoAbatimento, semDuplicidade, mesesCobrados, valorDoItem, resumoComanda, faturamento, datasDeCobranca, resumoSaas, faturado, previsaoDoSaldo, saldoPrevistoAte, separarSemProjeto, taxaDoCartao, taxaPelaCaida, resumoDoCliente, comissoesPorParceiro } from './financeiro'
 
 // Valores abaixo são só de teste (nada disso vai para o banco).
 const v = (amount_cents, extra = {}) => ({ amount_cents, ...extra })
@@ -367,5 +367,135 @@ describe('faturamento com os números reais de nov/2026 (valores de teste)', () 
   it('parcela antiga sem projeto não entra no faturamento (já separada na carga)', () => {
     const { vinculadas } = separarSemProjeto([{ id: 'x', contract_id: 'c-solto', amount_cents: 120000, due_on: '2026-10-01' }], w.projects)
     expect(faturado({ ...w, receivables: vinculadas }, hoje).total).toBe(838000)
+  })
+})
+
+describe('cartão de crédito: faturado cheio, cai menos na conta', () => {
+  // caso do Danilo: projeto de R$ 3.200 no cartão; cai R$ 3.099; 30% do que caiu é do parceiro
+  const taxa = taxaPelaCaida(320000, 309900)
+  const cartao = { parcelas: 3, taxa_pct: taxa }
+  const valores = [{ id: 'v1', kind: 'base', amount_cents: 320000, on_date: '2026-11-17' }]
+  const parceiro = { kind: 'percentual', pct: 30 }
+  it('a taxa sai de quanto caiu na conta (3.200 → 3.099 = 3,1563%)', () => {
+    expect(taxa).toBe(3.1563)
+    expect(taxaDoCartao(cartao, 320000)).toBe(10100)
+  })
+  it('o faturado continua R$ 3.200, o líquido é R$ 3.099', () => {
+    const fin = calcularProjeto({ valores, cartao })
+    expect(fin.valorTotal).toBe(320000)
+    expect(fin.taxaCartao).toBe(10100)
+    expect(fin.valorLiquido).toBe(309900)
+    expect(fin.temCartao).toBe(true)
+    expect(fin.parcelas).toBe(3)
+  })
+  it('falta receber é o líquido: quando caem 3.099 o projeto está quitado (não sobram R$ 101)', () => {
+    const fin = calcularProjeto({ valores, cartao, recebimentos: [{ amount_cents: 309900 }] })
+    expect(fin.faltaReceber).toBe(0)
+    expect(fin.quitado).toBe(true)
+    expect(fin.alertas).toEqual([])
+    expect(calcularProjeto({ valores, cartao }).faltaReceber).toBe(309900)
+  })
+  it('comissão de 30% é sobre o que caiu (3.099), não sobre os 3.200', () => {
+    const fin = calcularProjeto({ valores, cartao, parceiro })
+    expect(fin.comissaoTotal).toBe(92970)
+    expect(calcularProjeto({ valores, cartao, parceiro: { ...parceiro, base: 'bruto' } }).comissaoTotal).toBe(96000)
+  })
+  it('o lucro é o cheio menos taxa menos comissão', () => {
+    const fin = calcularProjeto({ valores, cartao, parceiro })
+    expect(fin.lucroPrevisto).toBe(320000 - 10100 - 92970)
+  })
+  it('sem cartão nada muda: líquido = valor cheio', () => {
+    const fin = calcularProjeto({ valores, parceiro })
+    expect(fin).toMatchObject({ taxaCartao: 0, valorLiquido: 320000, temCartao: false, comissaoTotal: 96000 })
+  })
+  it('só parte no cartão: taxa só sobre o que passou na maquininha', () => {
+    expect(taxaDoCartao({ taxa_pct: 4, base_cents: 100000 }, 320000)).toBe(4000)
+    expect(taxaDoCartao({ taxa_pct: 4, base_cents: 900000 }, 320000)).toBe(12800)
+  })
+  it('valores impossíveis viram zero', () => {
+    expect(taxaPelaCaida(0, 0)).toBe(0)
+    expect(taxaPelaCaida(1000, 2000)).toBe(0)
+    expect(taxaDoCartao(null, 1000)).toBe(0)
+    expect(taxaDoCartao({ taxa_pct: 5 }, 0)).toBe(0)
+  })
+  it('a taxa não vira "falta receber" no faturado', () => {
+    const f = { valores: [{ id: 'v1', project_id: 'p1', kind: 'base', amount_cents: 320000, on_date: '2026-11-17' }], recebimentos: [{ project_id: 'p1', amount_cents: 309900, received_on: '2026-11-18' }], cartoes: [{ project_id: 'p1', parcelas: 3, taxa_pct: 3.1563 }] }
+    const projetos = [{ id: 'p1', client_id: 'c1', name: 'Site' }]
+    const w = { projects: projetos, clients: [{ id: 'c1', name: 'Cliente' }], receivables: [], contracts: [], fin: f, carteira: calcularCarteira(f, projetos) }
+    const r = faturado(w, '2026-11-20')
+    expect(r.total).toBe(320000)
+    expect(r.recebido).toBe(309900)
+    expect(r.taxasCartao).toBe(10100)
+    expect(r.falta).toBe(0)
+  })
+  it('a carteira soma as taxas', () => {
+    const f = { valores: [{ project_id: 'p1', kind: 'base', amount_cents: 320000, on_date: '2026-11-17' }], cartoes: [{ project_id: 'p1', parcelas: 1, taxa_pct: 3.1563 }] }
+    expect(calcularCarteira(f, [{ id: 'p1' }]).totais).toMatchObject({ valorTotal: 320000, taxaCartao: 10100 })
+  })
+})
+
+describe('situação de pagamento do cliente', () => {
+  const hoje = '2026-11-17'
+  const projeto = (id, extra = {}) => ({ id, client_id: 'c1', name: id, ...extra })
+  const mundo = (f, projetos, comandas = []) => ({ projects: projetos, fin: { ...f, comandas }, receivables: [], carteira: calcularCarteira({ ...f, comandas }, projetos) })
+  const base = (pid, v) => ({ project_id: pid, kind: 'base', amount_cents: v, on_date: '2026-11-01' })
+  it('tudo pago = em dia', () => {
+    const w = mundo({ valores: [base('p1', 100000)], recebimentos: [{ project_id: 'p1', amount_cents: 100000, received_on: '2026-11-05' }] }, [projeto('p1')])
+    const r = resumoDoCliente(w, 'c1', hoje)
+    expect(r.estado).toBe('em_dia')
+    expect(r.projetos[0].situacao.estado).toBe('pago')
+    expect(r.recebido).toBe(100000)
+    expect(r.falta).toBe(0)
+  })
+  it('falta pagar com previsão no futuro = em dia', () => {
+    const w = mundo({ valores: [base('p1', 100000)] }, [projeto('p1')], [{ project_id: 'p1', status: 'aberta', receber_previsto_em: '2026-11-25' }])
+    const r = resumoDoCliente(w, 'c1', hoje)
+    expect(r.estado).toBe('em_dia')
+    expect(r.projetos[0].situacao).toMatchObject({ estado: 'em_dia', ate: '2026-11-25' })
+  })
+  it('previsão vencida = atrasado, com os dias', () => {
+    const w = mundo({ valores: [base('p1', 100000)] }, [projeto('p1')], [{ project_id: 'p1', status: 'aberta', receber_previsto_em: '2026-11-10' }])
+    const r = resumoDoCliente(w, 'c1', hoje)
+    expect(r.estado).toBe('atrasado')
+    expect(r.dias).toBe(7)
+  })
+  it('falta pagar e sem data = a receber (não acusa atraso sem saber o prazo)', () => {
+    const w = mundo({ valores: [base('p1', 100000)] }, [projeto('p1')])
+    expect(resumoDoCliente(w, 'c1', hoje).estado).toBe('a_receber')
+  })
+  it('mensalidade sem pagar desde a primeira cobrança vira atrasada', () => {
+    const f = { valores: [{ project_id: 'p1', kind: 'mensalidade', amount_cents: 20000, on_date: '2026-09-05', starts_on: '2026-09-05' }], recebimentos: [{ project_id: 'p1', amount_cents: 20000, received_on: '2026-09-06' }] }
+    const w = mundo(f, [projeto('p1')])
+    const s = resumoDoCliente(w, 'c1', hoje).projetos[0].situacao
+    expect(s).toMatchObject({ estado: 'atrasado', ate: '2026-10-05', dias: 43 })
+  })
+  it('parcela antiga vencida também conta, e o recebido do projeto não entra duas vezes', () => {
+    const w = mundo({ valores: [base('p1', 100000)], recebimentos: [{ project_id: 'p1', amount_cents: 100000, received_on: '2026-11-05' }] }, [projeto('p1')])
+    w.receivables = [
+      { id: 'proj-rec-x', client_id: 'c1', amount_cents: 100000, received_on: '2026-11-05' },
+      { id: 'a1', client_id: 'c1', amount_cents: 5000, due_on: '2026-11-01', received_on: null },
+    ]
+    const r = resumoDoCliente(w, 'c1', hoje)
+    expect(r.estado).toBe('atrasado')
+    expect(r.recebido).toBe(100000)
+    expect(r.falta).toBe(5000)
+  })
+  it('cliente de outro não entra', () => {
+    const w = mundo({ valores: [base('p1', 100000)] }, [projeto('p1', { client_id: 'c2' })])
+    expect(resumoDoCliente(w, 'c1', hoje).temFinanceiro).toBe(false)
+  })
+})
+
+describe('comissão por parceiro (tela de Parceiros)', () => {
+  it('soma o combinado, o pago e o que falta pagar em todos os projetos do parceiro', () => {
+    const f = {
+      valores: [{ project_id: 'p1', kind: 'base', amount_cents: 320000, on_date: '2026-11-01' }, { project_id: 'p2', kind: 'base', amount_cents: 100000, on_date: '2026-11-01' }],
+      parceiros: [{ project_id: 'p1', partner_id: 'a1', partner_name: 'André', kind: 'percentual', pct: 30 }, { project_id: 'p2', partner_id: 'a1', partner_name: 'André', kind: 'fixa', amount_cents: 10000 }],
+      pagamentos: [{ project_id: 'p1', amount_cents: 30000 }],
+    }
+    const w = { projects: [{ id: 'p1' }, { id: 'p2' }], fin: f, carteira: calcularCarteira(f, [{ id: 'p1' }, { id: 'p2' }]) }
+    const [a] = comissoesPorParceiro(w)
+    expect(a).toMatchObject({ nome: 'André', combinado: 96000 + 10000, pago: 30000, aPagar: 76000 })
+    expect(a.projetos).toHaveLength(2)
   })
 })

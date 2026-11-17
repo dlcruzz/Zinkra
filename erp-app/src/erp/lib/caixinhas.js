@@ -52,9 +52,12 @@ export const pctDaConfig = (c) => ({ gastar: Number(c.pct_gastar), guardar: Numb
 
 // Parte da comissão do parceiro que está dentro de um recebimento: proporcional ao que o projeto deve de comissão.
 // A comissão não é dinheiro do Danilo, é custo da venda: sai antes da divisão.
+// O recebimento é o que CAIU na conta (já sem a taxa do cartão). Por isso a proporção é sobre o líquido do projeto:
+// R$ 3.099 que caíram de um projeto de R$ 3.200 no cartão, com 30% de comissão sobre o líquido, tiram R$ 929,70.
 export function comissaoDoRecebimento(valor, fin) {
-  if (!fin || !(fin.valorTotal > 0) || !(fin.comissaoTotal > 0)) return 0
-  return Math.min(valor, Math.round((valor * fin.comissaoTotal) / fin.valorTotal))
+  const liquido = fin?.valorLiquido ?? fin?.valorTotal
+  if (!fin || !(liquido > 0) || !(fin.comissaoTotal > 0)) return 0
+  return Math.min(valor, Math.round((valor * fin.comissaoTotal) / liquido))
 }
 
 // Todo recebimento a partir da primeira regra vira uma entrada dividida. `repassado` = já movi no banco.
