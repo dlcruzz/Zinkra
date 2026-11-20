@@ -162,10 +162,66 @@ export function Empty({ icon = 'spark', children, action }) {
   )
 }
 
-export function Loading({ rows = 4 }) {
+// Bloco de esqueleto: um retângulo com brilho que passa enquanto os dados chegam.
+export function Skel({ w = '100%', h = 14, r, style, className = '' }) {
+  return <div className={`skel ${className}`} style={{ width: w, height: h, borderRadius: r, flexShrink: 0, ...style }} aria-hidden="true" />
+}
+
+// Linhas de uma tabela/lista (círculo + dois textos + valor), nas larguras variando para parecer conteúdo de verdade.
+function LinhasEsqueleto({ rows }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 16 }} aria-busy="true" aria-label="Carregando">
-      {Array.from({ length: rows }).map((_, i) => <div key={i} className="skel" style={{ height: 18, width: `${90 - i * 12}%` }} />)}
+    <>
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 4px', borderTop: i ? '1px solid var(--line)' : 'none' }}>
+          <Skel w={30} h={30} r={999} />
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 7 }}>
+            <Skel w={`${62 - (i % 3) * 12}%`} h={12} />
+            <Skel w={`${38 - (i % 2) * 8}%`} h={10} />
+          </div>
+          <Skel w={72} h={12} />
+        </div>
+      ))}
+    </>
+  )
+}
+
+// Esqueleto de carregamento. Sem `page`, vira só as linhas (para dentro de um quadro).
+// Com `page`, imita a página inteira: título, botão, quadros de números e a lista.
+export function Loading({ rows = 4, page = false, kpis = 4 }) {
+  if (!page) {
+    return <div style={{ padding: 16 }} aria-busy="true" aria-label="Carregando"><LinhasEsqueleto rows={rows} /></div>
+  }
+  return (
+    <div className="page" aria-busy="true" aria-label="Carregando">
+      <div className="page-head">
+        <div className="t"><Skel w={230} h={26} r={8} /><Skel w={320} h={11} style={{ marginTop: 8 }} /></div>
+        <Skel w={132} h={34} r={9} />
+      </div>
+      {kpis > 0 ? (
+        <div className="grid-kpi">
+          {Array.from({ length: kpis }).map((_, i) => (
+            <div key={i} className="card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <Skel w="46%" h={10} />
+              <Skel w="64%" h={26} r={8} />
+              <Skel w="82%" h={9} />
+            </div>
+          ))}
+        </div>
+      ) : null}
+      <div className="card" style={{ padding: '10px 16px' }}><LinhasEsqueleto rows={rows} /></div>
+    </div>
+  )
+}
+
+// Esqueleto do ERP inteiro (menu lateral + página), para a tela de entrada, antes de saber quem é o usuário.
+export function LoadingApp() {
+  return (
+    <div className="erp" style={{ minHeight: '100vh', display: 'flex' }} aria-busy="true" aria-label="Carregando">
+      <div style={{ width: 232, padding: '22px 16px', display: 'flex', flexDirection: 'column', gap: 14, borderRight: '1px solid var(--line)' }}>
+        <Skel w={120} h={22} r={8} style={{ marginBottom: 10 }} />
+        {Array.from({ length: 9 }).map((_, i) => <Skel key={i} w={`${86 - (i % 3) * 14}%`} h={13} />)}
+      </div>
+      <div style={{ flex: 1 }}><Loading page rows={5} /></div>
     </div>
   )
 }

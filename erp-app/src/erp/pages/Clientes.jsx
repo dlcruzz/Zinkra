@@ -64,7 +64,7 @@ export default function Clientes() {
   useEffect(() => { if (sp.get('upsell') && selId && !modal) setModal('upsell') }, [sp, selId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (error) return <div className="page"><ErrorBox error={error} onRetry={reload} /></div>
-  if (loading || !data) return <div className="page"><Loading rows={8} /></div>
+  if (loading || !data) return <Loading page rows={8} />
   const H = { ok: ['Em dia', 'g'], at: ['Atenção', 'y'], rk: ['Risco', 'r'] }
   const list = rows.filter((r) => filter === 'todos' || r.status === filter)
   const sel = rows.find((r) => r.id === selId)

@@ -59,7 +59,7 @@ export default function Inteligencia() {
   }, [w, auth])
 
   if (error) return <div className="page"><ErrorBox error={error} onRetry={reload} /></div>
-  if (loading || !c) return <div className="page"><Loading rows={6} /></div>
+  if (loading || !c) return <Loading page rows={6} />
 
   const areas = ['all', ...Array.from(new Set(c.insights.map((i) => i.area)))]
   const list = area === 'all' ? c.insights : c.insights.filter((i) => i.area === area)

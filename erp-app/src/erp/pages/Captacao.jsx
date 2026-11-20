@@ -79,7 +79,7 @@ export default function Captacao() {
     if (/capture_batches|column .*(city|uf)|search_terms\.(city|uf)/i.test(m)) return <div className="page"><Setup /></div>
     return <div className="page"><ErrorBox error={error} onRetry={reload} /></div>
   }
-  if (loading || !data) return <div className="page"><Loading rows={8} /></div>
+  if (loading || !data) return <Loading page rows={8} />
 
   const { resumo, batches } = data
   const done = resumo.terms_done

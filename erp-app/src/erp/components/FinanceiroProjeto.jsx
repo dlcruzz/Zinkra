@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import { useData, fetchRows, fetchOne, insert, update, remove, archive, notify } from '../lib/data'
 import { brl, dmy, hm, today } from '../lib/format'
+import { comissaoDoRecebimento } from '../lib/caixinhas'
 import { calcularProjeto, resumoComanda, linhaDoTempo, validarValor, avisoRecebimento, avisoAbatimento, ALERTAS, TIPOS_VALOR, FORMAS_RECEBIMENTO } from '../lib/financeiro'
 import { Card, Kpi, Loading, ErrorBox, Modal, Field, Select, MoneyInput, AsyncButton, useConfirm, Badge } from './ui'
 import { Icon } from '../lib/icons'
@@ -22,7 +23,7 @@ export function useFinanceiroProjeto(projectId, clientId = null) {
   return useData(async () => {
     const where = (q) => q.eq('project_id', projectId)
     try {
-      const [valores, recebimentos, parceiros, pagamentos, abatimentos, partners, comandas, historico, cliente, legados, cartoes] = await Promise.all([
+      const [valores, recebimentos, parceiros, pagamentos, abatimentos, partners, comandas, historico, cliente, legados, cartoes, repasseOk] = await Promise.all([
         fetchRows('project_valores', { where, order: 'on_date' }),
         fetchRows('project_recebimentos', { where, order: 'received_on' }),
         fetchRows('project_comissao', { where, order: 'created_at' }),
@@ -34,9 +35,11 @@ export function useFinanceiroProjeto(projectId, clientId = null) {
         clientId ? fetchOne('clients', clientId).catch(() => null) : null,
         clientId ? fetchRows('receivables', { where: (q) => q.eq('client_id', clientId), order: 'due_on', ascending: true }).catch(() => []) : [],
         opcional(fetchRows('project_cartao', { where, order: 'created_at' })),
+        // sem erp-repasse-parceiro.sql a coluna não existe: o resto segue funcionando
+        fetchRows('project_recebimentos', { select: 'id, comissao_cents', limit: 1, order: null }).then(() => true, () => false),
       ])
       // cartoes === null: o banco ainda não tem o arquivo erp-cartao-comissao.sql (o resto segue funcionando)
-      return { valores, recebimentos, parceiro: parceiros[0] || null, pagamentos, abatimentos, partners, comandas, historico, cliente, legados, cartoes, cartao: cartoes?.[0] || null }
+      return { valores, recebimentos, parceiro: parceiros[0] || null, pagamentos, abatimentos, partners, comandas, historico, cliente, legados, cartoes, cartao: cartoes?.[0] || null, repasseOk }
     } catch (e) {
       if (FALTA_TABELA.test(e?.message || '')) return { semTabelas: true }
       throw e
@@ -186,7 +189,7 @@ export default function FinanceiroProjeto({ project, onChanged }) {
           <Card pad title={<h2>Linha do tempo</h2>} action={<span className="lbl">{tempo.length} lançamento(s)</span>}>
             {tempo.length ? (
               <ol className="fin-tempo">
-                {tempo.map((e) => <Evento key={e.tipo + e.row.id} e={e} itens={itensPorId} canDelete={canDelete} onDelete={apagar} />)}
+                {tempo.map((e) => <Evento key={e.tipo + e.row.id} e={e} itens={itensPorId} canDelete={canDelete} onDelete={apagar} onRepasse={canEdit && fin.temParceiro && data.repasseOk ? (row) => setModal({ repasse: row }) : null} />)}
               </ol>
             ) : <p className="lbl">Nada lançado ainda. Use os botões acima.</p>}
           </Card>
@@ -256,9 +259,10 @@ export default function FinanceiroProjeto({ project, onChanged }) {
 
       {modal === 'parceiro' ? <ParceiroModal project={project} atual={data.parceiro} partners={data.partners} fin={fin} onClose={fechar} /> : null}
       {modal === 'cartao' ? <CartaoModal project={project} atual={data.cartao} fin={fin} onClose={fechar} /> : null}
+      {modal?.repasse ? <RepasseModal recebimento={modal.repasse} fin={fin} pagamentos={data.pagamentos} project={project} onClose={fechar} /> : null}
       {modal === 'previsao' && comanda ? <PrevisaoModal comanda={comanda} onClose={fechar} /> : null}
       {['recebimento', 'adicional', 'pagamento', 'abatimento'].includes(modal) || modal?.editar
-        ? <LancamentoModal tipo={modal?.editar ? 'adicional' : modal} editar={modal?.editar} project={project} fin={fin} itens={data.valores}
+        ? <LancamentoModal tipo={modal?.editar ? 'adicional' : modal} editar={modal?.editar} project={project} fin={fin} itens={data.valores} repasseOk={data.repasseOk} parceiroNome={data.parceiro?.partner_name}
             temComandas={temComandas} garantirComanda={garantirComanda} onClose={fechar} /> : null}
     </div>
   )
@@ -280,11 +284,11 @@ function descreverLog(l) {
   return <span className="fin-hist-t">{TABELA_LOG[l.tabela] || l.tabela} {l.acao}{nome ? ` · ${nome}` : ''}{quanto ? ` · ${quanto}` : ''}</span>
 }
 
-function Evento({ e, itens, canDelete, onDelete }) {
+function Evento({ e, itens, canDelete, onDelete, onRepasse }) {
   const r = e.row
   const cfg = {
     valor: { cor: r.kind === 'desconto' ? 'red' : 'blue', icone: r.kind === 'desconto' ? 'zap' : 'plus', titulo: `${rotuloItem(r)}${r.kind === 'mensalidade' ? ' (por mês)' : ''}`, sinal: r.kind === 'desconto' ? '−' : '+', tabela: 'project_valores', texto: 'este valor' },
-    recebimento: { cor: 'green', icone: 'down', titulo: `Recebimento${r.method ? ` · ${r.method}` : ''}${r.valor_id && itens[r.valor_id] ? ` · ref. ${itens[r.valor_id]}` : ''}${r.notes ? ` · ${r.notes}` : ''}`, sinal: '+', tabela: 'project_recebimentos', texto: 'este recebimento' },
+    recebimento: { cor: 'green', icone: 'down', titulo: `Recebimento${r.method ? ` · ${r.method}` : ''}${r.valor_id && itens[r.valor_id] ? ` · ref. ${itens[r.valor_id]}` : ''}${r.comissao_cents != null ? ` · repassado ao parceiro ${brl(r.comissao_cents)}` : ''}${r.notes ? ` · ${r.notes}` : ''}`, sinal: '+', tabela: 'project_recebimentos', texto: 'este recebimento' },
     pagamento: { cor: 'yel', icone: 'send', titulo: `Pagamento de comissão${r.notes ? ` · ${r.notes}` : ''}`, sinal: '−', tabela: 'project_comissao_pagamentos', texto: 'este pagamento de comissão' },
     abatimento: { cor: 'red', icone: 'zap', titulo: `Abatimento · ${r.reason}`, sinal: '−', tabela: 'project_comissao_abatimentos', texto: 'este abatimento' },
   }[e.tipo]
@@ -296,6 +300,7 @@ function Evento({ e, itens, canDelete, onDelete }) {
         <span className="lbl num">{dmy(e.data)}{r.bank_tx_id ? <> · <Badge kind="g" dot={false}>conciliado</Badge></> : null}</span>
       </div>
       <span className="num fin-ev-v">{cfg.sinal} {brl(e.valor)}</span>
+      {e.tipo === 'recebimento' && onRepasse ? <button type="button" className="btn s ic g" title={r.comissao_cents != null ? `Repassado ao parceiro: ${brl(r.comissao_cents)}` : 'Informar quanto foi repassado ao parceiro'} aria-label="Repasse ao parceiro" onClick={() => onRepasse(r)}><Icon name="send" size={13} /></button> : null}
       {canDelete ? <button type="button" className="btn s ic g" aria-label="Apagar lançamento" onClick={() => onDelete(cfg.tabela, r.id, cfg.texto)}><Icon name="trash" size={13} /></button> : null}
     </li>
   )
@@ -304,18 +309,24 @@ function Evento({ e, itens, canDelete, onDelete }) {
 const TITULOS = { recebimento: 'Registrar recebimento', adicional: 'Adicionar item na comanda', pagamento: 'Registrar pagamento de comissão', abatimento: 'Registrar abatimento' }
 const GERAL = '_geral'
 
-function LancamentoModal({ tipo, editar, project, fin, itens, temComandas, garantirComanda, onClose }) {
+function LancamentoModal({ tipo, editar, project, fin, itens, temComandas, garantirComanda, repasseOk, parceiroNome, onClose }) {
   const [f, setF] = useState({
     valor: editar?.amount_cents || 0,
     data: (editar && (editar.kind === 'mensalidade' ? editar.starts_on : editar.on_date)) || today(),
     fim: editar?.ends_on || '',
     forma: 'Pix', obs: '', motivo: '',
     kind: editar?.kind || 'adicional', desc: editar?.description || '', item: GERAL,
+    repasse: 0, repasseTocou: false,
   })
   const [erro, setErro] = useState('')
   const set = (k) => (v) => setF((x) => ({ ...x, [k]: v }))
   const mensal = tipo === 'adicional' && f.kind === 'mensalidade'
   const aviso = f.valor > 0 && !editar ? (tipo === 'recebimento' ? avisoRecebimento(fin, f.valor) : tipo === 'abatimento' ? avisoAbatimento(fin, f.valor) : '') : ''
+  // pergunta do repasse: quanto deste recebimento você mandou ao parceiro agora (o resto fica com você e vai para as caixinhas)
+  const perguntaRepasse = tipo === 'recebimento' && !editar && fin.temParceiro && repasseOk
+  const sugestaoRepasse = perguntaRepasse ? comissaoDoRecebimento(f.valor, fin) : 0
+  const repasse = f.repasseTocou ? f.repasse : sugestaoRepasse
+  const sugerido = tipo === 'recebimento' && !editar && fin.temCartao && fin.faltaReceber > 0 ? fin.faltaReceber : 0
   const opcoesItem = [[GERAL, 'Geral da comanda (sem item específico)'], ...itens.map((v) => [v.id, rotuloItem(v)])]
 
   const salvar = async () => {
@@ -340,8 +351,15 @@ function LancamentoModal({ tipo, editar, project, fin, itens, temComandas, garan
     }
     if (tipo === 'recebimento') {
       const comandaId = await garantirComanda()
-      await insert('project_recebimentos', { ...base, received_on: f.data, method: f.forma, notes: f.obs.trim() || null,
+      if (perguntaRepasse && repasse > f.valor) { setErro('O repasse ao parceiro não pode ser maior que o valor recebido.'); return }
+      const rec = await insert('project_recebimentos', { ...base, received_on: f.data, method: f.forma, notes: f.obs.trim() || null,
+        ...(perguntaRepasse ? { comissao_cents: repasse } : {}),
         ...(comandaId ? { comanda_id: comandaId, valor_id: f.item === GERAL ? null : f.item } : {}) })
+      // o repasse vira também um pagamento de comissão: o parceiro vê o que já recebeu
+      if (perguntaRepasse && repasse > 0) {
+        const pg = await insert('project_comissao_pagamentos', { project_id: project.id, amount_cents: repasse, paid_on: f.data, notes: 'Repassado junto do recebimento' })
+        await update('project_recebimentos', rec.id, { comissao_pagamento_id: pg.id })
+      }
     }
     if (tipo === 'pagamento') await insert('project_comissao_pagamentos', { ...base, paid_on: f.data, notes: f.obs.trim() || null })
     if (tipo === 'abatimento') await insert('project_comissao_abatimentos', { ...base, on_date: f.data, reason: f.motivo.trim() })
@@ -369,6 +387,19 @@ function LancamentoModal({ tipo, editar, project, fin, itens, temComandas, garan
         {tipo === 'adicional' && f.kind === 'desconto' ? <div className="note info">O desconto abate o valor total do projeto. Informe o valor sem sinal.</div> : null}
         {mensal ? <div className="note info">A mensalidade soma no total do projeto uma vez por mês, a partir da data de início.</div> : null}
         {editar ? <div className="note info">O valor antigo e o novo ficam guardados no histórico da comanda.</div> : null}
+        {perguntaRepasse ? (
+          <div className="note info stack-s">
+            <b>Você repassou algum valor ao {parceiroNome || 'parceiro'} agora?</b>
+            <Field label="Repassado ao parceiro neste recebimento" hint={`sugestão pela proporção: ${brl(sugestaoRepasse)}`}>
+              <MoneyInput value={repasse} onChange={(v) => setF((x) => ({ ...x, repasse: v, repasseTocou: true }))} />
+            </Field>
+            <span>Fica com você <b>{brl(Math.max(0, f.valor - repasse))}</b>: é só isso que as caixinhas vão dividir. Comissão combinada {brl(fin.comissaoTotal)}, já paga {brl(fin.comissaoPaga)}.</span>
+          </div>
+        ) : null}
+        {tipo === 'recebimento' && !editar && fin.temParceiro && !repasseOk ? <div className="note y">Rode <span className="num">supabase/erp-repasse-parceiro.sql</span> no Supabase para informar quanto foi repassado ao parceiro. Enquanto isso, as caixinhas usam a proporção automática.</div> : null}
+        {sugerido ? (
+          <div className="note info">Projeto no cartão: lance o que <b>cai na conta</b>, já sem a taxa. Ainda falta cair {brl(sugerido)}. <button type="button" className="btn s" onClick={() => set('valor')(sugerido)}>Usar {brl(sugerido)}</button></div>
+        ) : null}
         {aviso ? <div className="note y">{aviso} Você pode salvar mesmo assim.</div> : null}
         {erro ? <div className="note r">{erro}</div> : null}
         <button id="fin-salvar" type="submit" hidden />
@@ -435,6 +466,41 @@ function CartaoModal({ project, atual, fin, onClose }) {
       <div className="stack">
         <CartaoCampos value={f} onChange={setF} total={fin.valorTotal} />
         {atual ? <span className="lbl">Desmarque a caixa para tirar o cartão deste projeto.</span> : null}
+        {erro ? <div className="note r">{erro}</div> : null}
+      </div>
+    </Modal>
+  )
+}
+
+// Ajusta, em um recebimento já lançado, quanto foi repassado ao parceiro (as caixinhas passam a dividir só o resto).
+function RepasseModal({ recebimento: r, fin, pagamentos, project, onClose }) {
+  const sugestao = comissaoDoRecebimento(r.amount_cents, fin)
+  const [valor, setValor] = useState(r.comissao_cents ?? sugestao)
+  // se nada de comissão foi registrado à parte, já cria o pagamento para o parceiro; senão só acerta a divisão
+  const [criarPagamento, setCriarPagamento] = useState(!r.comissao_pagamento_id && fin.comissaoPaga === 0)
+  const [erro, setErro] = useState('')
+  const ligado = pagamentos.find((p) => p.id === r.comissao_pagamento_id) || null
+  const salvar = async () => {
+    if (valor > r.amount_cents) { setErro('O repasse não pode ser maior que o valor recebido.'); return }
+    await update('project_recebimentos', r.id, { comissao_cents: valor })
+    if (ligado) {
+      if (valor > 0) await update('project_comissao_pagamentos', ligado.id, { amount_cents: valor })
+      else await remove('project_comissao_pagamentos', ligado.id)
+    } else if (criarPagamento && valor > 0) {
+      const pg = await insert('project_comissao_pagamentos', { project_id: project.id, amount_cents: valor, paid_on: r.received_on, notes: 'Repassado junto do recebimento' })
+      await update('project_recebimentos', r.id, { comissao_pagamento_id: pg.id })
+    }
+    notify('Repasse salvo. As caixinhas passam a dividir só o que ficou com você.', 'ok')
+    onClose()
+  }
+  return (
+    <Modal title="Repasse ao parceiro" size="sm" onClose={onClose}
+      footer={<><button type="button" className="btn" onClick={onClose}>Cancelar</button><AsyncButton className="btn p" onClick={salvar}>Salvar</AsyncButton></>}>
+      <div className="stack">
+        <span className="lbl">Recebimento de {brl(r.amount_cents)} em {dmy(r.received_on)}. Quanto você mandou ao parceiro deste valor?</span>
+        <Field label="Repassado ao parceiro" hint={`sugestão pela proporção: ${brl(sugestao)}`}><MoneyInput value={valor} onChange={setValor} autoFocus /></Field>
+        <div className="note info">Fica com você <b>{brl(Math.max(0, r.amount_cents - valor))}</b>: é o que as caixinhas dividem.</div>
+        {!ligado ? <label className="check"><input type="checkbox" checked={criarPagamento} onChange={(e) => setCriarPagamento(e.target.checked)} />Registrar também como pagamento de comissão (desmarque se já registrou à parte)</label> : <span className="lbl">O pagamento de comissão ligado a este recebimento será acertado junto.</span>}
         {erro ? <div className="note r">{erro}</div> : null}
       </div>
     </Modal>

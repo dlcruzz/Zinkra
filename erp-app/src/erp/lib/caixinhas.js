@@ -52,9 +52,13 @@ export const pctDaConfig = (c) => ({ gastar: Number(c.pct_gastar), guardar: Numb
 
 // Parte da comissão do parceiro que está dentro de um recebimento: proporcional ao que o projeto deve de comissão.
 // A comissão não é dinheiro do Danilo, é custo da venda: sai antes da divisão.
-// O recebimento é o que CAIU na conta (já sem a taxa do cartão). Por isso a proporção é sobre o líquido do projeto:
-// R$ 3.099 que caíram de um projeto de R$ 3.200 no cartão, com 30% de comissão sobre o líquido, tiram R$ 929,70.
-export function comissaoDoRecebimento(valor, fin) {
+// O recebimento é o que CAIU na conta (já sem a taxa do cartão).
+// - Se o Danilo disse quanto REPASSOU ao parceiro naquele recebimento (`repasse`), vale esse número:
+//   entrou R$ 1.110, mandou R$ 550 ao André, as caixinhas dividem R$ 560.
+// - Sem essa informação, a comissão sai proporcional ao líquido do projeto: R$ 3.099 que caem de um projeto
+//   no cartão, com 30% do líquido de comissão, tiram R$ 929,70.
+export function comissaoDoRecebimento(valor, fin, repasse = null) {
+  if (repasse !== null && repasse !== undefined && repasse !== '') return Math.min(valor, Math.max(0, Number(repasse) || 0))
   const liquido = fin?.valorLiquido ?? fin?.valorTotal
   if (!fin || !(liquido > 0) || !(fin.comissaoTotal > 0)) return 0
   return Math.min(valor, Math.round((valor * fin.comissaoTotal) / liquido))
@@ -80,7 +84,7 @@ export function entradasDasCaixinhas({ fin = {}, saas = {}, linhas = [], configs
       repasse: feito.get(chave) || null, repassado: feito.has(chave),
     })
   }
-  for (const r of fin.recebimentos || []) adiciona('recebimento', r, r.received_on, comissaoDoRecebimento(Number(r.amount_cents) || 0, finDoProjeto.get(r.project_id)))
+  for (const r of fin.recebimentos || []) adiciona('recebimento', r, r.received_on, comissaoDoRecebimento(Number(r.amount_cents) || 0, finDoProjeto.get(r.project_id), r.comissao_cents))
   for (const r of saas.recebimentos || []) adiciona('saas', r, r.received_on, 0)
   return out.sort((a, b) => (a.data === b.data ? 0 : a.data < b.data ? 1 : -1))
 }

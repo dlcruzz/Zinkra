@@ -51,7 +51,7 @@ export default function Metas() {
   }, [w, period, auth.members])
 
   if (error) return <div className="page"><ErrorBox error={error} onRetry={reload} /></div>
-  if (loading || !c) return <div className="page"><Loading rows={6} /></div>
+  if (loading || !c) return <Loading page rows={6} />
   const now = new Date()
   const fmt = (g, v) => (MONEY_METRICS.has(g.metric) ? brl0(v) : Math.round(v).toLocaleString('pt-BR'))
   const pctTime = Math.round((c.passed / c.total) * 100)

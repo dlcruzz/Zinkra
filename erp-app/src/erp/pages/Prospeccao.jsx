@@ -178,7 +178,7 @@ export default function Prospeccao() {
   }, [])
 
   if (error) return <div className="page"><ErrorBox error={error} onRetry={reload} /></div>
-  if (loading || !data) return <div className="page"><Loading rows={6} /></div>
+  if (loading || !data) return <Loading page rows={6} />
   const bar = <ChannelBar channel={channel} onChange={setChannel} sesBy={sesBy} pacers={pacers} left={{ whatsapp: queues.whatsapp.filter((l) => !skippedBy.whatsapp.includes(l.id)).length, instagram: queues.instagram.filter((l) => !skippedBy.instagram.includes(l.id)).length }} />
   if (!ses) return <NovaProspeccao data={data} channel={channel} bar={bar} onStart={setSes} />
 

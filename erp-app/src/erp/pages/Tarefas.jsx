@@ -39,7 +39,7 @@ export default function Tarefas() {
   }, [data, who, front, project, showDone])
 
   if (error) return <div className="page"><ErrorBox error={error} onRetry={reload} /></div>
-  if (loading || !data) return <div className="page"><Loading rows={8} /></div>
+  if (loading || !data) return <Loading page rows={8} />
   const t = today()
   const projectOf = (id) => data.projects.find((p) => p.id === id)
   const openN = list.filter((x) => x.status !== 'done').length

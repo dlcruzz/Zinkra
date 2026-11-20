@@ -39,7 +39,7 @@ export default function Compras() {
   }, [cx])
 
   if (error) return <div className="page"><ErrorBox error={error} onRetry={reload} /></div>
-  if (loading || !w) return <div className="page"><Loading rows={5} /></div>
+  if (loading || !w) return <Loading page rows={5} />
 
   const fechar = () => setModal(null)
   const reservasDe = (c) => cx.reservas.filter((r) => r.compra_id === c.id)

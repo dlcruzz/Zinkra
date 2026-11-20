@@ -65,7 +65,7 @@ export default function Hoje() {
   }, [w, auth])
 
   if (error) return <div className="page"><ErrorBox error={error} onRetry={reload} /></div>
-  if (loading || !c) return <div className="page"><Loading rows={6} /></div>
+  if (loading || !c) return <Loading page rows={6} />
 
   const projectOf = (id) => w.projects.find((p) => p.id === id)
   const addQuick = async () => {

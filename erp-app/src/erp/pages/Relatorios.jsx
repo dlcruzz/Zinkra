@@ -113,7 +113,7 @@ export default function Relatorios() {
   }, [w, r, period, auth.members])
 
   if (error) return <div className="page"><ErrorBox error={error} onRetry={reload} /></div>
-  if (loading || !rep) return <div className="page"><Loading rows={6} /></div>
+  if (loading || !rep) return <Loading page rows={6} />
   const meta = REPORTS.find((x) => x[0] === r)
   const csv = rep.csv || (rep.kind === 'table' ? [rep.head, ...rep.body] : null)
 

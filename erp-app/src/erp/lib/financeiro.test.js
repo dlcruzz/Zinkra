@@ -499,3 +499,21 @@ describe('comissão por parceiro (tela de Parceiros)', () => {
     expect(a.projetos).toHaveLength(2)
   })
 })
+
+describe('aviso de recebimento no cartão', () => {
+  const cartao = { parcelas: 1, taxa_pct: 3.99 }
+  const fin = calcularProjeto({ valores: [v(320000, { kind: 'base' })], cartao })
+  it('lançar o valor cheio de um projeto no cartão avisa que passou do que cai', () => {
+    expect(avisoRecebimento(fin, 320000)).toMatch(/cair na conta/)
+  })
+  it('lançar o líquido (3.072,32) não avisa e quita', () => {
+    expect(fin.valorLiquido).toBe(307232)
+    expect(avisoRecebimento(fin, 307232)).toBe('')
+    expect(calcularProjeto({ valores: [v(320000, { kind: 'base' })], cartao, recebimentos: [v(307232)] }).faltaReceber).toBe(0)
+  })
+  it('a comissão de 30% do que caiu é R$ 921,70 e as caixinhas dividem R$ 2.150,62', () => {
+    const f = calcularProjeto({ valores: [v(320000, { kind: 'base' })], cartao, parceiro: { kind: 'percentual', pct: 30 } })
+    expect(f.comissaoTotal).toBe(92170)
+    expect(307232 - 92170).toBe(215062)
+  })
+})

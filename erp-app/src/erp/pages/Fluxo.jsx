@@ -41,7 +41,7 @@ export default function Fluxo() {
   }, [w])
 
   if (error) return <div className="page"><ErrorBox error={error} onRetry={reload} /></div>
-  if (loading || !c) return <div className="page"><Loading rows={8} /></div>
+  if (loading || !c) return <Loading page rows={8} />
   const future = c.rows.filter((m) => !m.past && !m.isCur)
   const negative = future.find((m) => m.result < 0)
   const exportCsv = () => download(`fluxo-${today()}.csv`, toCsv(['Mês', 'Entradas', 'Saídas', 'Resultado', 'Saldo acumulado', 'Situação'],

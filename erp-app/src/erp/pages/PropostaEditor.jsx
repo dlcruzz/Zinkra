@@ -61,7 +61,7 @@ export default function PropostaEditor() {
 
   useMeta('Comercial / Propostas', isNew ? 'Nova proposta' : `Proposta #${String(p?.number || '').padStart(3, '0')}`)
   if (error) return <div className="page"><ErrorBox error={error} onRetry={reload} /></div>
-  if (loading || !data || !p) return <div className="page"><Loading rows={8} /></div>
+  if (loading || !data || !p) return <Loading page rows={8} />
   if (!isNew && !data.proposal) return <div className="page"><div className="empty">Proposta não encontrada. <Link to="/erp/propostas">Voltar</Link></div></div>
 
   const readOnly = !auth.canEdit('propostas') || ['aceita', 'recusada'].includes(p.status)

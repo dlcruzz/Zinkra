@@ -37,7 +37,7 @@ export default function ProjetoDetalhe() {
 
   useMeta('Operação / Projetos', data?.p?.name || 'Projeto')
   if (error) return <div className="page"><ErrorBox error={error} onRetry={reload} /></div>
-  if (loading || !data) return <div className="page"><Loading rows={8} /></div>
+  if (loading || !data) return <Loading page rows={8} />
   if (!data.p) return <div className="page"><div className="empty">Projeto não encontrado. <Link to="/erp/projetos">Voltar</Link></div></div>
 
   const { p, tasks, checklist, milestones, meetings, client, clients, time } = data

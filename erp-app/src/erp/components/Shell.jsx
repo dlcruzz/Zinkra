@@ -8,7 +8,7 @@ import { useData, insert, notify } from '../lib/data'
 import { today, addDays, minutesLabel, isoDate } from '../lib/format'
 import { stopTimer, defaultLeadStage } from '../lib/automations'
 import { prefetchWorld } from '../lib/world'
-import { Modal, Field, Select, MoneyInput, AsyncButton } from './ui'
+import { Modal, Field, Select, MoneyInput, AsyncButton, Loading } from './ui'
 import { FRONTS, PRIORITIES, RECURRENCE, MEETING_TYPES, IDEA_TYPES } from '../lib/constants'
 
 const ErpCtx = createContext(null)
@@ -515,7 +515,7 @@ export function Shell() {
         <main className="main">
           <Topbar onMenu={() => setDrawer(true)} crumb={crumb} title={title} onSearch={() => setPalette(true)} onNew={(k) => setQuick({ kind: k })}
             timer={timer.data || {}} insightsCount={(counts.data?.recv || 0) + (counts.data?.hoje || 0)} />
-          <React.Suspense fallback={<div className="page"><div className="skel" style={{ height: 28, width: 240 }} /></div>}>
+          <React.Suspense fallback={<Loading page rows={5} />}>
             <div className="route" key={routeKey}><Outlet /></div>
           </React.Suspense>
         </main>

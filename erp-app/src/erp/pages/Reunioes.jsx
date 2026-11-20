@@ -41,7 +41,7 @@ export default function Reunioes() {
   useEffect(() => { if (data && !sel && (up[0] || past[0])) setSp({ id: (up[0] || past[0]).id }, { replace: true }) }, [data]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (error) return <div className="page"><ErrorBox error={error} onRetry={reload} /></div>
-  if (loading || !data) return <div className="page"><Loading rows={6} /></div>
+  if (loading || !data) return <Loading page rows={6} />
   const meeting = data.meetings.find((m) => m.id === sel)
   const t = today()
   const week = up.filter((m) => localDay(m.starts_at) <= addDays(t, 7)).length

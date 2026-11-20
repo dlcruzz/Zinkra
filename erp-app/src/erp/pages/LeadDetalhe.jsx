@@ -41,7 +41,7 @@ export default function LeadDetalhe() {
   useMeta('Comercial / Leads', data?.lead?.company || 'Lead')
 
   if (error) return <div className="page"><ErrorBox error={error} onRetry={reload} /></div>
-  if (loading || !data) return <div className="page"><Loading rows={8} /></div>
+  if (loading || !data) return <Loading page rows={8} />
   if (!data.lead) return <div className="page"><div className="empty">Lead não encontrado ou sem permissão. <Link to="/erp/leads">Voltar</Link></div></div>
 
   const { lead, P, contacts, acts, history, proposals, tasks, meetings, partners, playbooks } = data

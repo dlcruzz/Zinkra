@@ -32,7 +32,7 @@ export default function Parceiros() {
   }, ['partners', 'commissions', 'payables', 'leads'])
 
   if (error) return <div className="page"><ErrorBox error={error} onRetry={reload} /></div>
-  if (loading || !data) return <div className="page"><Loading rows={6} /></div>
+  if (loading || !data) return <Loading page rows={6} />
   const year = String(new Date().getFullYear())
   const sum = (l) => l.reduce((a, c) => a + c.amount_cents, 0)
   const toPay = data.commissions.filter((c) => c.status === 'a_pagar')

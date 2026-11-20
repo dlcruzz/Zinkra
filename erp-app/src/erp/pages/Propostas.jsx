@@ -36,7 +36,7 @@ export default function Propostas() {
   }, [data])
 
   if (error) return <div className="page"><ErrorBox error={error} onRetry={reload} /></div>
-  if (loading || !data) return <div className="page"><Loading rows={6} /></div>
+  if (loading || !data) return <Loading page rows={6} />
   const name = (p) => data.clients.find((c) => c.id === p.client_id)?.name || data.leads.find((l) => l.id === p.lead_id)?.company || '—'
   const count = (s) => data.proposals.filter((p) => p.status === s).length
   const list = data.proposals.filter((p) => tab === 'todas' || p.status === tab)

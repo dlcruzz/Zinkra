@@ -119,9 +119,11 @@ export function validarValor(cents) {
 // Avisos que NÃO bloqueiam: devolve a mensagem ou ''.
 export function avisoRecebimento(fin, novoValor) {
   const depois = fin.recebido + novoValor
-  return depois > fin.valorTotal
-    ? `Com este recebimento o total recebido (${brl(depois)}) passa do valor do projeto (${brl(fin.valorTotal)}).`
-    : ''
+  const limite = fin.valorLiquido ?? fin.valorTotal
+  if (depois <= limite) return ''
+  return fin.temCartao
+    ? `Com este recebimento o total recebido (${brl(depois)}) passa do que deve cair na conta (${brl(limite)}, o valor do projeto menos a taxa do cartão). Lance o que caiu de verdade, já sem a taxa.`
+    : `Com este recebimento o total recebido (${brl(depois)}) passa do valor do projeto (${brl(fin.valorTotal)}).`
 }
 export function avisoAbatimento(fin, novoValor) {
   return novoValor > fin.comissaoAPagar

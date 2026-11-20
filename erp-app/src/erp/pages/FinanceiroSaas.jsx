@@ -36,7 +36,7 @@ export default function FinanceiroSaas() {
   const r = useMemo(() => (data && !data.semTabelas ? resumoSaas(data, today()) : null), [data])
 
   if (error) return <div className="page"><ErrorBox error={error} onRetry={reload} /></div>
-  if (loading || !data) return <div className="page"><Loading rows={5} /></div>
+  if (loading || !data) return <Loading page rows={5} />
   if (data.semTabelas) {
     return <div className="page"><PageHead title="Financeiro SaaS" /><div className="note y">O financeiro SaaS ainda não foi criado no banco. Rode o arquivo <span className="num">supabase/erp-saas.sql</span> no SQL Editor do Supabase e atualize a página.</div></div>
   }

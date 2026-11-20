@@ -56,7 +56,7 @@ function Tela() {
   }, [data])
 
   if (error) return <div className="page"><ErrorBox error={error} onRetry={reload} /></div>
-  if (loading || !data) return <div className="page"><Loading rows={6} /></div>
+  if (loading || !data) return <Loading page rows={6} />
   if (data.semTabelas) {
     return <div className="page"><PageHead title="Conciliação" /><div className="note y">As tabelas do banco ainda não foram criadas. Rode, nesta ordem, <span className="num">supabase/erp-financeiro-projetos.sql</span> e <span className="num">supabase/erp-banco.sql</span> no SQL Editor do Supabase e atualize a página.</div></div>
   }

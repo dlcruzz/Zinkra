@@ -453,6 +453,7 @@ body:has(.erp) { background: #0A0C0B; }
 .erp .cmdk-item.on { padding-left: 16px; }
 .erp .toast { border-radius: var(--r); animation: erp-toast-in .45s var(--ease-spring); backdrop-filter: blur(10px); background: rgba(22,26,24,.92); }
 .erp .skel { background: linear-gradient(90deg, #131715 0%, #1b211e 40%, #131715 80%); background-size: 200% 100%; animation: erp-shimmer 1.3s linear infinite; border-radius: 999px; }
+@media (prefers-reduced-motion: reduce) { .erp .skel { animation: none; } }
 
 /* ---------- entrada das páginas ---------- */
 .erp .route { animation: erp-fade .35s var(--ease); }

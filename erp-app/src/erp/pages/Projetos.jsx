@@ -43,7 +43,7 @@ export default function Projetos() {
   }, [data, front, auth])
 
   if (error) return <div className="page"><ErrorBox error={error} onRetry={reload} /></div>
-  if (loading || !data) return <div className="page"><Loading rows={6} /></div>
+  if (loading || !data) return <Loading page rows={6} />
   const t = today()
   const active = rows.filter((p) => OPEN.has(p.stage))
   const late = active.filter((p) => p.due_on && p.due_on < t)

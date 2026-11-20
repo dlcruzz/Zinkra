@@ -18,7 +18,7 @@ export default function Ideias() {
   const { data, loading, error, reload } = useData(() => fetchRows('ideas'), ['ideas'])
 
   if (error) return <div className="page"><ErrorBox error={error} onRetry={reload} /></div>
-  if (loading || !data) return <div className="page"><Loading rows={6} /></div>
+  if (loading || !data) return <Loading page rows={6} />
   const ideas = data
   const canEdit = (i) => auth.isTotal('ideias') || i.owner_id === auth.uid
 

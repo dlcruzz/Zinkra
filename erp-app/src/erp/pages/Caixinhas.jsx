@@ -28,7 +28,7 @@ export default function Caixinhas() {
   const linhas = useMemo(() => (cx ? extrato({ caixinha: filtro === 'todas' ? null : filtro, entradas: cx.entradas, movimentos: cx.movimentos, compras: cx.compras, reservas: cx.reservas }) : []), [cx, filtro])
 
   if (error) return <div className="page"><ErrorBox error={error} onRetry={reload} /></div>
-  if (loading || !w) return <div className="page"><Loading rows={5} /></div>
+  if (loading || !w) return <Loading page rows={5} />
 
   const fechar = () => setModal(null)
   const pendentes = cx.entradas.filter((e) => !e.repassado)

@@ -5,7 +5,7 @@ import './erp.css'
 import { supabaseConfigured } from './lib/supabase'
 import { AuthProvider, useAuth } from './lib/auth'
 import { Shell, useMeta } from './components/Shell'
-import { Toasts, ConfirmProvider, Spinner } from './components/ui'
+import { Toasts, ConfirmProvider, Spinner, LoadingApp } from './components/ui'
 import { dailyHousekeeping } from './lib/automations'
 import { friendlyError } from './lib/data'
 
@@ -226,7 +226,7 @@ function Gate() {
     if (window.location.hash.includes('type=recovery')) nav('/erp/conta?senha=1')
   }, [nav])
 
-  if (auth.loading) return <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}><Spinner /></div>
+  if (auth.loading) return <LoadingApp />
   if (!auth.session || auth.needsMfa) return <Login />
   if (!auth.profile || auth.role === 'pendente' || !auth.profile.active) return <Pending />
 

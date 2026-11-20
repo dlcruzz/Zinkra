@@ -56,7 +56,7 @@ export default function PainelProspector() {
   }, [w, who])
 
   if (error) return <div className="page"><ErrorBox error={error} onRetry={reload} /></div>
-  if (loading || !c) return <div className="page"><Loading rows={6} /></div>
+  if (loading || !c) return <Loading page rows={6} />
   const maxDay = Math.max(1, c.tC || 0, ...c.days.map((d) => d.n))
   const name = auth.memberName(who)
 

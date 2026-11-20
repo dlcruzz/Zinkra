@@ -64,7 +64,7 @@ export default function Receber() {
   useEffect(() => { if (list.length && (!sel || !list.some((x) => x.id === sel))) setSel(list[0].id) }, [list]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (error) return <div className="page"><ErrorBox error={error} onRetry={reload} /></div>
-  if (loading || !data) return <div className="page"><Loading rows={8} /></div>
+  if (loading || !data) return <Loading page rows={8} />
   const client = (id) => data.clients.find((c) => c.id === id)
   const open = todos.filter((x) => !x.received_on)
   const sum = (l) => l.reduce((a, x) => a + x.amount_cents, 0)

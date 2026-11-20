@@ -30,7 +30,7 @@ export default function Pagar() {
   const m0 = month, m1 = endOfMonth(month)
   const inMonth = useMemo(() => (data?.rows || []).filter((p) => (p.due_on >= m0 && p.due_on <= m1) || (!p.paid_on && p.due_on < m0 && m0 === startOfMonth(t))), [data, m0, m1, t])
   if (error) return <div className="page"><ErrorBox error={error} onRetry={reload} /></div>
-  if (loading || !data) return <div className="page"><Loading rows={8} /></div>
+  if (loading || !data) return <Loading page rows={8} />
 
   const open = inMonth.filter((p) => !p.paid_on)
   const sum = (l) => l.reduce((a, p) => a + p.amount_cents, 0)

@@ -53,7 +53,7 @@ export default function Pipelines() {
   }, [data, cur, mine, auth.uid])
 
   if (error) return <div className="page"><ErrorBox error={error} onRetry={reload} /></div>
-  if (loading || !data) return <div className="page"><Loading rows={6} /></div>
+  if (loading || !data) return <Loading page rows={6} />
   if (!cur) return <div className="page"><div className="empty">Nenhum pipeline configurado.</div></div>
 
   const open = cols.filter((c) => c.s.kind === 'open' || c.s.kind === 'handoff')

@@ -161,3 +161,24 @@ describe('cartão + comissão: separa só o que caiu na conta', () => {
     expect(e[0].partes).toEqual({ gastar: 86773, guardar: 32539, caixa: 54232, invest: 43386 })
   })
 })
+
+describe('repasse real ao parceiro no recebimento', () => {
+  // projeto de R$ 3.700, comissão de 30% (R$ 1.110); entrou R$ 1.110 de entrada, repassou R$ 550 ao André e ficou com R$ 560
+  const fin = { valorTotal: 370000, valorLiquido: 370000, comissaoTotal: 111000 }
+  const rec = (extra = {}) => ({ id: 'r1', project_id: 'p1', amount_cents: 111000, received_on: '2026-11-20', ...extra })
+  const entradas = (r) => entradasDasCaixinhas({ fin: { recebimentos: [r] }, linhas: [{ projeto: { id: 'p1' }, fin }], configs: [cfg], hoje: '2026-11-30' })[0]
+  it('com repasse informado, as caixinhas dividem só o que ficou (R$ 560)', () => {
+    const e = entradas(rec({ comissao_cents: 55000 }))
+    expect(e).toMatchObject({ bruto: 111000, comissao: 55000, base: 56000 })
+    expect(total(e.partes)).toBe(56000)
+    expect(e.partes).toEqual({ gastar: 22400, guardar: 8400, caixa: 14000, invest: 11200 })
+  })
+  it('repasse zero: tudo fica com você; sem informação: proporção automática como antes', () => {
+    expect(entradas(rec({ comissao_cents: 0 })).base).toBe(111000)
+    expect(entradas(rec()).comissao).toBe(33300)
+  })
+  it('repasse maior que o recebimento nunca passa do que entrou', () => {
+    expect(comissaoDoRecebimento(111000, fin, 999999)).toBe(111000)
+    expect(comissaoDoRecebimento(111000, fin, -5)).toBe(0)
+  })
+})

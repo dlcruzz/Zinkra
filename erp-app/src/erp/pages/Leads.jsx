@@ -74,7 +74,7 @@ export default function Leads() {
   }, [data, view, q, f, sort, auth.uid, t])
 
   if (error) return <div className="page"><ErrorBox error={error} onRetry={reload} /></div>
-  if (loading || !data) return <div className="page"><Loading rows={8} /></div>
+  if (loading || !data) return <Loading page rows={8} />
   const { P, leads } = data
   const uniq = (k) => Array.from(new Set(leads.map((l) => l[k]).filter(Boolean))).sort()
   const counts = {

@@ -71,7 +71,7 @@ export default function Dashboard() {
   }, [w, period, auth])
 
   if (error) return <div className="page"><ErrorBox error={error} onRetry={reload} /></div>
-  if (loading || !calc) return <div className="page"><Loading rows={6} /></div>
+  if (loading || !calc) return <Loading page rows={6} />
   const c = calc
   const now = new Date()
   const revDelta = c.prevMonthRev ? Math.round(((c.cs.received - c.prevMonthRev) / c.prevMonthRev) * 100) : null

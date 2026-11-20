@@ -28,7 +28,7 @@ export default function Playbooks() {
   useEffect(() => { if (items.length && !items.some((i) => i.id === sel)) setSel(items[0].id) }, [col, items.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (error) return <div className="page"><ErrorBox error={error} onRetry={reload} /></div>
-  if (loading || !data) return <div className="page"><Loading rows={6} /></div>
+  if (loading || !data) return <Loading page rows={6} />
   const cur = data.list.find((p) => p.id === sel)
   const st = cur?.code ? stats[cur.code] : null
 
