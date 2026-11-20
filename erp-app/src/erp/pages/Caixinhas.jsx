@@ -4,13 +4,14 @@ import { useAuth } from '../lib/auth'
 import { insert, update, remove, notify, emitChange } from '../lib/data'
 import { useWorld } from '../lib/world'
 import { brl, dmy, today } from '../lib/format'
-import { ORDEM, NOMES, DESCRICAO, PADRAO, validarPercentuais, validarSaque, extrato, configEm, pctDaConfig } from '../lib/caixinhas'
+import { ORDEM, ZINKRA, DANILO, NOMES, DESCRICAO, PADRAO, validarPercentuais, validarSaque, extrato, configEm, pctDaConfig, ajusteParaBanco } from '../lib/caixinhas'
 import { validarValor } from '../lib/financeiro'
 import { PageHead, Kpi, Card, Seg, Loading, ErrorBox, Modal, Field, Select, MoneyInput, AsyncButton, Badge, Empty, useConfirm } from '../components/ui'
 import { Icon } from '../lib/icons'
 
 const pctTxt = (n) => `${Number(n).toLocaleString('pt-BR')}%`
-const opcoesCaixinha = Object.fromEntries(ORDEM.map((k) => [k, NOMES[k]]))
+const opcoesCaixinha = Object.fromEntries(ZINKRA.map((k) => [k, NOMES[k]]))
+const curto = (k) => NOMES[k].replace('Danilo · ', '').replace(' da Zinkra', '')
 
 // Caixinhas: cada real que entra (projeto ou SaaS) é dividido pelos percentuais vigentes.
 // O ERP calcula a divisão; aqui o Danilo confirma o que já moveu no banco e registra saques e transferências.
@@ -25,7 +26,7 @@ export default function Caixinhas() {
   const canDelete = auth.isTotal('financeiro')
 
   const cx = w?.caixinhas
-  const linhas = useMemo(() => (cx ? extrato({ caixinha: filtro === 'todas' ? null : filtro, entradas: cx.entradas, movimentos: cx.movimentos, compras: cx.compras, reservas: cx.reservas }) : []), [cx, filtro])
+  const linhas = useMemo(() => (cx ? extrato({ caixinha: filtro === 'todas' ? null : filtro, entradas: cx.entradas, movimentos: cx.movimentos, compras: cx.compras, reservas: cx.reservas }).filter((l) => ZINKRA.includes(l.caixinha)) : []), [cx, filtro])
 
   if (error) return <div className="page"><ErrorBox error={error} onRetry={reload} /></div>
   if (loading || !w) return <Loading page rows={5} />
@@ -33,6 +34,8 @@ export default function Caixinhas() {
   const fechar = () => setModal(null)
   const pendentes = cx.entradas.filter((e) => !e.repassado)
   const vigente = configEm(cx.configs, today()) || cx.configs[cx.configs.length - 1]
+  // a parte do Danilo não fica registrada: é só o aviso do que ainda falta mandar para ele
+  const paraMandar = DANILO.reduce((o, k) => ({ ...o, [k]: pendentes.reduce((a, e) => a + e.partes[k], 0) }), {})
 
   const repassar = async (lista) => {
     for (const e of lista) await insert('caixinha_repasses', { origem_tipo: e.origem_tipo, origem_id: e.origem_id, repassado_em: today() }, { silent: true })
@@ -51,8 +54,9 @@ export default function Caixinhas() {
 
   return (
     <div className="page">
-      <PageHead title="Caixinhas" sub="Tudo que entra na Zinkra é dividido aqui. Você move no banco e marca; todo saque guarda o porquê">
+      <PageHead title="Caixinhas" sub="Só o dinheiro da Zinkra fica registrado aqui (caixa e investimento). A parte que é sua só aparece como aviso do que mandar">
         {canEdit ? <>
+          <button type="button" className="btn" onClick={() => setModal({ tipo: 'banco' })}><Icon name="check" size={14} />Atualizar saldo do banco</button>
           <button type="button" className="btn" onClick={() => setModal({ tipo: 'percentuais' })}><Icon name="sliders" size={14} />Percentuais</button>
           <button type="button" className="btn" onClick={() => setModal({ tipo: 'movimento', modo: 'entrada' })}><Icon name="plus" size={14} />Adicionar saldo</button>
           <button type="button" className="btn" onClick={() => setModal({ tipo: 'movimento', modo: 'transferencia' })}><Icon name="arrow" size={14} />Mover entre caixinhas</button>
@@ -65,15 +69,16 @@ export default function Caixinhas() {
       ) : null}
 
       <section className="grid-kpi" aria-label="Saldo das caixinhas">
-        {ORDEM.map((k) => {
+        {ZINKRA.map((k) => {
           const s = cx.saldos[k]
           const dica = [s.comprometido ? `${brl(s.livre)} livre · ${brl(s.comprometido)} comprometido` : 'tudo livre', s.paradoNaConta ? `${brl(s.paradoNaConta)} ainda na conta` : null].filter(Boolean).join(' · ')
-          return <Kpi key={k} label={NOMES[k]} value={brl(s.saldo)} hint={dica} accent={k === 'caixa' || k === 'invest'} />
+          return <Kpi key={k} label={NOMES[k]} value={brl(s.saldo)} hint={dica} accent />
         })}
+        <Kpi label="Para mandar a você" value={brl(paraMandar.gastar + paraMandar.guardar)} hint={paraMandar.gastar + paraMandar.guardar ? `para gastar ${brl(paraMandar.gastar)} · para guardar ${brl(paraMandar.guardar)}` : 'nada para mandar agora'} />
       </section>
 
       {vigente ? (
-        <p className="lbl">Divisão em vigor desde {dmy(vigente.vigente_desde)}: {ORDEM.map((k) => `${NOMES[k]} ${pctTxt(vigente[`pct_${k}`])}`).join(' · ')}. A comissão do parceiro sai antes de dividir.</p>
+        <p className="lbl">Divisão em vigor desde {dmy(vigente.vigente_desde)}: {ORDEM.map((k) => `${NOMES[k]} ${pctTxt(vigente[`pct_${k}`])}`).join(' · ')}. A comissão do parceiro sai antes de dividir. As duas partes suas viram só aviso para mandar.</p>
       ) : null}
 
       <Card pad title={<h2>Para mover no banco</h2>} action={pendentes.length && canEdit ? <AsyncButton className="btn s" onClick={() => repassar(pendentes)}>Marcar todos como movidos</AsyncButton> : null}>
@@ -85,7 +90,8 @@ export default function Caixinhas() {
                 <div className="fin-ev-m">
                   <span className="fin-ev-t">Entrou {brl(e.bruto)} · {e.titulo}</span>
                   <span className="lbl num">{dmy(e.data)}{e.comissao ? ` · comissão do parceiro ${brl(e.comissao)} fora · dividindo ${brl(e.base)}` : ''}</span>
-                  <span className="num" style={{ fontSize: 13 }}>{ORDEM.map((k) => `${NOMES[k].replace('Danilo · ', '').replace(' da Zinkra', '')} ${brl(e.partes[k])}`).join('  ·  ')}</span>
+                  <span className="num" style={{ fontSize: 13 }}>Mandar para você: gastar {brl(e.partes.gastar)} · guardar {brl(e.partes.guardar)}</span>
+                  <span className="num" style={{ fontSize: 13 }}>Mover na Zinkra: Caixa {brl(e.partes.caixa)} · Investimento {brl(e.partes.invest)}</span>
                 </div>
                 {canEdit ? <AsyncButton className="btn s" onClick={() => repassar([e])}>Já movi no banco</AsyncButton> : null}
               </li>
@@ -94,7 +100,7 @@ export default function Caixinhas() {
         ) : <p className="lbl">Nada pendente. Quando entrar um recebimento, a divisão aparece aqui para você mover no banco.</p>}
       </Card>
 
-      <Card pad title={<h2>Extrato</h2>} action={<Seg value={filtro} onChange={setFiltro} options={[['todas', 'Todas'], ...ORDEM.map((k) => [k, NOMES[k].replace('Danilo · ', '').replace(' da Zinkra', '')])]} />}>
+      <Card pad title={<h2>Extrato</h2>} action={<Seg value={filtro} onChange={setFiltro} options={[['todas', 'Todas'], ...ZINKRA.map((k) => [k, curto(k)])]} />}>
         {linhas.length ? (
           <ol className="fin-tempo">
             {linhas.map((l) => (
@@ -127,8 +133,43 @@ export default function Caixinhas() {
       ) : null}
 
       {modal?.tipo === 'movimento' ? <MovimentoModal modo={modal.modo} saldos={cx.saldos} onClose={fechar} /> : null}
+      {modal?.tipo === 'banco' ? <BancoModal saldos={cx.saldos} onClose={fechar} /> : null}
       {modal?.tipo === 'percentuais' ? <PercentuaisModal configs={cx.configs} vigente={vigente} onClose={fechar} /> : null}
     </div>
+  )
+}
+
+// Acerta o saldo do sistema com o que o banco mostra em cada caixinha da Zinkra. Não pergunta o que aconteceu
+// com a diferença: o ajuste entra com a nota fixa "ajuste ao saldo do banco".
+function BancoModal({ saldos, onClose }) {
+  const [v, setV] = useState(() => Object.fromEntries(ZINKRA.map((k) => [k, saldos[k].saldo - saldos[k].paradoNaConta])))
+  const salvar = async () => {
+    let n = 0
+    for (const k of ZINKRA) {
+      const aj = ajusteParaBanco(saldos[k], v[k])
+      if (!aj) continue
+      await insert('caixinha_movimentos', aj.tipo === 'entrada'
+        ? { caixinha: k, tipo: 'entrada', amount_cents: aj.valor, feito_em: today(), descricao: 'Ajuste ao saldo do banco' }
+        : { caixinha: k, tipo: 'saida', amount_cents: aj.valor, feito_em: today(), motivo: 'Ajuste ao saldo do banco', destino: 'Ajuste de saldo' }, { silent: true })
+      n += 1
+    }
+    emitChange('caixinha_movimentos')
+    notify(n ? 'Saldos atualizados com o valor do banco.' : 'Os saldos já estavam iguais ao banco.', 'ok')
+    onClose()
+  }
+  return (
+    <Modal title="Atualizar saldo com o banco" onClose={onClose} footer={<Rodape onClose={onClose} salvar={salvar} />}>
+      <div className="stack">
+        <p className="lbl">Digite quanto o banco mostra em cada caixinha da Zinkra. O sistema acerta a diferença sozinho. O que ele já dividiu e você ainda não moveu no banco não entra nessa conta.</p>
+        <div className="fields">
+          {ZINKRA.map((k) => (
+            <Field key={k} label={NOMES[k]} hint={saldos[k].paradoNaConta ? `${brl(saldos[k].paradoNaConta)} ainda para mover` : undefined}>
+              <MoneyInput value={v[k]} onChange={(x) => setV((o) => ({ ...o, [k]: x }))} />
+            </Field>
+          ))}
+        </div>
+      </div>
+    </Modal>
   )
 }
 

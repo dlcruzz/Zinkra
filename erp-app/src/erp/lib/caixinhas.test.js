@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  PADRAO, ORDEM, validarPercentuais, dividir, configEm, comissaoDoRecebimento, entradasDasCaixinhas,
+  PADRAO, ORDEM, ZINKRA, DANILO, ajusteParaBanco, validarPercentuais, dividir, configEm, comissaoDoRecebimento, entradasDasCaixinhas,
   saidasDaCompra, saldosCaixinhas, validarSaque, progressoCompra, podeComprometer, extrato, pagaveisDeCompras,
 } from './caixinhas'
 
@@ -180,5 +180,19 @@ describe('repasse real ao parceiro no recebimento', () => {
   it('repasse maior que o recebimento nunca passa do que entrou', () => {
     expect(comissaoDoRecebimento(111000, fin, 999999)).toBe(111000)
     expect(comissaoDoRecebimento(111000, fin, -5)).toBe(0)
+  })
+})
+
+describe('acertar o saldo com o banco', () => {
+  it('compara com o que já foi movido (o que está parado na conta não conta)', () => {
+    // sistema mostra R$ 1.055,30, dos quais R$ 677,65 ainda não foram movidos: no banco deveria haver R$ 377,65
+    const s = { saldo: 105530, paradoNaConta: 67765 }
+    expect(ajusteParaBanco(s, 37765)).toBeNull()
+    expect(ajusteParaBanco(s, 50000)).toEqual({ tipo: 'entrada', valor: 12235 })
+    expect(ajusteParaBanco(s, 30000)).toEqual({ tipo: 'saida', valor: 7765 })
+  })
+  it('as partes do Danilo não têm saldo no sistema', () => {
+    expect(ZINKRA).toEqual(['caixa', 'invest'])
+    expect(DANILO).toEqual(['gastar', 'guardar'])
   })
 })

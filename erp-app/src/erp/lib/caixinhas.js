@@ -6,6 +6,10 @@
 import { today } from './format'
 
 export const ORDEM = ['gastar', 'guardar', 'caixa', 'invest']
+// O sistema guarda só o dinheiro da Zinkra (caixa e investimento). As partes do Danilo (gastar e guardar)
+// são só um AVISO do que mandar para ele: dividem a entrada, mas não têm saldo nem extrato aqui.
+export const ZINKRA = ['caixa', 'invest']
+export const DANILO = ['gastar', 'guardar']
 export const NOMES = {
   gastar: 'Danilo · para gastar',
   guardar: 'Danilo · para guardar',
@@ -176,4 +180,13 @@ export function extrato({ caixinha = null, entradas = [], movimentos = [], compr
     for (const k of ['caixa', 'invest']) if (s[k] > 0 && (!caixinha || caixinha === k)) linhas.push({ id: `compra-${c.id}-${k}`, caixinha: k, data: c.comprada_em, sinal: -1, valor: s[k], titulo: `Compra: ${c.nome}`, detalhe: '', tipo: 'compra' })
   }
   return linhas.sort((a, b) => (a.data === b.data ? 0 : a.data < b.data ? 1 : -1))
+}
+
+// Acerta o saldo do sistema com o que o banco mostra na caixinha. O que o ERP dividiu e você ainda não moveu
+// (`paradoNaConta`) ainda não está na caixinha do banco, então não entra na comparação.
+// Devolve o lançamento que falta (entrada ou saída) ou null se já está igual.
+export function ajusteParaBanco(saldo, noBanco) {
+  const movido = (saldo?.saldo || 0) - (saldo?.paradoNaConta || 0)
+  const dif = Math.round(Number(noBanco) || 0) - movido
+  return dif === 0 ? null : { tipo: dif > 0 ? 'entrada' : 'saida', valor: Math.abs(dif) }
 }
